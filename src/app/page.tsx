@@ -4,6 +4,7 @@ import { useAuth } from '@/lib/auth-context'
 import { LoginForm } from '@/components/login-form'
 import { SetupWizard } from '@/components/setup-wizard'
 import { Dashboard } from '@/components/dashboard'
+import { SuperAdminPanel } from '@/components/super-admin-panel'
 import { Loader2, Hotel } from 'lucide-react'
 import { useState, useEffect, useMemo } from 'react'
 import type { Profile } from '@/lib/types'
@@ -85,6 +86,10 @@ export default function Home() {
 
   // Dashboard
   if (view === 'dashboard' && profile) {
+    // Super Admin gets a dedicated panel
+    if (profile.role === 'super_admin') {
+      return <SuperAdminPanel onLogout={handleLogout} profile={profile as Profile} />
+    }
     return <Dashboard profile={profile as Profile} onLogout={handleLogout} />
   }
 
