@@ -2,7 +2,7 @@
 
 import { useState, FormEvent } from 'react'
 import { toast } from 'sonner'
-import { LogIn, Eye, EyeOff, Loader2, Hotel } from 'lucide-react'
+import { LogIn, Eye, EyeOff, Loader2, Hotel, ShieldCheck } from 'lucide-react'
 import {
   Card,
   CardHeader,
@@ -14,12 +14,11 @@ import {
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Button } from '@/components/ui/button'
+import { useAuth } from '@/lib/auth-context'
 
-interface LoginFormProps {
-  onLogin: (profile: any) => void
-}
+export function LoginForm() {
+  const { signIn, isLoading: authLoading } = useAuth()
 
-export function LoginForm({ onLogin }: LoginFormProps) {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
@@ -28,7 +27,7 @@ export function LoginForm({ onLogin }: LoginFormProps) {
 
   function validateForm(): boolean {
     if (!email.trim()) {
-      setError('L\'adresse e-mail est requise')
+      setError("L'adresse e-mail est requise")
       return false
     }
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
@@ -57,19 +56,12 @@ export function LoginForm({ onLogin }: LoginFormProps) {
     setError(null)
 
     try {
-      const response = await fetch('/api/auth/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: email.trim(), password }),
-      })
+      const { error: signInError } = await signIn(email.trim(), password)
 
-      const data = await response.json()
-
-      if (!response.ok) {
-        const errorMessage = data.error || 'Une erreur est survenue lors de la connexion'
-        setError(errorMessage)
+      if (signInError) {
+        setError(signInError)
         toast.error('Échec de connexion', {
-          description: errorMessage,
+          description: signInError,
         })
         return
       }
@@ -77,10 +69,9 @@ export function LoginForm({ onLogin }: LoginFormProps) {
       toast.success('Connexion réussie', {
         description: 'Bienvenue sur HôtelCI !',
       })
-
-      onLogin(data.profile)
     } catch (err) {
-      const errorMessage = 'Erreur de connexion au serveur. Veuillez réessayer.'
+      const errorMessage =
+        'Erreur de connexion au serveur. Veuillez réessayer.'
       setError(errorMessage)
       toast.error('Erreur de connexion', {
         description: errorMessage,
@@ -90,117 +81,151 @@ export function LoginForm({ onLogin }: LoginFormProps) {
     }
   }
 
+  const isSubmitting = isLoading || authLoading
+
   return (
     <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-amber-50 via-orange-50 to-amber-100 px-4 py-8 dark:from-gray-950 dark:via-gray-900 dark:to-gray-950">
-      <Card className="w-full max-w-md shadow-xl border-amber-200/60 dark:border-amber-900/30">
-        <CardHeader className="text-center space-y-3">
-          <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-amber-500 to-orange-600 shadow-lg shadow-amber-500/25">
-            <Hotel className="h-8 w-8 text-white" />
+      <div className="w-full max-w-md space-y-6">
+        {/* Logo and branding */}
+        <div className="text-center space-y-3">
+          <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-2xl bg-gradient-to-br from-amber-500 to-orange-600 shadow-xl shadow-amber-500/30">
+            <Hotel className="h-10 w-10 text-white" />
           </div>
           <div className="space-y-1">
-            <CardTitle className="text-2xl font-bold tracking-tight">
+            <h1 className="text-3xl font-bold tracking-tight">
               <span className="bg-gradient-to-r from-amber-600 to-orange-600 bg-clip-text text-transparent">
                 HôtelCI
               </span>
-            </CardTitle>
-            <CardDescription className="text-sm text-muted-foreground">
+            </h1>
+            <p className="text-sm text-muted-foreground">
               Gestion hôtelière — Côte d&apos;Ivoire
-            </CardDescription>
+            </p>
           </div>
-        </CardHeader>
+        </div>
 
-        <form onSubmit={handleSubmit}>
-          <CardContent className="space-y-5">
-            {error && (
-              <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-900/50 dark:bg-red-950/30 dark:text-red-400" role="alert">
-                <p>{error}</p>
-              </div>
-            )}
+        {/* Login Card */}
+        <Card className="shadow-xl border-amber-200/60 dark:border-amber-900/30">
+          <CardHeader className="text-center space-y-1 pb-4">
+            <CardTitle className="text-lg font-semibold">
+              Connexion
+            </CardTitle>
+            <CardDescription className="text-sm">
+              Entrez vos identifiants pour accéder au système
+            </CardDescription>
+          </CardHeader>
 
-            <div className="space-y-2">
-              <Label htmlFor="email" className="text-sm font-medium">
-                Adresse e-mail
-              </Label>
-              <Input
-                id="email"
-                type="email"
-                placeholder="votre@email.com"
-                value={email}
-                onChange={(e) => {
-                  setEmail(e.target.value)
-                  if (error) setError(null)
-                }}
-                disabled={isLoading}
-                autoComplete="email"
-                autoFocus
-                className="h-11 transition-colors focus-visible:border-amber-500 focus-visible:ring-amber-500/25"
-                aria-describedby={error ? 'login-error' : undefined}
-                aria-invalid={!!error}
-              />
-            </div>
+          <form onSubmit={handleSubmit}>
+            <CardContent className="space-y-5">
+              {error && (
+                <div
+                  className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-900/50 dark:bg-red-950/30 dark:text-red-400"
+                  role="alert"
+                >
+                  <p>{error}</p>
+                </div>
+              )}
 
-            <div className="space-y-2">
-              <Label htmlFor="password" className="text-sm font-medium">
-                Mot de passe
-              </Label>
-              <div className="relative">
+              <div className="space-y-2">
+                <Label htmlFor="email" className="text-sm font-medium">
+                  Adresse e-mail
+                </Label>
                 <Input
-                  id="password"
-                  type={showPassword ? 'text' : 'password'}
-                  placeholder="Entrez votre mot de passe"
-                  value={password}
+                  id="email"
+                  type="email"
+                  placeholder="votre@email.com"
+                  value={email}
                   onChange={(e) => {
-                    setPassword(e.target.value)
+                    setEmail(e.target.value)
                     if (error) setError(null)
                   }}
-                  disabled={isLoading}
-                  autoComplete="current-password"
-                  className="h-11 pr-11 transition-colors focus-visible:border-amber-500 focus-visible:ring-amber-500/25"
-                  aria-describedby={error ? 'login-error' : undefined}
+                  disabled={isSubmitting}
+                  autoComplete="email"
+                  autoFocus
+                  className="h-11 transition-colors focus-visible:border-amber-500 focus-visible:ring-amber-500/25"
                   aria-invalid={!!error}
                 />
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon"
-                  className="absolute right-1 top-1/2 -translate-y-1/2 h-8 w-8 text-muted-foreground hover:text-amber-600"
-                  onClick={() => setShowPassword(!showPassword)}
-                  disabled={isLoading}
-                  aria-label={showPassword ? 'Masquer le mot de passe' : 'Afficher le mot de passe'}
-                  tabIndex={-1}
-                >
-                  {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                </Button>
               </div>
-            </div>
-          </CardContent>
 
-          <CardFooter className="flex-col gap-4">
-            <Button
-              type="submit"
-              disabled={isLoading}
-              className="w-full h-11 bg-gradient-to-r from-amber-500 to-orange-600 text-white font-semibold shadow-md shadow-amber-500/20 hover:from-amber-600 hover:to-orange-700 transition-all disabled:opacity-60"
-              size="lg"
-            >
-              {isLoading ? (
-                <>
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                  Connexion en cours...
-                </>
-              ) : (
-                <>
-                  <LogIn className="h-4 w-4" />
-                  Se connecter
-                </>
-              )}
-            </Button>
+              <div className="space-y-2">
+                <Label htmlFor="password" className="text-sm font-medium">
+                  Mot de passe
+                </Label>
+                <div className="relative">
+                  <Input
+                    id="password"
+                    type={showPassword ? 'text' : 'password'}
+                    placeholder="Entrez votre mot de passe"
+                    value={password}
+                    onChange={(e) => {
+                      setPassword(e.target.value)
+                      if (error) setError(null)
+                    }}
+                    disabled={isSubmitting}
+                    autoComplete="current-password"
+                    className="h-11 pr-11 transition-colors focus-visible:border-amber-500 focus-visible:ring-amber-500/25"
+                    aria-invalid={!!error}
+                  />
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    className="absolute right-1 top-1/2 -translate-y-1/2 h-8 w-8 text-muted-foreground hover:text-amber-600"
+                    onClick={() => setShowPassword(!showPassword)}
+                    disabled={isSubmitting}
+                    aria-label={
+                      showPassword
+                        ? 'Masquer le mot de passe'
+                        : 'Afficher le mot de passe'
+                    }
+                    tabIndex={-1}
+                  >
+                    {showPassword ? (
+                      <EyeOff className="h-4 w-4" />
+                    ) : (
+                      <Eye className="h-4 w-4" />
+                    )}
+                  </Button>
+                </div>
+              </div>
+            </CardContent>
 
-            <p className="text-center text-xs text-muted-foreground">
-              © {new Date().getFullYear()} HôtelCI — Tous droits réservés
-            </p>
-          </CardFooter>
-        </form>
-      </Card>
+            <CardFooter className="flex-col gap-4">
+              <Button
+                type="submit"
+                disabled={isSubmitting}
+                className="w-full h-11 bg-gradient-to-r from-amber-500 to-orange-600 text-white font-semibold shadow-md shadow-amber-500/20 hover:from-amber-600 hover:to-orange-700 transition-all disabled:opacity-60"
+                size="lg"
+              >
+                {isSubmitting ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Connexion en cours...
+                  </>
+                ) : (
+                  <>
+                    <LogIn className="h-4 w-4" />
+                    Se connecter
+                  </>
+                )}
+              </Button>
+            </CardFooter>
+          </form>
+        </Card>
+
+        {/* Security badge */}
+        <div className="flex items-center justify-center gap-2 text-xs text-muted-foreground">
+          <ShieldCheck className="h-3.5 w-3.5" />
+          <span>Connexion sécurisée — Données chiffrées</span>
+        </div>
+
+        {/* Footer */}
+        <div className="text-center text-xs text-muted-foreground">
+          <p>
+            © {new Date().getFullYear()} HôtelCI — Gestion Hôtelière, Côte
+            d&apos;Ivoire
+          </p>
+        </div>
+      </div>
     </div>
   )
 }
