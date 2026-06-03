@@ -10,10 +10,9 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Email et mot de passe requis' }, { status: 400 })
     }
 
-    const supabase = createAdminClient()
-
-    // Sign in with the admin client
-    const { data, error } = await supabase.auth.signInWithPassword({
+    // Use a separate client for auth sign-in
+    const authClient = createAdminClient()
+    const { data, error } = await authClient.auth.signInWithPassword({
       email,
       password,
     })
@@ -22,8 +21,11 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: error.message }, { status: 401 })
     }
 
-    // Get the user's profile
-    const { data: profile, error: profileError } = await supabase
+    // Use a fresh admin client for the profile query to avoid RLS issues.
+    // After signInWithPassword, the client switches to the user's JWT context,
+    // which may be blocked by RLS policies on the profiles table.
+    const dbClient = createAdminClient()
+    const { data: profile, error: profileError } = await dbClient
       .from('profiles')
       .select('*')
       .eq('id', data.user.id)
