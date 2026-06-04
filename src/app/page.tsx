@@ -2,16 +2,22 @@
 
 import { useAuth } from '@/lib/auth-context'
 import { LoginForm } from '@/components/login-form'
+import { RegisterForm } from '@/components/register-form'
 import { SetupWizard } from '@/components/setup-wizard'
 import { Dashboard } from '@/components/dashboard'
 import { SuperAdminPanel } from '@/components/super-admin-panel'
+import { OwnerDashboard } from '@/components/owner-dashboard'
 import { Loader2, Hotel } from 'lucide-react'
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, useCallback } from 'react'
 import type { Profile } from '@/lib/types'
 
+type AppView = 'loading' | 'setup' | 'login' | 'register' | 'dashboard'
+
 export default function Home() {
-  const { user, profile, isLoading, isAuthenticated, signOut } = useAuth()
+  const { profile, isLoading, isAuthenticated, signOut } = useAuth()
   const [setupReady, setSetupReady] = useState<boolean | null>(null) // null = not checked yet
+  const [isNewRegistration, setIsNewRegistration] = useState(false)
+  const [wantsRegister, setWantsRegister] = useState(false) // User explicitly clicked "Register"
 
   // Check setup status on mount
   useEffect(() => {
@@ -33,30 +39,48 @@ export default function Home() {
     return () => { cancelled = true }
   }, [])
 
-  // Derive the view from state instead of using setState in effects
-  const view = useMemo(() => {
-    // Still checking setup
+  // Derive the auto-computed view from auth state (no setState in effect!)
+  const autoView = useMemo<AppView>(() => {
     if (setupReady === null) return 'loading'
-    // Setup not ready
     if (!setupReady) return 'setup'
-    // Auth is loading
     if (isLoading) return 'loading'
-    // Authenticated with profile
     if (isAuthenticated && profile) return 'dashboard'
-    // Not authenticated
     return 'login'
   }, [setupReady, isLoading, isAuthenticated, profile])
 
-  const handleSetupComplete = () => {
-    setSetupReady(true)
-  }
+  // Determine the actual view to show:
+  // - If user explicitly wants to register AND is not authenticated → show register
+  // - Otherwise → follow autoView
+  const currentView = useMemo<AppView>(() => {
+    if (wantsRegister && autoView === 'login') return 'register'
+    return autoView
+  }, [wantsRegister, autoView])
 
-  const handleLogout = async () => {
+  const handleSetupComplete = useCallback(() => {
+    setSetupReady(true)
+  }, [])
+
+  const handleLogout = useCallback(async () => {
     await signOut()
-  }
+    setIsNewRegistration(false)
+    setWantsRegister(false)
+  }, [signOut])
+
+  const handleSwitchToRegister = useCallback(() => {
+    setWantsRegister(true)
+  }, [])
+
+  const handleSwitchToLogin = useCallback(() => {
+    setWantsRegister(false)
+  }, [])
+
+  const handleRegistrationSuccess = useCallback(() => {
+    setIsNewRegistration(true)
+    setWantsRegister(false) // After registration, auth state updates → autoView becomes 'dashboard'
+  }, [])
 
   // Loading state
-  if (view === 'loading') {
+  if (currentView === 'loading') {
     return (
       <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-amber-50 via-orange-50 to-amber-100 dark:from-gray-950 dark:via-gray-900 dark:to-gray-950">
         <div className="flex flex-col items-center gap-4">
@@ -75,24 +99,49 @@ export default function Home() {
   }
 
   // Setup wizard
-  if (view === 'setup') {
+  if (currentView === 'setup') {
     return <SetupWizard onComplete={handleSetupComplete} />
   }
 
+  // Registration form
+  if (currentView === 'register') {
+    return (
+      <RegisterForm
+        onSwitchToLogin={handleSwitchToLogin}
+        onRegistrationSuccess={handleRegistrationSuccess}
+      />
+    )
+  }
+
   // Login form
-  if (view === 'login') {
-    return <LoginForm />
+  if (currentView === 'login') {
+    return (
+      <LoginForm
+        onSwitchToRegister={handleSwitchToRegister}
+      />
+    )
   }
 
   // Dashboard
-  if (view === 'dashboard' && profile) {
+  if (currentView === 'dashboard' && profile) {
     // Super Admin gets a dedicated panel
     if (profile.role === 'super_admin') {
       return <SuperAdminPanel onLogout={handleLogout} profile={profile as Profile} />
     }
+    // Owner gets the dedicated owner dashboard
+    if (profile.role === 'owner') {
+      return (
+        <OwnerDashboard
+          profile={profile as Profile}
+          onLogout={handleLogout}
+          isNewRegistration={isNewRegistration}
+        />
+      )
+    }
+    // Other roles get the generic dashboard
     return <Dashboard profile={profile as Profile} onLogout={handleLogout} />
   }
 
   // Fallback
-  return <LoginForm />
+  return <LoginForm onSwitchToRegister={handleSwitchToRegister} />
 }

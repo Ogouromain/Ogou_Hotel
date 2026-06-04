@@ -16,7 +16,11 @@ import { Label } from '@/components/ui/label'
 import { Button } from '@/components/ui/button'
 import { useAuth } from '@/lib/auth-context'
 
-export function LoginForm() {
+interface LoginFormProps {
+  onSwitchToRegister?: () => void
+}
+
+export function LoginForm({ onSwitchToRegister }: LoginFormProps) {
   const { signIn, isLoading: authLoading } = useAuth()
 
   const [email, setEmail] = useState('')
@@ -211,6 +215,19 @@ export function LoginForm() {
             </CardFooter>
           </form>
         </Card>
+
+        {/* Register Link */}
+        {onSwitchToRegister && (
+          <div className="text-center">
+            <button
+              type="button"
+              onClick={onSwitchToRegister}
+              className="text-sm text-amber-600 hover:text-amber-700 font-medium hover:underline transition-colors"
+            >
+              Vous avez un code d&apos;activation ? Inscrivez-vous
+            </button>
+          </div>
+        )}
 
         {/* Security badge */}
         <div className="flex items-center justify-center gap-2 text-xs text-muted-foreground">
