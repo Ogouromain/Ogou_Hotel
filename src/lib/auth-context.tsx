@@ -71,6 +71,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       try {
         const supabase = supabaseRef.current
 
+        if (!supabase) {
+          return { error: 'Supabase non configuré. Veuillez configurer les variables d\'environnement.' }
+        }
+
         const { data, error } = await supabase.auth.signInWithPassword({
           email,
           password,
@@ -107,7 +111,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const signOut = useCallback(async () => {
     try {
       const supabase = supabaseRef.current
-      await supabase.auth.signOut()
+      if (supabase) {
+        await supabase.auth.signOut()
+      }
 
       // Call server-side logout to clear cookies
       await fetch('/api/auth/logout', { method: 'POST' })
@@ -138,6 +144,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     isMountedRef.current = true
     const supabase = supabaseRef.current
+
+    // If Supabase is not configured, skip auth and show login
+    if (!supabase) {
+      setIsLoading(false)
+      return
+    }
 
     let isInitializing = true
 

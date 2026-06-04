@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { format, parseISO } from 'date-fns'
 import { fr } from 'date-fns/locale'
 import { toast } from 'sonner'
@@ -35,6 +35,8 @@ import { TooltipProvider } from '@/components/ui/tooltip'
 import { PlanningGrid } from '@/components/planning-grid'
 import { ReservationCreationDialog } from '@/components/reservation-dialog'
 import { ReservationDetailSheet } from '@/components/reservation-detail-sheet'
+import { useRealtimeSafe } from '@/lib/realtime-context'
+import { RealtimeIndicator } from '@/components/realtime-indicator'
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -135,6 +137,10 @@ export function ReservationsTab({ rooms, onRefresh }: ReservationsTabProps) {
   const [detailSheetOpen, setDetailSheetOpen] = useState(false)
   const [selectedReservation, setSelectedReservation] = useState<ReservationInfo | null>(null)
 
+  // ─── Real-time subscription ──────────────────────────────────────────────
+  const { recentChanges } = useRealtimeSafe()
+  const prevChangeCountRef = useRef(0)
+
   // ─── Fetch reservations ───────────────────────────────────────────────
   const fetchReservations = useCallback(async () => {
     setLoading(true)
@@ -154,6 +160,23 @@ export function ReservationsTab({ rooms, onRefresh }: ReservationsTabProps) {
   useEffect(() => {
     fetchReservations()
   }, [fetchReservations])
+
+  // ─── React to real-time changes ────────────────────────────────────────
+  useEffect(() => {
+    if (recentChanges.length > prevChangeCountRef.current && prevChangeCountRef.current > 0) {
+      // Only refresh if the change is on reservations or rooms table
+      const latestChange = recentChanges[0]
+      if (latestChange.table === 'reservations' || latestChange.table === 'rooms') {
+        // Debounce rapid changes
+        const timer = setTimeout(() => {
+          fetchReservations()
+          onRefresh?.()
+        }, 500)
+        return () => clearTimeout(timer)
+      }
+    }
+    prevChangeCountRef.current = recentChanges.length
+  }, [recentChanges.length, fetchReservations, onRefresh])
 
   // ─── Filtered & sorted reservations ───────────────────────────────────
   const filteredReservations = reservations
@@ -226,6 +249,7 @@ export function ReservationsTab({ rooms, onRefresh }: ReservationsTabProps) {
             </p>
           </div>
           <div className="flex items-center gap-2">
+            <RealtimeIndicator />
             <Button variant="outline" size="sm" onClick={() => { fetchReservations(); onRefresh?.() }} disabled={loading}>
               <RefreshCw className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
               Actualiser

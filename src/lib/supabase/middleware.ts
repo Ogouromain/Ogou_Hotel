@@ -3,8 +3,16 @@ import { NextResponse, type NextRequest } from 'next/server'
 import type { Database } from '@/lib/types'
 import type { User } from '@supabase/supabase-js'
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || ''
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ''
+
+/**
+ * Check if Supabase credentials are configured.
+ * If not, the app will work in offline/demo mode.
+ */
+function isSupabaseConfigured(): boolean {
+  return !!(supabaseUrl && supabaseAnonKey && supabaseUrl.startsWith('http'))
+}
 
 /**
  * Middleware helper for Supabase session management.
@@ -18,6 +26,16 @@ const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
  */
 export async function updateSession(request: NextRequest) {
   let supabaseResponse = NextResponse.next({ request })
+
+  // If Supabase is not configured, skip session management
+  if (!isSupabaseConfigured()) {
+    return { supabase: null, supabaseResponse, user: null, session: null } as {
+      supabase: null
+      supabaseResponse: NextResponse
+      user: null
+      session: null
+    }
+  }
 
   const supabase = createServerClient<Database>(supabaseUrl, supabaseAnonKey, {
     cookies: {

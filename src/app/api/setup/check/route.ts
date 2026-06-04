@@ -5,6 +5,17 @@ export async function GET() {
   try {
     const supabase = createAdminClient()
 
+    // If Supabase is not configured, return setup not ready
+    if (!supabase) {
+      return NextResponse.json({
+        tablesExist: false,
+        adminExists: false,
+        plansSeeded: false,
+        ready: false,
+        supabaseNotConfigured: true,
+      })
+    }
+
     // Check if hotels table exists by trying to query it
     const { error: hotelsError } = await supabase
       .from('hotels')

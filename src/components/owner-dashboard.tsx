@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { toast } from 'sonner'
 import {
   Hotel,
@@ -78,6 +78,9 @@ import { Alert, AlertDescription } from '@/components/ui/alert'
 
 import { ReservationsTab } from '@/components/reservations-tab'
 import { CustomersTab } from '@/components/customers-tab'
+import { RealtimeIndicator, RealtimeRefreshPulse } from '@/components/realtime-indicator'
+import { useRealtimeSafe } from '@/lib/realtime-context'
+import type { RealtimePostgresChangesPayload } from '@supabase/supabase-js'
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -324,6 +327,31 @@ export function OwnerDashboard({ profile, onLogout, isNewRegistration }: OwnerDa
   const [loading, setLoading] = useState(true)
   const [showSuccessBanner, setShowSuccessBanner] = useState(isNewRegistration ?? false)
 
+  // ─── Real-time subscription ────────────────────────────────────────────
+  const {
+    status: realtimeStatus,
+    startListening: startRealtimeListening,
+    stopListening: stopRealtimeListening,
+    recentChanges,
+    markRefreshed,
+  } = useRealtimeSafe()
+
+  // Ref for fetchAllData to avoid circular deps in debouncedRefresh
+  const fetchAllDataRef = useRef<() => void>(() => {})
+
+  // Debounce rapid real-time refreshes (e.g., bulk updates)
+  const refreshTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  const debouncedRefresh = useCallback(() => {
+    if (refreshTimeoutRef.current) {
+      clearTimeout(refreshTimeoutRef.current)
+    }
+    refreshTimeoutRef.current = setTimeout(() => {
+      fetchAllDataRef.current()
+      markRefreshed()
+    }, 500) // 500ms debounce
+  }, [markRefreshed])
+
   // Fetch all data
   const fetchAllData = useCallback(async () => {
     setLoading(true)
@@ -360,12 +388,50 @@ export function OwnerDashboard({ profile, onLogout, isNewRegistration }: OwnerDa
     }
   }, [])
 
+  // Keep ref up-to-date
+  useEffect(() => {
+    fetchAllDataRef.current = fetchAllData
+  }, [fetchAllData])
+
   useEffect(() => {
     fetchAllData()
   }, [fetchAllData])
 
+  // ─── Start real-time listening when profile is loaded ─────────────────
+  useEffect(() => {
+    if (profile.hotel_id) {
+      startRealtimeListening(profile.hotel_id)
+    }
+    return () => {
+      stopRealtimeListening()
+    }
+  }, [profile.hotel_id, startRealtimeListening, stopRealtimeListening])
+
+  // ─── React to real-time changes (debounced) ──────────────────────────
+  const prevChangeCountRef = useRef(0)
+  useEffect(() => {
+    if (recentChanges.length > prevChangeCountRef.current && prevChangeCountRef.current > 0) {
+      // New change detected — trigger a silent data refresh
+      const latestChange = recentChanges[0]
+      const tableLabel = latestChange.table === 'rooms' ? 'chambre' : 'réservation'
+      const actionLabel = latestChange.eventType === 'INSERT' ? 'ajouté'
+        : latestChange.eventType === 'UPDATE' ? 'modifié'
+        : 'supprimé'
+
+      toast.info(`Temps réel : ${tableLabel} ${actionLabel}`, {
+        description: 'Les données sont mises à jour automatiquement',
+        duration: 3000,
+      })
+      debouncedRefresh()
+    }
+    prevChangeCountRef.current = recentChanges.length
+  }, [recentChanges.length, debouncedRefresh])
+
   return (
     <div className="flex min-h-screen bg-gray-50/50">
+      {/* Real-time visual feedback */}
+      <RealtimeRefreshPulse />
+
       {/* ─── Sidebar ────────────────────────────────────────────────────── */}
       <aside className="hidden lg:flex w-64 flex-col border-r border-amber-200/50 bg-gradient-to-b from-amber-50 to-orange-50 shrink-0">
         {/* Logo */}
@@ -373,9 +439,12 @@ export function OwnerDashboard({ profile, onLogout, isNewRegistration }: OwnerDa
           <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-amber-500 to-orange-600 shadow-lg shadow-amber-500/30">
             <Hotel className="h-5 w-5 text-white" />
           </div>
-          <div>
+          <div className="flex-1 min-w-0">
             <h1 className="text-lg font-bold text-amber-900">HôtelCI</h1>
-            <p className="text-[10px] uppercase tracking-wider text-amber-600 font-semibold">Propriétaire</p>
+            <div className="flex items-center gap-2">
+              <p className="text-[10px] uppercase tracking-wider text-amber-600 font-semibold">Propriétaire</p>
+              <RealtimeIndicator compact />
+            </div>
           </div>
         </div>
 
@@ -460,9 +529,12 @@ export function OwnerDashboard({ profile, onLogout, isNewRegistration }: OwnerDa
                     <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-amber-500 to-orange-600 shadow-lg">
                       <Hotel className="h-5 w-5 text-white" />
                     </div>
-                    <div>
+                    <div className="flex-1 min-w-0">
                       <h1 className="text-lg font-bold text-amber-900">HôtelCI</h1>
-                      <p className="text-[10px] uppercase tracking-wider text-amber-600 font-semibold">Propriétaire</p>
+                      <div className="flex items-center gap-2">
+                        <p className="text-[10px] uppercase tracking-wider text-amber-600 font-semibold">Propriétaire</p>
+                        <RealtimeIndicator compact />
+                      </div>
                     </div>
                   </div>
                   <nav className="flex-1 px-3 py-4 space-y-1">
@@ -492,9 +564,12 @@ export function OwnerDashboard({ profile, onLogout, isNewRegistration }: OwnerDa
             </Sheet>
             <span className="font-bold text-amber-900">HôtelCI</span>
           </div>
-          <Button variant="ghost" size="sm" onClick={onLogout}>
-            <LogOut className="h-4 w-4" />
-          </Button>
+          <div className="flex items-center gap-2">
+            <RealtimeIndicator />
+            <Button variant="ghost" size="sm" onClick={onLogout}>
+              <LogOut className="h-4 w-4" />
+            </Button>
+          </div>
         </div>
 
         {/* Mobile Navigation */}
