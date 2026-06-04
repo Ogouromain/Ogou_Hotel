@@ -17,7 +17,7 @@ import type { RealtimeChannel, RealtimePostgresChangesPayload } from '@supabase/
 type RealtimeStatus = 'connecting' | 'connected' | 'disconnected' | 'error'
 
 interface RealtimeChangeEvent {
-  table: string
+  table: 'rooms' | 'reservations' | 'restaurant_orders' | 'stock_items' | 'notifications'
   eventType: 'INSERT' | 'UPDATE' | 'DELETE'
   new: Record<string, unknown>
   old: Record<string, unknown>
@@ -122,39 +122,34 @@ export function RealtimeProvider({ children, enabled = false }: RealtimeProvider
 
     setStatus('connecting')
 
+    // Helper to build a change event handler for a given table
+    const makeHandler = (
+      tableName: RealtimeChangeEvent['table']
+    ) =>
+      (payload: RealtimePostgresChangesPayload<Record<string, unknown>>) => {
+        const change: RealtimeChangeEvent = {
+          table: tableName,
+          eventType: payload.eventType as 'INSERT' | 'UPDATE' | 'DELETE',
+          new: payload.new as Record<string, unknown>,
+          old: payload.old as Record<string, unknown>,
+          timestamp: Date.now(),
+        }
+        setRecentChanges((prev) => [change, ...prev].slice(0, 50))
+      }
+
     // Create the real-time channel — exactly matching the user's pattern:
-    //   .on('postgres_changes', { event: '*', schema: 'public', table: 'rooms' }, ...)
-    //   .on('postgres_changes', { event: '*', schema: 'public', table: 'reservations' }, ...)
+    //   .on('postgres_changes', { event: '*', schema: 'public', table: 'rooms' }, handler)
+    //   .on('postgres_changes', { event: '*', schema: 'public', table: 'reservations' }, handler)
+    //   .on('postgres_changes', { event: '*', schema: 'public', table: 'restaurant_orders' }, handler)
+    //   .on('postgres_changes', { event: '*', schema: 'public', table: 'stock_items' }, handler)
+    //   .on('postgres_changes', { event: '*', schema: 'public', table: 'notifications' }, handler)
     const channel = supabase
       .channel('schema-db-changes')
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'rooms' },
-        (payload: RealtimePostgresChangesPayload<Record<string, unknown>>) => {
-          const change: RealtimeChangeEvent = {
-            table: 'rooms',
-            eventType: payload.eventType as 'INSERT' | 'UPDATE' | 'DELETE',
-            new: payload.new as Record<string, unknown>,
-            old: payload.old as Record<string, unknown>,
-            timestamp: Date.now(),
-          }
-          setRecentChanges((prev) => [change, ...prev].slice(0, 50))
-        }
-      )
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'reservations' },
-        (payload: RealtimePostgresChangesPayload<Record<string, unknown>>) => {
-          const change: RealtimeChangeEvent = {
-            table: 'reservations',
-            eventType: payload.eventType as 'INSERT' | 'UPDATE' | 'DELETE',
-            new: payload.new as Record<string, unknown>,
-            old: payload.old as Record<string, unknown>,
-            timestamp: Date.now(),
-          }
-          setRecentChanges((prev) => [change, ...prev].slice(0, 50))
-        }
-      )
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'rooms' }, makeHandler('rooms'))
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'reservations' }, makeHandler('reservations'))
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'restaurant_orders' }, makeHandler('restaurant_orders'))
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'stock_items' }, makeHandler('stock_items'))
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'notifications' }, makeHandler('notifications'))
       .subscribe((state, err) => {
         if (state === 'SUBSCRIBED') {
           setStatus('connected')

@@ -33,6 +33,7 @@ import {
   ArrowUpDown,
   Wrench,
   Sparkles,
+  Bell,
 } from 'lucide-react'
 
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
@@ -78,6 +79,8 @@ import { Alert, AlertDescription } from '@/components/ui/alert'
 
 import { ReservationsTab } from '@/components/reservations-tab'
 import { CustomersTab } from '@/components/customers-tab'
+import { AnalyticsTab } from '@/components/analytics-tab'
+import { NotificationPanel } from '@/components/notification-panel'
 import { RealtimeIndicator, RealtimeRefreshPulse } from '@/components/realtime-indicator'
 import { useRealtimeSafe } from '@/lib/realtime-context'
 import type { RealtimePostgresChangesPayload } from '@supabase/supabase-js'
@@ -151,7 +154,7 @@ interface EmployeeInfo {
   created_at: string
 }
 
-type TabId = 'overview' | 'rooms' | 'reservations' | 'customers' | 'team' | 'settings'
+type TabId = 'overview' | 'rooms' | 'reservations' | 'customers' | 'analytics' | 'notifications' | 'team' | 'settings'
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -234,6 +237,8 @@ const NAV_ITEMS: { id: TabId; label: string; icon: React.ReactNode }[] = [
   { id: 'rooms', label: 'Chambres', icon: <Bed className="h-4 w-4" /> },
   { id: 'reservations', label: 'Réservations', icon: <Calendar className="h-4 w-4" /> },
   { id: 'customers', label: 'Clients', icon: <Users className="h-4 w-4" /> },
+  { id: 'analytics', label: 'Analytique', icon: <BarChart3 className="h-4 w-4" /> },
+  { id: 'notifications', label: 'Notifications', icon: <Bell className="h-4 w-4" /> },
   { id: 'team', label: 'Équipe', icon: <UserPlus className="h-4 w-4" /> },
   { id: 'settings', label: 'Paramètres', icon: <Settings className="h-4 w-4" /> },
 ]
@@ -496,6 +501,18 @@ export function OwnerDashboard({ profile, onLogout, isNewRegistration }: OwnerDa
                 Propriétaire
               </p>
             </div>
+            {recentChanges.length > 0 && (
+              <button
+                onClick={() => setActiveTab('notifications')}
+                className="relative shrink-0 ml-1"
+                title="Notifications non lues"
+              >
+                <Bell className="h-4 w-4 text-amber-600 hover:text-amber-800 transition-colors" />
+                <span className="absolute -top-1.5 -right-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-amber-500 text-[9px] font-bold text-white">
+                  {recentChanges.length > 9 ? '9+' : recentChanges.length}
+                </span>
+              </button>
+            )}
           </div>
           <Button
             variant="outline"
@@ -652,6 +669,14 @@ export function OwnerDashboard({ profile, onLogout, isNewRegistration }: OwnerDa
 
           {activeTab === 'customers' && (
             <CustomersTab onRefresh={fetchAllData} />
+          )}
+
+          {activeTab === 'analytics' && (
+            <AnalyticsTab onRefresh={fetchAllData} />
+          )}
+
+          {activeTab === 'notifications' && (
+            <NotificationPanel onRefresh={fetchAllData} />
           )}
 
           {activeTab === 'team' && (
