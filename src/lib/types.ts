@@ -102,6 +102,7 @@ export interface Customer {
   phone: string
   identity_document_type: string | null
   identity_document_number: string | null
+  identity_document_path: string | null
   created_at: string
   updated_at: string
 }

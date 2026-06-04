@@ -346,4 +346,53 @@ CREATE TRIGGER trigger_check_room_limits
 BEFORE INSERT ON public.rooms
 FOR EACH ROW
 WHEN (NEW.hotel_id IS NOT NULL)
-EXECUTE FUNCTION public.check_room_limits();`
+EXECUTE FUNCTION public.check_room_limits();
+
+-- ==================== STOCKAGE PRIVÉ : PIÈCES D'IDENTITÉ CLIENTS ====================
+INSERT INTO storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+VALUES (
+  'customer-documents',
+  'customer-documents',
+  false,
+  5242880,
+  ARRAY['image/jpeg', 'image/png', 'image/webp', 'application/pdf']
+) ON CONFLICT (id) DO NOTHING;
+
+CREATE POLICY "Users can read own hotel documents"
+ON storage.objects FOR SELECT
+USING (
+  bucket_id = 'customer-documents'
+  AND auth.uid() IS NOT NULL
+  AND (storage.foldername(name))[1] = (
+    SELECT p.hotel_id::text
+    FROM public.profiles p
+    WHERE p.id = auth.uid()
+  )
+);
+
+CREATE POLICY "Users can upload to own hotel folder"
+ON storage.objects FOR INSERT
+WITH CHECK (
+  bucket_id = 'customer-documents'
+  AND auth.uid() IS NOT NULL
+  AND (storage.foldername(name))[1] = (
+    SELECT p.hotel_id::text
+    FROM public.profiles p
+    WHERE p.id = auth.uid()
+  )
+);
+
+CREATE POLICY "Users can delete own hotel documents"
+ON storage.objects FOR DELETE
+USING (
+  bucket_id = 'customer-documents'
+  AND auth.uid() IS NOT NULL
+  AND (storage.foldername(name))[1] = (
+    SELECT p.hotel_id::text
+    FROM public.profiles p
+    WHERE p.id = auth.uid()
+  )
+);
+
+ALTER TABLE public.customers
+ADD COLUMN IF NOT EXISTS identity_document_path TEXT;`

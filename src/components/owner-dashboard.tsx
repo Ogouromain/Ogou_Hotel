@@ -76,6 +76,9 @@ import { ScrollArea } from '@/components/ui/scroll-area'
 import { Progress } from '@/components/ui/progress'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 
+import { ReservationsTab } from '@/components/reservations-tab'
+import { CustomersTab } from '@/components/customers-tab'
+
 // ─── Types ───────────────────────────────────────────────────────────────────
 
 interface OwnerDashboardProps {
@@ -145,7 +148,7 @@ interface EmployeeInfo {
   created_at: string
 }
 
-type TabId = 'overview' | 'rooms' | 'team' | 'settings'
+type TabId = 'overview' | 'rooms' | 'reservations' | 'customers' | 'team' | 'settings'
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -226,7 +229,9 @@ function getEmployeeStatusBadge(status: string) {
 const NAV_ITEMS: { id: TabId; label: string; icon: React.ReactNode }[] = [
   { id: 'overview', label: 'Tableau de bord', icon: <BarChart3 className="h-4 w-4" /> },
   { id: 'rooms', label: 'Chambres', icon: <Bed className="h-4 w-4" /> },
-  { id: 'team', label: 'Équipe', icon: <Users className="h-4 w-4" /> },
+  { id: 'reservations', label: 'Réservations', icon: <Calendar className="h-4 w-4" /> },
+  { id: 'customers', label: 'Clients', icon: <Users className="h-4 w-4" /> },
+  { id: 'team', label: 'Équipe', icon: <UserPlus className="h-4 w-4" /> },
   { id: 'settings', label: 'Paramètres', icon: <Settings className="h-4 w-4" /> },
 ]
 
@@ -315,6 +320,7 @@ export function OwnerDashboard({ profile, onLogout, isNewRegistration }: OwnerDa
   const [planInfo, setPlanInfo] = useState<PlanInfo | null>(null)
   const [usage, setUsage] = useState({ rooms: 0, receptionists: 0, managers: 0 })
   const [canAdd, setCanAdd] = useState({ rooms: false, receptionists: false, managers: false })
+  const [roomsList, setRoomsList] = useState<RoomInfo[]>([])
   const [loading, setLoading] = useState(true)
   const [showSuccessBanner, setShowSuccessBanner] = useState(isNewRegistration ?? false)
 
@@ -322,9 +328,10 @@ export function OwnerDashboard({ profile, onLogout, isNewRegistration }: OwnerDa
   const fetchAllData = useCallback(async () => {
     setLoading(true)
     try {
-      const [hotelRes, subRes] = await Promise.all([
+      const [hotelRes, subRes, roomsRes] = await Promise.all([
         fetch('/api/owner/hotel'),
         fetch('/api/owner/subscription'),
+        fetch('/api/owner/rooms'),
       ])
 
       if (hotelRes.ok) {
@@ -340,6 +347,11 @@ export function OwnerDashboard({ profile, onLogout, isNewRegistration }: OwnerDa
         if (data.canAdd) setCanAdd(data.canAdd)
         // Sync subscription info from the detailed endpoint
         if (data.subscription) setSubscription(data.subscription)
+      }
+
+      if (roomsRes.ok) {
+        const data = await roomsRes.json()
+        if (data.rooms) setRoomsList(data.rooms)
       }
     } catch {
       console.error('Failed to fetch owner data')
@@ -536,6 +548,8 @@ export function OwnerDashboard({ profile, onLogout, isNewRegistration }: OwnerDa
               loading={loading}
               onNavigateToRooms={() => setActiveTab('rooms')}
               onNavigateToTeam={() => setActiveTab('team')}
+              onNavigateToReservations={() => setActiveTab('reservations')}
+              onNavigateToCustomers={() => setActiveTab('customers')}
             />
           )}
 
@@ -546,6 +560,23 @@ export function OwnerDashboard({ profile, onLogout, isNewRegistration }: OwnerDa
               canAddRooms={canAdd.rooms}
               onRefresh={fetchAllData}
             />
+          )}
+
+          {activeTab === 'reservations' && (
+            <ReservationsTab
+              rooms={roomsList.map((r) => ({
+                id: r.id,
+                room_number: r.room_number,
+                room_type: r.room_type,
+                status: r.status,
+                price_per_night: r.price_per_night,
+              }))}
+              onRefresh={fetchAllData}
+            />
+          )}
+
+          {activeTab === 'customers' && (
+            <CustomersTab onRefresh={fetchAllData} />
           )}
 
           {activeTab === 'team' && (
@@ -588,14 +619,16 @@ function OverviewTab({
   loading: boolean
   onNavigateToRooms: () => void
   onNavigateToTeam: () => void
+  onNavigateToReservations?: () => void
+  onNavigateToCustomers?: () => void
 }) {
   const totalEmployees = usage.receptionists + usage.managers + 1 // +1 for owner
 
   const statCards = [
-    { title: 'Chambres', value: usage.rooms, icon: <Bed className="h-5 w-5" />, color: 'text-amber-600', bg: 'bg-amber-50', max: planInfo?.limits.max_rooms },
-    { title: 'Réservations', value: 0, icon: <Calendar className="h-5 w-5" />, color: 'text-orange-600', bg: 'bg-orange-50', max: undefined },
-    { title: 'Équipe', value: totalEmployees, icon: <Users className="h-5 w-5" />, color: 'text-emerald-600', bg: 'bg-emerald-50', max: undefined },
-    { title: 'Occupation', value: '0%', icon: <BarChart3 className="h-5 w-5" />, color: 'text-rose-600', bg: 'bg-rose-50', max: undefined },
+    { title: 'Chambres', value: usage.rooms, icon: <Bed className="h-5 w-5" />, color: 'text-amber-600', bg: 'bg-amber-50', max: planInfo?.limits.max_rooms, onClick: onNavigateToRooms },
+    { title: 'Réservations', value: 0, icon: <Calendar className="h-5 w-5" />, color: 'text-orange-600', bg: 'bg-orange-50', max: undefined, onClick: undefined },
+    { title: 'Équipe', value: totalEmployees, icon: <Users className="h-5 w-5" />, color: 'text-emerald-600', bg: 'bg-emerald-50', max: undefined, onClick: onNavigateToTeam },
+    { title: 'Clients', value: 0, icon: <Users className="h-5 w-5" />, color: 'text-sky-600', bg: 'bg-sky-50', max: undefined, onClick: undefined },
   ]
 
   return (
@@ -734,29 +767,49 @@ function OverviewTab({
       )}
 
       {/* Quick Actions */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
         <Card className="border-amber-200/60 hover:border-amber-300 transition-colors cursor-pointer" onClick={onNavigateToRooms}>
-          <CardContent className="p-6 flex items-center gap-4">
-            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg bg-amber-50 text-amber-600">
-              <Bed className="h-6 w-6" />
+          <CardContent className="p-5 flex items-center gap-3">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-amber-50 text-amber-600">
+              <Bed className="h-5 w-5" />
             </div>
-            <div className="flex-1">
-              <p className="font-medium">Gérer les Chambres</p>
-              <p className="text-sm text-muted-foreground">{usage.rooms} chambre{usage.rooms !== 1 ? 's' : ''} configurée{usage.rooms !== 1 ? 's' : ''}</p>
+            <div className="flex-1 min-w-0">
+              <p className="font-medium text-sm">Chambres</p>
+              <p className="text-xs text-muted-foreground">{usage.rooms} configurée{usage.rooms !== 1 ? 's' : ''}</p>
             </div>
-            <Plus className="h-5 w-5 text-amber-400" />
           </CardContent>
         </Card>
-        <Card className="border-amber-200/60 hover:border-amber-300 transition-colors cursor-pointer" onClick={onNavigateToTeam}>
-          <CardContent className="p-6 flex items-center gap-4">
-            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg bg-emerald-50 text-emerald-600">
-              <Users className="h-6 w-6" />
+        <Card className="border-orange-200/60 hover:border-orange-300 transition-colors cursor-pointer" onClick={onNavigateToReservations}>
+          <CardContent className="p-5 flex items-center gap-3">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-orange-50 text-orange-600">
+              <Calendar className="h-5 w-5" />
             </div>
-            <div className="flex-1">
-              <p className="font-medium">Gérer l&apos;Équipe</p>
-              <p className="text-sm text-muted-foreground">{usage.receptionists + usage.managers} employé{usage.receptionists + usage.managers !== 1 ? 's' : ''}</p>
+            <div className="flex-1 min-w-0">
+              <p className="font-medium text-sm">Réservations</p>
+              <p className="text-xs text-muted-foreground">Planning & check-in/out</p>
             </div>
-            <UserPlus className="h-5 w-5 text-emerald-400" />
+          </CardContent>
+        </Card>
+        <Card className="border-sky-200/60 hover:border-sky-300 transition-colors cursor-pointer" onClick={onNavigateToCustomers}>
+          <CardContent className="p-5 flex items-center gap-3">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-sky-50 text-sky-600">
+              <Users className="h-5 w-5" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="font-medium text-sm">Clients</p>
+              <p className="text-xs text-muted-foreground">Fiches & documents</p>
+            </div>
+          </CardContent>
+        </Card>
+        <Card className="border-emerald-200/60 hover:border-emerald-300 transition-colors cursor-pointer" onClick={onNavigateToTeam}>
+          <CardContent className="p-5 flex items-center gap-3">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-emerald-50 text-emerald-600">
+              <UserPlus className="h-5 w-5" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="font-medium text-sm">Équipe</p>
+              <p className="text-xs text-muted-foreground">{usage.receptionists + usage.managers} employé{usage.receptionists + usage.managers !== 1 ? 's' : ''}</p>
+            </div>
           </CardContent>
         </Card>
       </div>
