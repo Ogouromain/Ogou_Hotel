@@ -318,7 +318,7 @@ export function OwnerDashboard({ profile, onLogout, isNewRegistration }: OwnerDa
   const [hotelInfo, setHotelInfo] = useState<HotelInfo | null>(null)
   const [subscription, setSubscription] = useState<SubscriptionInfo | null>(null)
   const [planInfo, setPlanInfo] = useState<PlanInfo | null>(null)
-  const [usage, setUsage] = useState({ rooms: 0, receptionists: 0, managers: 0 })
+  const [usage, setUsage] = useState({ rooms: 0, receptionists: 0, managers: 0, reservations: 0, customers: 0 })
   const [canAdd, setCanAdd] = useState({ rooms: false, receptionists: false, managers: false })
   const [roomsList, setRoomsList] = useState<RoomInfo[]>([])
   const [loading, setLoading] = useState(true)
@@ -611,11 +611,13 @@ function OverviewTab({
   loading,
   onNavigateToRooms,
   onNavigateToTeam,
+  onNavigateToReservations,
+  onNavigateToCustomers,
 }: {
   hotelInfo: HotelInfo | null
   subscription: SubscriptionInfo | null
   planInfo: PlanInfo | null
-  usage: { rooms: number; receptionists: number; managers: number }
+  usage: { rooms: number; receptionists: number; managers: number; reservations: number; customers: number }
   loading: boolean
   onNavigateToRooms: () => void
   onNavigateToTeam: () => void
@@ -626,9 +628,9 @@ function OverviewTab({
 
   const statCards = [
     { title: 'Chambres', value: usage.rooms, icon: <Bed className="h-5 w-5" />, color: 'text-amber-600', bg: 'bg-amber-50', max: planInfo?.limits.max_rooms, onClick: onNavigateToRooms },
-    { title: 'Réservations', value: 0, icon: <Calendar className="h-5 w-5" />, color: 'text-orange-600', bg: 'bg-orange-50', max: undefined, onClick: undefined },
+    { title: 'Réservations', value: usage.reservations, icon: <Calendar className="h-5 w-5" />, color: 'text-orange-600', bg: 'bg-orange-50', max: undefined, onClick: onNavigateToReservations },
     { title: 'Équipe', value: totalEmployees, icon: <Users className="h-5 w-5" />, color: 'text-emerald-600', bg: 'bg-emerald-50', max: undefined, onClick: onNavigateToTeam },
-    { title: 'Clients', value: 0, icon: <Users className="h-5 w-5" />, color: 'text-sky-600', bg: 'bg-sky-50', max: undefined, onClick: undefined },
+    { title: 'Clients', value: usage.customers, icon: <Users className="h-5 w-5" />, color: 'text-sky-600', bg: 'bg-sky-50', max: undefined, onClick: onNavigateToCustomers },
   ]
 
   return (
@@ -718,7 +720,7 @@ function OverviewTab({
       {/* Stats Grid */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
         {statCards.map((card) => (
-          <Card key={card.title}>
+          <Card key={card.title} className={card.onClick ? 'cursor-pointer hover:shadow-md transition-shadow' : ''} onClick={card.onClick}>
             <CardContent className="p-6">
               <div className="flex items-center gap-4">
                 <div className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-lg ${card.bg} ${card.color}`}>

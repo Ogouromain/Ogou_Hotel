@@ -95,11 +95,20 @@ export async function GET(request: NextRequest) {
     // If identity_document_path column doesn't exist yet, retry without it
     if (error && error.message && error.message.includes('identity_document_path')) {
       selectFields = 'id, hotel_id, first_name, last_name, email, phone, identity_document_type, identity_document_number, created_at, updated_at'
-      const retryResult = await adminClient
+      let retryQuery = adminClient
         .from('customers')
         .select(selectFields)
         .eq('hotel_id', hotelId)
         .order('created_at', { ascending: false })
+
+      // Re-apply search filter on retry
+      if (search) {
+        retryQuery = retryQuery.or(
+          `first_name.ilike.%${search}%,last_name.ilike.%${search}%,phone.ilike.%${search}%,email.ilike.%${search}%`
+        )
+      }
+
+      const retryResult = await retryQuery
       customers = retryResult.data
       error = retryResult.error
     }

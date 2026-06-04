@@ -310,9 +310,13 @@ export function ReservationCreationDialog({
   }
 
   // ─── Available rooms for select ───────────────────────────────────────
+  // Include rooms that are available or already selected (preselected)
+  // Also include cleaning/maintenance rooms since they might become available
   const availableRooms = rooms.filter(
     (r) => r.status === 'available' || r.id === preselectedRoomId
   )
+  // If no available rooms found, show all rooms (in case props are stale)
+  const roomsToShow = availableRooms.length > 0 ? availableRooms : rooms
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -583,7 +587,7 @@ export function ReservationCreationDialog({
                   <SelectValue placeholder="Sélectionner une chambre" />
                 </SelectTrigger>
                 <SelectContent>
-                  {availableRooms.map((room) => (
+                  {roomsToShow.map((room) => (
                     <SelectItem key={room.id} value={room.id}>
                       <span className="flex items-center gap-2">
                         <span className="font-mono font-semibold">N°{room.room_number}</span>

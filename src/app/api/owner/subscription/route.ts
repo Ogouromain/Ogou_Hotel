@@ -39,11 +39,13 @@ export async function GET() {
     }
 
     // 3. Get current usage counts
-    const [roomsResult, receptionistsResult, managersResult, employeesResult] = await Promise.all([
+    const [roomsResult, receptionistsResult, managersResult, employeesResult, reservationsResult, customersResult] = await Promise.all([
       adminClient.from('rooms').select('id', { count: 'exact', head: true }).eq('hotel_id', hotelId),
       adminClient.from('profiles').select('id', { count: 'exact', head: true }).eq('hotel_id', hotelId).eq('role', 'receptionist').eq('status', 'active'),
       adminClient.from('profiles').select('id', { count: 'exact', head: true }).eq('hotel_id', hotelId).eq('role', 'manager').eq('status', 'active'),
       adminClient.from('profiles').select('id, first_name, last_name, role, phone, status, created_at').eq('hotel_id', hotelId).order('created_at', { ascending: true }),
+      adminClient.from('reservations').select('id', { count: 'exact', head: true }).eq('hotel_id', hotelId),
+      adminClient.from('customers').select('id', { count: 'exact', head: true }).eq('hotel_id', hotelId),
     ])
 
     const plan = subscription?.subscription_plans as unknown as {
@@ -82,6 +84,8 @@ export async function GET() {
         rooms: currentRooms,
         receptionists: currentReceptionists,
         managers: currentManagers,
+        reservations: reservationsResult.count ?? 0,
+        customers: customersResult.count ?? 0,
       },
       canAdd: {
         rooms: plan ? currentRooms < plan.max_rooms : false,

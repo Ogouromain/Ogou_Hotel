@@ -142,7 +142,14 @@ export async function PATCH(
         new_values: { status: 'checked_in', room_status: 'occupied' },
       })
 
-      return NextResponse.json({ reservation })
+      // Re-fetch with updated room status
+      const { data: refreshedReservation } = await adminClient
+        .from('reservations')
+        .select('*, customers(*), rooms(id, room_number, room_type, price_per_night, status)')
+        .eq('id', id)
+        .single()
+
+      return NextResponse.json({ reservation: refreshedReservation || reservation })
     }
 
     // ═══════════════════════════════════════════════════════════
@@ -185,7 +192,14 @@ export async function PATCH(
         new_values: { status: 'checked_out', room_status: 'cleaning' },
       })
 
-      return NextResponse.json({ reservation })
+      // Re-fetch with updated room status
+      const { data: refreshedReservation } = await adminClient
+        .from('reservations')
+        .select('*, customers(*), rooms(id, room_number, room_type, price_per_night, status)')
+        .eq('id', id)
+        .single()
+
+      return NextResponse.json({ reservation: refreshedReservation || reservation })
     }
 
     // ═══════════════════════════════════════════════════════════

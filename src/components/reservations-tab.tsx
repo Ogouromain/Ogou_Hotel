@@ -226,7 +226,7 @@ export function ReservationsTab({ rooms, onRefresh }: ReservationsTabProps) {
             </p>
           </div>
           <div className="flex items-center gap-2">
-            <Button variant="outline" size="sm" onClick={fetchReservations} disabled={loading}>
+            <Button variant="outline" size="sm" onClick={() => { fetchReservations(); onRefresh?.() }} disabled={loading}>
               <RefreshCw className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
               Actualiser
             </Button>
@@ -321,14 +321,16 @@ export function ReservationsTab({ rooms, onRefresh }: ReservationsTabProps) {
                   <Loader2 className="h-8 w-8 animate-spin text-amber-500" />
                 </div>
               ) : (
-                <div className="h-[500px]">
-                  <PlanningGrid
-                    rooms={rooms}
-                    reservations={filteredReservations}
-                    onCreateReservation={handleCreateFromGrid}
-                    onViewReservation={handleViewReservation}
-                  />
-                </div>
+                <TooltipProvider>
+                  <div className="h-[500px]">
+                    <PlanningGrid
+                      rooms={rooms}
+                      reservations={filteredReservations}
+                      onCreateReservation={handleCreateFromGrid}
+                      onViewReservation={handleViewReservation}
+                    />
+                  </div>
+                </TooltipProvider>
               )}
             </CardContent>
           </Card>
@@ -497,7 +499,6 @@ export function ReservationsTab({ rooms, onRefresh }: ReservationsTabProps) {
             onRefresh?.()
           }}
         />
-      </div>
     </div>
   )
 }
