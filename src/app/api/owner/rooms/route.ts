@@ -1,0 +1,151 @@
+import { NextRequest, NextResponse } from 'next/server'
+import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
+
+/**
+ * GET /api/owner/rooms
+ * List all rooms for the authenticated owner's hotel.
+ */
+export async function GET() {
+  try {
+    const supabase = await createClient()
+    const { data: { user } } = await supabase.auth.getUser()
+
+    if (!user) {
+      return NextResponse.json({ error: 'Non authentifié' }, { status: 401 })
+    }
+
+    const hotelId = user.app_metadata?.hotel_id
+    if (!hotelId) {
+      return NextResponse.json({ error: 'Aucun hôtel associé' }, { status: 404 })
+    }
+
+    const adminClient = createAdminClient()
+    const { data: rooms, error } = await adminClient
+      .from('rooms')
+      .select('*')
+      .eq('hotel_id', hotelId)
+      .order('room_number', { ascending: true })
+
+    if (error) {
+      return NextResponse.json({ error: error.message }, { status: 500 })
+    }
+
+    return NextResponse.json({ rooms })
+  } catch (error) {
+    console.error('Owner rooms GET error:', error)
+    return NextResponse.json({ error: 'Erreur serveur' }, { status: 500 })
+  }
+}
+
+/**
+ * POST /api/owner/rooms
+ * Create a new room for the owner's hotel, with max_rooms limit validation.
+ */
+export async function POST(request: NextRequest) {
+  try {
+    const supabase = await createClient()
+    const { data: { user } } = await supabase.auth.getUser()
+
+    if (!user) {
+      return NextResponse.json({ error: 'Non authentifié' }, { status: 401 })
+    }
+
+    const hotelId = user.app_metadata?.hotel_id
+    if (!hotelId) {
+      return NextResponse.json({ error: 'Aucun hôtel associé' }, { status: 404 })
+    }
+
+    const body = await request.json()
+    const { room_number, room_type, price_per_night, status } = body
+
+    if (!room_number || !room_type || !price_per_night) {
+      return NextResponse.json(
+        { error: 'Numéro de chambre, type et prix par nuit sont requis' },
+        { status: 400 }
+      )
+    }
+
+    const price = parseFloat(price_per_night)
+    if (isNaN(price) || price <= 0) {
+      return NextResponse.json(
+        { error: 'Le prix par nuit doit être un nombre positif' },
+        { status: 400 }
+      )
+    }
+
+    const adminClient = createAdminClient()
+
+    // ─── APPLICATION-LEVEL LIMIT CHECK: max_rooms ──────────────
+    const { data: subscription } = await adminClient
+      .from('subscriptions')
+      .select('id, subscription_plans(max_rooms)')
+      .eq('hotel_id', hotelId)
+      .eq('status', 'active')
+      .maybeSingle()
+
+    const planLimits = subscription?.subscription_plans as unknown as { max_rooms: number } | null
+
+    if (planLimits) {
+      const { count } = await adminClient
+        .from('rooms')
+        .select('id', { count: 'exact', head: true })
+        .eq('hotel_id', hotelId)
+
+      if ((count ?? 0) >= planLimits.max_rooms) {
+        return NextResponse.json(
+          { error: `Limite de chambres atteinte (${planLimits.max_rooms} max) pour votre plan actuel. Mettez à niveau votre abonnement pour ajouter plus de chambres.` },
+          { status: 403 }
+        )
+      }
+    }
+
+    // ─── CHECK FOR DUPLICATE ROOM NUMBER ───────────────────────
+    const { data: existing } = await adminClient
+      .from('rooms')
+      .select('id')
+      .eq('hotel_id', hotelId)
+      .eq('room_number', room_number.trim())
+      .maybeSingle()
+
+    if (existing) {
+      return NextResponse.json(
+        { error: `La chambre "${room_number.trim()}" existe déjà` },
+        { status: 409 }
+      )
+    }
+
+    // ─── CREATE THE ROOM ───────────────────────────────────────
+    const { data: room, error } = await adminClient
+      .from('rooms')
+      .insert({
+        hotel_id: hotelId,
+        room_number: room_number.trim(),
+        room_type: room_type.trim(),
+        price_per_night: price,
+        status: status || 'available',
+      })
+      .select()
+      .single()
+
+    if (error) {
+      // Check if the error is from the SQL trigger (check_room_limits)
+      if (error.message.includes('Limite de chambres atteinte')) {
+        return NextResponse.json({ error: error.message }, { status: 403 })
+      }
+      // Check for unique constraint violation
+      if (error.code === '23505') {
+        return NextResponse.json(
+          { error: `La chambre "${room_number.trim()}" existe déjà` },
+          { status: 409 }
+        )
+      }
+      return NextResponse.json({ error: error.message }, { status: 500 })
+    }
+
+    return NextResponse.json({ room }, { status: 201 })
+  } catch (error) {
+    console.error('Owner rooms POST error:', error)
+    return NextResponse.json({ error: 'Erreur serveur' }, { status: 500 })
+  }
+}

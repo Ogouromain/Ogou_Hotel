@@ -258,4 +258,92 @@ VALUES
 ('Basique', 25000.00, 20, 1, 0, 'WhatsApp'),
 ('Standard', 50000.00, 50, 3, 1, 'Prioritaire'),
 ('Premium', 95000.00, 9999, 5, 5, 'Dédié 24/7')
-ON CONFLICT (name) DO NOTHING;`
+ON CONFLICT (name) DO NOTHING;
+
+-- ==================== TRIGGER: VALIDATION DES LIMITES EMPLOYÉS ====================
+CREATE OR REPLACE FUNCTION public.check_employee_limits()
+RETURNS TRIGGER AS $$
+DECLARE
+    v_receptionist_count INT;
+    v_manager_count INT;
+    v_max_receptionists INT;
+    v_max_managers INT;
+BEGIN
+    SELECT sp.max_receptionists, sp.max_managers INTO v_max_receptionists, v_max_managers
+    FROM public.subscriptions sub
+    JOIN public.subscription_plans sp ON sub.plan_id = sp.id
+    WHERE sub.hotel_id = NEW.hotel_id AND sub.status = 'active';
+
+    IF v_max_receptionists IS NULL THEN
+        IF NEW.role = 'owner' THEN
+            RETURN NEW;
+        ELSE
+            RAISE EXCEPTION 'Abonnement actif introuvable pour cet hôtel.';
+        END IF;
+    END IF;
+
+    IF NEW.role = 'receptionist' THEN
+        SELECT COUNT(*) INTO v_receptionist_count 
+        FROM public.profiles 
+        WHERE hotel_id = NEW.hotel_id AND role = 'receptionist' AND id <> NEW.id;
+
+        IF v_receptionist_count >= v_max_receptionists THEN
+            RAISE EXCEPTION 'Limite de réceptionnistes atteinte (% max) pour votre plan actuel.', v_max_receptionists;
+        END IF;
+    END IF;
+
+    IF NEW.role = 'manager' THEN
+        SELECT COUNT(*) INTO v_manager_count 
+        FROM public.profiles 
+        WHERE hotel_id = NEW.hotel_id AND role = 'manager' AND id <> NEW.id;
+
+        IF v_manager_count >= v_max_managers THEN
+            RAISE EXCEPTION 'Limite de managers atteinte (% max) pour votre plan actuel.', v_max_managers;
+        END IF;
+    END IF;
+
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+DROP TRIGGER IF EXISTS trigger_check_employee_limits ON public.profiles;
+CREATE TRIGGER trigger_check_employee_limits
+BEFORE INSERT OR UPDATE OF role ON public.profiles
+FOR EACH ROW
+WHEN (NEW.hotel_id IS NOT NULL)
+EXECUTE FUNCTION public.check_employee_limits();
+
+-- ==================== TRIGGER: VALIDATION DES LIMITES CHAMBRES ====================
+CREATE OR REPLACE FUNCTION public.check_room_limits()
+RETURNS TRIGGER AS $$
+DECLARE
+    v_room_count INT;
+    v_max_rooms INT;
+BEGIN
+    SELECT sp.max_rooms INTO v_max_rooms
+    FROM public.subscriptions sub
+    JOIN public.subscription_plans sp ON sub.plan_id = sp.id
+    WHERE sub.hotel_id = NEW.hotel_id AND sub.status = 'active';
+
+    IF v_max_rooms IS NULL THEN
+        RAISE EXCEPTION 'Abonnement actif introuvable pour cet hôtel.';
+    END IF;
+
+    SELECT COUNT(*) INTO v_room_count 
+    FROM public.rooms 
+    WHERE hotel_id = NEW.hotel_id AND id <> NEW.id;
+
+    IF v_room_count >= v_max_rooms THEN
+        RAISE EXCEPTION 'Limite de chambres atteinte (% max) pour votre plan actuel.', v_max_rooms;
+    END IF;
+
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+DROP TRIGGER IF EXISTS trigger_check_room_limits ON public.rooms;
+CREATE TRIGGER trigger_check_room_limits
+BEFORE INSERT ON public.rooms
+FOR EACH ROW
+WHEN (NEW.hotel_id IS NOT NULL)
+EXECUTE FUNCTION public.check_room_limits();`
