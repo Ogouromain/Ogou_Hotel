@@ -195,6 +195,38 @@ export interface AuditLog {
   created_at: string
 }
 
+export type InvoiceStatus = 'paid' | 'refund' | 'cancelled'
+export type PaymentMethod = 'OM' | 'MTN' | 'Wave' | 'Espèces' | 'Chèque' | 'Carte'
+
+export interface InvoiceItem {
+  id: string
+  invoice_id: string
+  description: string
+  quantity: number
+  unit_price: number
+  total: number
+}
+
+export interface Invoice {
+  id: string
+  hotel_id: string
+  invoice_number: string
+  reservation_id: string | null
+  customer_id: string
+  subtotal: number
+  tourist_tax: number
+  vat: number
+  total_amount: number
+  payment_method: PaymentMethod
+  status: InvoiceStatus
+  notes: string | null
+  created_at: string
+  // Joined data (from API, not DB columns)
+  customers?: Customer | null
+  reservations?: Reservation | null
+  invoice_items?: InvoiceItem[]
+}
+
 export interface Database {
   public: {
     Tables: {
@@ -214,6 +246,8 @@ export interface Database {
       stock_items: { Row: StockItem; Insert: Omit<StockItem, 'id' | 'created_at'>; Update: Partial<Omit<StockItem, 'id' | 'created_at'>> }
       stock_transactions: { Row: StockTransaction; Insert: Omit<StockTransaction, 'id' | 'created_at'>; Update: Partial<Omit<StockTransaction, 'id' | 'created_at'>> }
       audit_logs: { Row: AuditLog; Insert: Omit<AuditLog, 'id' | 'created_at'>; Update: Partial<Omit<AuditLog, 'id' | 'created_at'>> }
+      invoices: { Row: Invoice; Insert: Omit<Invoice, 'id' | 'created_at' | 'customers' | 'reservations' | 'invoice_items'>; Update: Partial<Omit<Invoice, 'id' | 'created_at'>> }
+      invoice_items: { Row: InvoiceItem; Insert: Omit<InvoiceItem, 'id'>; Update: Partial<Omit<InvoiceItem, 'id'>> }
     }
   }
 }
@@ -234,6 +268,7 @@ export type DashboardTab =
   | 'codes' 
   | 'leads' 
   | 'audit' 
+  | 'invoices' 
   | 'users'
 
 export interface AppState {

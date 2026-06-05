@@ -34,6 +34,7 @@ import {
   Wrench,
   Sparkles,
   Bell,
+  FileText,
 } from 'lucide-react'
 
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
@@ -91,6 +92,10 @@ const AnalyticsTab = dynamic(
 )
 const NotificationPanel = dynamic(
   () => import('@/components/notification-panel').then(mod => ({ default: mod.NotificationPanel })),
+  { ssr: false, loading: () => <TabLoadingSkeleton /> }
+)
+const InvoicesTab = dynamic(
+  () => import('@/components/invoices-tab').then(mod => ({ default: mod.InvoicesTab })),
   { ssr: false, loading: () => <TabLoadingSkeleton /> }
 )
 
@@ -167,7 +172,7 @@ interface EmployeeInfo {
   created_at: string
 }
 
-type TabId = 'overview' | 'rooms' | 'reservations' | 'customers' | 'analytics' | 'notifications' | 'team' | 'settings'
+type TabId = 'overview' | 'rooms' | 'reservations' | 'customers' | 'invoices' | 'analytics' | 'notifications' | 'team' | 'settings'
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -250,6 +255,7 @@ const NAV_ITEMS: { id: TabId; label: string; icon: React.ReactNode }[] = [
   { id: 'rooms', label: 'Chambres', icon: <Bed className="h-4 w-4" /> },
   { id: 'reservations', label: 'Réservations', icon: <Calendar className="h-4 w-4" /> },
   { id: 'customers', label: 'Clients', icon: <Users className="h-4 w-4" /> },
+  { id: 'invoices', label: 'Factures', icon: <FileText className="h-4 w-4" /> },
   { id: 'analytics', label: 'Analytique', icon: <BarChart3 className="h-4 w-4" /> },
   { id: 'notifications', label: 'Notifications', icon: <Bell className="h-4 w-4" /> },
   { id: 'team', label: 'Équipe', icon: <UserPlus className="h-4 w-4" /> },
@@ -675,6 +681,7 @@ export function OwnerDashboard({ profile, onLogout, isNewRegistration }: OwnerDa
               onNavigateToTeam={() => setActiveTab('team')}
               onNavigateToReservations={() => setActiveTab('reservations')}
               onNavigateToCustomers={() => setActiveTab('customers')}
+              onNavigateToInvoices={() => setActiveTab('invoices')}
             />
           )}
 
@@ -702,6 +709,10 @@ export function OwnerDashboard({ profile, onLogout, isNewRegistration }: OwnerDa
 
           {activeTab === 'customers' && (
             <CustomersTab onRefresh={fetchAllData} />
+          )}
+
+          {activeTab === 'invoices' && (
+            <InvoicesTab onRefresh={fetchAllData} />
           )}
 
           {activeTab === 'analytics' && (
@@ -746,6 +757,7 @@ function OverviewTab({
   onNavigateToTeam,
   onNavigateToReservations,
   onNavigateToCustomers,
+  onNavigateToInvoices,
 }: {
   hotelInfo: HotelInfo | null
   subscription: SubscriptionInfo | null
@@ -756,6 +768,7 @@ function OverviewTab({
   onNavigateToTeam: () => void
   onNavigateToReservations?: () => void
   onNavigateToCustomers?: () => void
+  onNavigateToInvoices?: () => void
 }) {
   const totalEmployees = usage.receptionists + usage.managers + 1 // +1 for owner
 
@@ -902,7 +915,7 @@ function OverviewTab({
       )}
 
       {/* Quick Actions */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 gap-4">
         <Card className="border-amber-200/60 hover:border-amber-300 transition-colors cursor-pointer" onClick={onNavigateToRooms}>
           <CardContent className="p-5 flex items-center gap-3">
             <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-amber-50 text-amber-600">
@@ -933,6 +946,17 @@ function OverviewTab({
             <div className="flex-1 min-w-0">
               <p className="font-medium text-sm">Clients</p>
               <p className="text-xs text-muted-foreground">Fiches & documents</p>
+            </div>
+          </CardContent>
+        </Card>
+        <Card className="border-violet-200/60 hover:border-violet-300 transition-colors cursor-pointer" onClick={onNavigateToInvoices}>
+          <CardContent className="p-5 flex items-center gap-3">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-violet-50 text-violet-600">
+              <FileText className="h-5 w-5" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="font-medium text-sm">Factures</p>
+              <p className="text-xs text-muted-foreground">PDF & reçu thermique</p>
             </div>
           </CardContent>
         </Card>
