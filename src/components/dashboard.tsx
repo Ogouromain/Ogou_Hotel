@@ -26,6 +26,8 @@ import {
   Hash,
   DollarSign,
   Eye,
+  MessageSquare,
+  Mail,
 } from 'lucide-react'
 
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
@@ -1264,6 +1266,26 @@ function SidebarContent({
 
       <Separator />
 
+      {/* WhatsApp Support Button */}
+      <div className="px-4 py-2">
+        <a
+          href="https://wa.me/2250576103277"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="flex items-center gap-2 rounded-lg bg-emerald-50 border border-emerald-200 px-3 py-2.5 text-sm font-medium text-emerald-700 hover:bg-emerald-100 transition-colors w-full"
+        >
+          <MessageSquare className="h-4 w-4 text-emerald-600 shrink-0" />
+          <span className="truncate">Support WhatsApp</span>
+        </a>
+        <a
+          href="mailto:omouitsi@gmail.com"
+          className="flex items-center gap-2 rounded-lg bg-amber-50 border border-amber-200 px-3 py-2.5 text-sm font-medium text-amber-700 hover:bg-amber-100 transition-colors w-full mt-2"
+        >
+          <Mail className="h-4 w-4 text-amber-600 shrink-0" />
+          <span className="truncate">omouitsi@gmail.com</span>
+        </a>
+      </div>
+
       {/* User Info */}
       <div className="p-4">
         <div className="flex items-center gap-3 mb-3">
@@ -1477,12 +1499,30 @@ export function Dashboard({ profile, onLogout }: DashboardProps) {
           <footer className="mt-auto border-t bg-white px-4 py-4 sm:px-6">
             <div className="flex flex-col sm:flex-row items-center justify-between gap-2 text-xs text-muted-foreground">
               <p>© {new Date().getFullYear()} HôtelCI — Gestion Hôtelière, Côte d&apos;Ivoire</p>
-              {selectedHotel && (
-                <p className="flex items-center gap-1">
-                  <Hash className="h-3 w-3" />
-                  {selectedHotel.name} — {selectedHotel.city || 'N/A'}
-                </p>
-              )}
+              <div className="flex items-center gap-4">
+                <a
+                  href="https://wa.me/2250576103277"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-1 hover:text-emerald-600 transition-colors"
+                >
+                  <MessageSquare className="h-3 w-3" />
+                  Support
+                </a>
+                <a
+                  href="mailto:omouitsi@gmail.com"
+                  className="flex items-center gap-1 hover:text-amber-600 transition-colors"
+                >
+                  <Mail className="h-3 w-3" />
+                  Contact
+                </a>
+                {selectedHotel && (
+                  <p className="flex items-center gap-1">
+                    <Hash className="h-3 w-3" />
+                    {selectedHotel.name} — {selectedHotel.city || 'N/A'}
+                  </p>
+                )}
+              </div>
             </div>
           </footer>
         </div>

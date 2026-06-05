@@ -20,6 +20,7 @@ import {
   Coffee,
   Wine,
   MessageSquare,
+  Mail,
 } from 'lucide-react'
 
 import { Card, CardContent } from '@/components/ui/card'
@@ -174,15 +175,24 @@ function getRoomInfo(rooms: RoomBrief | RoomBrief[] | null): RoomBrief | null {
 function StaffFooter({ onLogout }: { onLogout: () => void }) {
   return (
     <div className="sticky bottom-0 bg-white border-t border-amber-200/50 px-4 py-3 space-y-2">
-      <a
-        href="https://wa.me/2250576103277"
-        target="_blank"
-        rel="noopener noreferrer"
-        className="flex items-center justify-center gap-2 rounded-xl bg-emerald-50 border border-emerald-200 px-4 py-2.5 text-sm font-medium text-emerald-700 hover:bg-emerald-100 transition-colors w-full"
-      >
-        <MessageSquare className="h-4 w-4" />
-        Support WhatsApp
-      </a>
+      <div className="flex gap-2">
+        <a
+          href="https://wa.me/2250576103277"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="flex-1 flex items-center justify-center gap-2 rounded-xl bg-emerald-50 border border-emerald-200 px-4 py-2.5 text-sm font-medium text-emerald-700 hover:bg-emerald-100 transition-colors"
+        >
+          <MessageSquare className="h-4 w-4" />
+          WhatsApp
+        </a>
+        <a
+          href="mailto:omouitsi@gmail.com"
+          className="flex-1 flex items-center justify-center gap-2 rounded-xl bg-amber-50 border border-amber-200 px-4 py-2.5 text-sm font-medium text-amber-700 hover:bg-amber-100 transition-colors"
+        >
+          <Mail className="h-4 w-4" />
+          Email
+        </a>
+      </div>
       <Button
         variant="outline"
         className="w-full h-12 text-base font-medium rounded-xl border-amber-200 text-amber-700 hover:bg-amber-50"

@@ -539,6 +539,13 @@ export function OwnerDashboard({ profile, onLogout, isNewRegistration }: OwnerDa
             <MessageSquare className="h-4 w-4 text-emerald-600 shrink-0" />
             <span className="truncate">Support WhatsApp</span>
           </a>
+          <a
+            href="mailto:omouitsi@gmail.com"
+            className="flex items-center gap-2 rounded-lg bg-amber-50 border border-amber-200 px-3 py-2.5 text-sm font-medium text-amber-700 hover:bg-amber-100 transition-colors w-full mt-2"
+          >
+            <Mail className="h-4 w-4 text-amber-600 shrink-0" />
+            <span className="truncate">omouitsi@gmail.com</span>
+          </a>
         </div>
 
         {/* User Info */}
