@@ -740,4 +740,5 @@ ALTER PUBLICATION supabase_realtime ADD TABLE public.reservations;
 ALTER PUBLICATION supabase_realtime ADD TABLE public.restaurant_orders;
 ALTER PUBLICATION supabase_realtime ADD TABLE public.stock_items;
 ALTER PUBLICATION supabase_realtime ADD TABLE public.notifications;
-ALTER PUBLICATION supabase_realtime ADD TABLE public.rooms;`
+ALTER PUBLICATION supabase_realtime ADD TABLE public.rooms;
+ALTER PUBLICATION supabase_realtime ADD TABLE public.leads;`

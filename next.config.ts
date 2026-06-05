@@ -9,8 +9,15 @@ const nextConfig: NextConfig = {
 
   reactStrictMode: false,
 
+  // ─── Compression ───────────────────────────────────────────────────────────
+  // Enable gzip/brotli compression for all responses.
+  // Vercel and most CDNs handle this automatically in production,
+  // but we declare it for self-hosted standalone deployments.
+  compress: true,
+
   // ─── Image Optimization ───────────────────────────────────────────────────
-  // Configure image domains and optimization for fast loading on mobile
+  // Configure image domains and optimization for fast loading on mobile.
+  // For standalone output, we use unoptimized: true but with WebP awareness.
   images: {
     // Unoptimized for standalone output; use next/image with explicit sizes
     unoptimized: true,
@@ -21,6 +28,8 @@ const nextConfig: NextConfig = {
         hostname: 'rjgiktswlgfokztwuqup.supabase.co',
       },
     ],
+    // Prefer WebP format hints for lighter images on mobile
+    formats: ['image/webp', 'image/avif'],
   },
 
   // ─── Turbopack Config (Next.js 16 default) ────────────────────────────────
@@ -51,6 +60,23 @@ const nextConfig: NextConfig = {
             key: 'Referrer-Policy',
             value: 'strict-origin-when-cross-origin',
           },
+          {
+            key: 'Permissions-Policy',
+            value: 'camera=(), microphone=(), geolocation=()',
+          },
+          // Content Security Policy — allows Supabase, Vercel analytics
+          {
+            key: 'Content-Security-Policy',
+            value: [
+              "default-src 'self'",
+              "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
+              "style-src 'self' 'unsafe-inline'",
+              "img-src 'self' data: blob: https://rjgiktswlgfokztwuqup.supabase.co",
+              "connect-src 'self' https://rjgiktswlgfokztwuqup.supabase.co wss://rjgiktswlgfokztwuqup.supabase.co",
+              "font-src 'self'",
+              "frame-ancestors 'none'",
+            ].join('; '),
+          },
         ],
       },
       {
@@ -64,12 +90,42 @@ const nextConfig: NextConfig = {
         ],
       },
       {
+        // Font files: cache for 1 year
+        source: '/(.*)\\.(woff|woff2|ttf|otf|eot)',
+        headers: [
+          {
+            key: 'Cache-Control',
+            value: 'public, max-age=31536000, immutable',
+          },
+        ],
+      },
+      {
+        // Image files: cache for 30 days
+        source: '/(.*)\\.(jpg|jpeg|png|gif|webp|avif|svg|ico)',
+        headers: [
+          {
+            key: 'Cache-Control',
+            value: 'public, max-age=2592000, stale-while-revalidate=86400',
+          },
+        ],
+      },
+      {
         // HTML pages: must revalidate
         source: '/((?!_next/static|_next/image|favicon.ico).*)',
         headers: [
           {
             key: 'Cache-Control',
             value: 'public, max-age=0, must-revalidate',
+          },
+        ],
+      },
+      {
+        // API routes: no cache (always fresh data)
+        source: '/api/(.*)',
+        headers: [
+          {
+            key: 'Cache-Control',
+            value: 'no-store, no-cache, must-revalidate, proxy-revalidate',
           },
         ],
       },

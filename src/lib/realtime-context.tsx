@@ -17,7 +17,7 @@ import type { RealtimeChannel, RealtimePostgresChangesPayload } from '@supabase/
 type RealtimeStatus = 'connecting' | 'connected' | 'disconnected' | 'error'
 
 interface RealtimeChangeEvent {
-  table: 'rooms' | 'reservations' | 'restaurant_orders' | 'stock_items' | 'notifications'
+  table: 'rooms' | 'reservations' | 'restaurant_orders' | 'stock_items' | 'notifications' | 'leads'
   eventType: 'INSERT' | 'UPDATE' | 'DELETE'
   new: Record<string, unknown>
   old: Record<string, unknown>
@@ -143,6 +143,9 @@ export function RealtimeProvider({ children, enabled = false }: RealtimeProvider
     //   .on('postgres_changes', { event: '*', schema: 'public', table: 'restaurant_orders' }, handler)
     //   .on('postgres_changes', { event: '*', schema: 'public', table: 'stock_items' }, handler)
     //   .on('postgres_changes', { event: '*', schema: 'public', table: 'notifications' }, handler)
+    //   .on('postgres_changes', { event: '*', schema: 'public', table: 'leads' }, handler)
+    // Leads table is included so that when a prospect submits the Landing Page demo form,
+    // the Super Admin's "Demandes Commerciales" tab gets an instant real-time notification.
     const channel = supabase
       .channel('schema-db-changes')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'rooms' }, makeHandler('rooms'))
@@ -150,6 +153,7 @@ export function RealtimeProvider({ children, enabled = false }: RealtimeProvider
       .on('postgres_changes', { event: '*', schema: 'public', table: 'restaurant_orders' }, makeHandler('restaurant_orders'))
       .on('postgres_changes', { event: '*', schema: 'public', table: 'stock_items' }, makeHandler('stock_items'))
       .on('postgres_changes', { event: '*', schema: 'public', table: 'notifications' }, makeHandler('notifications'))
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'leads' }, makeHandler('leads'))
       .subscribe((state, err) => {
         if (state === 'SUBSCRIBED') {
           setStatus('connected')

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { toast } from 'sonner'
 import {
   Building2,
@@ -21,7 +21,10 @@ import {
   Shield,
   Ban,
   RotateCcw,
+  BellRing,
 } from 'lucide-react'
+import { useRealtimeSafe } from '@/lib/realtime-context'
+import { RealtimeIndicator } from '@/components/realtime-indicator'
 
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -429,6 +432,13 @@ function LeadsTab() {
     leadName: '',
   })
 
+  // ─── Real-time: Auto-refresh leads when a new lead is inserted ──────────
+  // When a prospect submits the Landing Page demo form, the leads table
+  // gets a new row. The RealtimeProvider detects this change and we
+  // auto-refresh the leads list with a toast notification.
+  const { recentChanges } = useRealtimeSafe()
+  const prevLeadChangeCountRef = useRef(0)
+
   const fetchLeads = useCallback(async () => {
     setLoading(true)
     try {
@@ -449,6 +459,23 @@ function LeadsTab() {
   useEffect(() => {
     fetchLeads()
   }, [fetchLeads])
+
+  // React to real-time changes on the leads table
+  useEffect(() => {
+    const leadChanges = recentChanges.filter(c => c.table === 'leads')
+    if (leadChanges.length > prevLeadChangeCountRef.current && prevLeadChangeCountRef.current > 0) {
+      // New lead change detected
+      const latestChange = leadChanges[0]
+      if (latestChange.eventType === 'INSERT') {
+        toast.info('🔔 Nouvelle demande commerciale !', {
+          description: 'Un prospect vient de soumettre une demande de démo.',
+          duration: 5000,
+        })
+      }
+      fetchLeads()
+    }
+    prevLeadChangeCountRef.current = leadChanges.length
+  }, [recentChanges, fetchLeads])
 
   async function handleContactLead(leadId: string) {
     setActionLoading(leadId)
