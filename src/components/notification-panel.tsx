@@ -15,6 +15,7 @@ import {
   Filter,
   Loader2,
   RefreshCw,
+  Lock,
 } from 'lucide-react'
 
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -51,6 +52,7 @@ interface Notification {
 
 interface NotificationPanelProps {
   onRefresh?: () => void
+  planName?: string
 }
 
 // ─── SMS Templates ─────────────────────────────────────────────────────────
@@ -155,7 +157,9 @@ function typeToTab(type: Notification['type']): string {
 
 // ─── Component ─────────────────────────────────────────────────────────────
 
-export function NotificationPanel({ onRefresh }: NotificationPanelProps) {
+export function NotificationPanel({ onRefresh, planName }: NotificationPanelProps) {
+  // ── Determine SMS feature access ──────────────────────────────────────
+  const smsEnabled = planName === 'Standard' || planName === 'Premium'
   // ── State ──────────────────────────────────────────────────────────────
   const [notifications, setNotifications] = useState<Notification[]>([])
   const [loading, setLoading] = useState(true)
@@ -552,14 +556,42 @@ export function NotificationPanel({ onRefresh }: NotificationPanelProps) {
       {/* ── SMS / WhatsApp Quick Send ───────────────────────────────────── */}
       <Card className="border-amber-200/60">
         <CardHeader className="pb-3">
-          <CardTitle className="flex items-center gap-2 text-base">
-            <MessageSquare className="h-5 w-5 text-amber-600" />
-            Envoi rapide SMS / WhatsApp
-          </CardTitle>
+          <div className="flex items-center justify-between">
+            <CardTitle className="flex items-center gap-2 text-base">
+              <MessageSquare className="h-5 w-5 text-amber-600" />
+              Envoi rapide SMS / WhatsApp
+            </CardTitle>
+            {!smsEnabled && (
+              <Badge className="bg-gray-100 text-gray-500 border-gray-200 hover:bg-gray-100 text-[10px] flex items-center gap-1">
+                <Lock className="h-3 w-3" />
+                Plan Standard+
+              </Badge>
+            )}
+          </div>
         </CardHeader>
         <CardContent className="space-y-4">
+          {!smsEnabled && (
+            <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 flex items-start gap-3">
+              <Lock className="h-5 w-5 text-amber-500 mt-0.5 shrink-0" />
+              <div>
+                <p className="text-sm font-medium text-amber-800">Fonctionnalité restreinte</p>
+                <p className="text-xs text-amber-600 mt-0.5">
+                  L&apos;envoi de SMS et WhatsApp est disponible à partir du plan Standard. Contactez-nous pour mettre à niveau votre abonnement.
+                </p>
+                <a
+                  href="https://wa.me/2250576103277?text=Bonjour%2C%20je%20souhaite%20mettre%20%C3%A0%20niveau%20mon%20abonnement%20H%C3%B4telCI"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1 mt-2 text-xs font-medium text-amber-700 hover:text-amber-900 underline underline-offset-2"
+                >
+                  <MessageSquare className="h-3 w-3" />
+                  Mettre à niveau
+                </a>
+              </div>
+            </div>
+          )}
           {/* Templates */}
-          <div>
+          <div className={smsEnabled ? '' : 'opacity-50 pointer-events-none'}>
             <p className="text-sm font-medium text-muted-foreground mb-2">
               Modèles prédéfinis
             </p>
@@ -571,6 +603,7 @@ export function NotificationPanel({ onRefresh }: NotificationPanelProps) {
                   size="sm"
                   className="border-amber-200 text-amber-700 hover:bg-amber-50 hover:text-amber-900 text-xs"
                   onClick={() => handleSelectTemplate(template)}
+                  disabled={!smsEnabled}
                 >
                   {template.label}
                 </Button>
@@ -581,7 +614,7 @@ export function NotificationPanel({ onRefresh }: NotificationPanelProps) {
           <Separator />
 
           {/* Phone input */}
-          <div>
+          <div className={smsEnabled ? '' : 'opacity-50 pointer-events-none'}>
             <label className="text-sm font-medium text-muted-foreground mb-1.5 block">
               Numéro de téléphone
             </label>
@@ -597,13 +630,14 @@ export function NotificationPanel({ onRefresh }: NotificationPanelProps) {
                   value={smsPhone}
                   onChange={(e) => setSmsPhone(e.target.value)}
                   className="pl-9 border-amber-200 focus-visible:ring-amber-500/30"
+                  disabled={!smsEnabled}
                 />
               </div>
             </div>
           </div>
 
           {/* Message textarea */}
-          <div>
+          <div className={smsEnabled ? '' : 'opacity-50 pointer-events-none'}>
             <div className="flex items-center justify-between mb-1.5">
               <label className="text-sm font-medium text-muted-foreground">
                 Message
@@ -626,15 +660,17 @@ export function NotificationPanel({ onRefresh }: NotificationPanelProps) {
               onChange={(e) => setSmsMessage(e.target.value)}
               className="border-amber-200 focus-visible:ring-amber-500/30 min-h-[80px] resize-none"
               maxLength={200}
+              disabled={!smsEnabled}
             />
           </div>
 
           {/* WhatsApp toggle & Send */}
           <div className="flex items-center justify-between gap-4 pt-1">
-            <div className="flex items-center gap-3">
+            <div className={`flex items-center gap-3 ${smsEnabled ? '' : 'opacity-50 pointer-events-none'}`}>
               <Switch
                 checked={whatsappEnabled}
                 onCheckedChange={setWhatsappEnabled}
+                disabled={!smsEnabled}
                 className={`${
                   whatsappEnabled
                     ? 'data-[state=checked]:bg-emerald-500'
@@ -655,27 +691,38 @@ export function NotificationPanel({ onRefresh }: NotificationPanelProps) {
               )}
             </div>
 
-            <Button
-              onClick={handleSendSms}
-              disabled={sending || !smsPhone.trim() || !smsMessage.trim()}
-              className={`${
-                whatsappEnabled
-                  ? 'bg-emerald-600 hover:bg-emerald-700 text-white'
-                  : 'bg-amber-600 hover:bg-amber-700 text-white'
-              }`}
-            >
-              {sending ? (
-                <>
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  Envoi...
-                </>
-              ) : (
-                <>
-                  <Send className="h-4 w-4 mr-2" />
-                  {whatsappEnabled ? 'Envoyer WhatsApp' : 'Envoyer SMS'}
-                </>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <span tabIndex={0} className="inline-flex">
+                  <Button
+                    onClick={handleSendSms}
+                    disabled={sending || !smsPhone.trim() || !smsMessage.trim() || !smsEnabled}
+                    className={`${
+                      whatsappEnabled
+                        ? 'bg-emerald-600 hover:bg-emerald-700 text-white'
+                        : 'bg-amber-600 hover:bg-amber-700 text-white'
+                    }`}
+                  >
+                    {sending ? (
+                      <>
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                        Envoi...
+                      </>
+                    ) : (
+                      <>
+                        <Send className="h-4 w-4 mr-2" />
+                        {whatsappEnabled ? 'Envoyer WhatsApp' : 'Envoyer SMS'}
+                      </>
+                    )}
+                  </Button>
+                </span>
+              </TooltipTrigger>
+              {!smsEnabled && (
+                <TooltipContent>
+                  <p>Disponible à partir du plan Standard</p>
+                </TooltipContent>
               )}
-            </Button>
+            </Tooltip>
           </div>
         </CardContent>
       </Card>

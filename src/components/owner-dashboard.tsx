@@ -37,6 +37,13 @@ import {
   Bell,
   FileText,
   MessageSquare,
+  UtensilsCrossed,
+  Package,
+  BookOpen,
+  Lock,
+  ChevronDown,
+  ChevronUp,
+  GraduationCap,
 } from 'lucide-react'
 
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
@@ -100,10 +107,29 @@ const InvoicesTab = dynamic(
   () => import('@/components/invoices-tab').then(mod => ({ default: mod.InvoicesTab })),
   { ssr: false, loading: () => <TabLoadingSkeleton /> }
 )
+const RestaurantTab = dynamic(
+  () => import('@/components/restaurant-tab').then(mod => ({ default: mod.RestaurantTab })),
+  { ssr: false, loading: () => <TabLoadingSkeleton /> }
+)
+const StocksTab = dynamic(
+  () => import('@/components/stocks-tab').then(mod => ({ default: mod.StocksTab })),
+  { ssr: false, loading: () => <TabLoadingSkeleton /> }
+)
+const ConferenceTab = dynamic(
+  () => import('@/components/conference-tab').then(mod => ({ default: mod.ConferenceTab })),
+  { ssr: false, loading: () => <TabLoadingSkeleton /> }
+)
 
 import { RealtimeIndicator, RealtimeRefreshPulse } from '@/components/realtime-indicator'
 import { useRealtimeSafe } from '@/lib/realtime-context'
 import type { RealtimePostgresChangesPayload } from '@supabase/supabase-js'
+
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from '@/components/ui/accordion'
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -174,7 +200,7 @@ interface EmployeeInfo {
   created_at: string
 }
 
-type TabId = 'overview' | 'rooms' | 'reservations' | 'customers' | 'invoices' | 'analytics' | 'notifications' | 'team' | 'settings'
+type TabId = 'overview' | 'rooms' | 'reservations' | 'customers' | 'invoices' | 'analytics' | 'notifications' | 'team' | 'settings' | 'restaurant' | 'stocks' | 'conference' | 'formation'
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -252,17 +278,38 @@ function getEmployeeStatusBadge(status: string) {
 
 // ─── Navigation ──────────────────────────────────────────────────────────────
 
-const NAV_ITEMS: { id: TabId; label: string; icon: React.ReactNode }[] = [
+const NAV_ITEMS: { id: TabId; label: string; icon: React.ReactNode; requiredFeature?: FeatureGate }[] = [
   { id: 'overview', label: 'Tableau de bord', icon: <BarChart3 className="h-4 w-4" /> },
   { id: 'rooms', label: 'Chambres', icon: <Bed className="h-4 w-4" /> },
   { id: 'reservations', label: 'Réservations', icon: <Calendar className="h-4 w-4" /> },
   { id: 'customers', label: 'Clients', icon: <Users className="h-4 w-4" /> },
   { id: 'invoices', label: 'Factures', icon: <FileText className="h-4 w-4" /> },
-  { id: 'analytics', label: 'Analytique', icon: <BarChart3 className="h-4 w-4" /> },
+  { id: 'analytics', label: 'Analytique', icon: <BarChart3 className="h-4 w-4" />, requiredFeature: 'analytics' },
+  { id: 'restaurant', label: 'Restaurant', icon: <UtensilsCrossed className="h-4 w-4" />, requiredFeature: 'restaurant' },
+  { id: 'stocks', label: 'Stocks', icon: <Package className="h-4 w-4" />, requiredFeature: 'stocks' },
+  { id: 'conference', label: 'Salles conférence', icon: <Building2 className="h-4 w-4" />, requiredFeature: 'conference' },
   { id: 'notifications', label: 'Notifications', icon: <Bell className="h-4 w-4" /> },
+  { id: 'formation', label: 'Formation', icon: <GraduationCap className="h-4 w-4" />, requiredFeature: 'formation' },
   { id: 'team', label: 'Équipe', icon: <UserPlus className="h-4 w-4" /> },
   { id: 'settings', label: 'Paramètres', icon: <Settings className="h-4 w-4" /> },
 ]
+
+// ─── Feature Gating by Plan ──────────────────────────────────────────────────
+
+type FeatureGate = 'analytics' | 'restaurant' | 'stocks' | 'conference' | 'formation' | 'sms_notifications'
+
+const PLAN_FEATURES: Record<string, FeatureGate[]> = {
+  'Basique': [],
+  'Standard': ['analytics', 'sms_notifications'],
+  'Premium': ['analytics', 'sms_notifications', 'restaurant', 'stocks', 'conference', 'formation'],
+}
+
+function hasFeature(planName: string | undefined, feature: FeatureGate): boolean {
+  if (!planName) return false
+  // Premium includes all features
+  if (planName === 'Premium') return true
+  return PLAN_FEATURES[planName]?.includes(feature) ?? false
+}
 
 const ROOM_TYPES = [
   'Simple', 'Double', 'Twin', 'Suite', 'Junior Suite', 'Familiale', 'Deluxe', 'Standard', 'VIP'
@@ -460,6 +507,12 @@ export function OwnerDashboard({ profile, onLogout, isNewRegistration }: OwnerDa
     }
   }, [profile.hotel_id, startRealtimeListening, stopRealtimeListening])
 
+  // ─── Filter nav items based on plan features ──────────────────────────
+  const visibleNavItems = NAV_ITEMS.filter(item => {
+    if (item.requiredFeature && !hasFeature(planInfo?.name, item.requiredFeature)) return false
+    return true
+  })
+
   // ─── React to real-time changes (debounced) ──────────────────────────
   const prevChangeCountRef = useRef(0)
   useEffect(() => {
@@ -502,8 +555,8 @@ export function OwnerDashboard({ profile, onLogout, isNewRegistration }: OwnerDa
         </div>
 
         {/* Navigation */}
-        <nav className="flex-1 px-3 py-4 space-y-1">
-          {NAV_ITEMS.map((item) => {
+        <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
+          {visibleNavItems.map((item) => {
             const isActive = activeTab === item.id
             return (
               <button
@@ -623,7 +676,7 @@ export function OwnerDashboard({ profile, onLogout, isNewRegistration }: OwnerDa
                     </div>
                   </div>
                   <nav className="flex-1 px-3 py-4 space-y-1">
-                    {NAV_ITEMS.map((item) => (
+                    {visibleNavItems.map((item) => (
                       <button
                         key={item.id}
                         onClick={() => setActiveTab(item.id)}
@@ -659,7 +712,7 @@ export function OwnerDashboard({ profile, onLogout, isNewRegistration }: OwnerDa
 
         {/* Mobile Navigation */}
         <div className="lg:hidden flex overflow-x-auto gap-1 px-4 py-2 border-b bg-white">
-          {NAV_ITEMS.map((item) => (
+          {visibleNavItems.map((item) => (
             <button
               key={item.id}
               onClick={() => setActiveTab(item.id)}
@@ -789,11 +842,37 @@ export function OwnerDashboard({ profile, onLogout, isNewRegistration }: OwnerDa
           )}
 
           {activeTab === 'analytics' && (
-            <AnalyticsTab onRefresh={fetchAllData} />
+            hasFeature(planInfo?.name, 'analytics')
+              ? <AnalyticsTab onRefresh={fetchAllData} />
+              : <LockedFeatureCard feature="analytics" planName={planInfo?.name} />
+          )}
+
+          {activeTab === 'restaurant' && (
+            hasFeature(planInfo?.name, 'restaurant')
+              ? <RestaurantTab onRefresh={fetchAllData} />
+              : <LockedFeatureCard feature="restaurant" planName={planInfo?.name} />
+          )}
+
+          {activeTab === 'stocks' && (
+            hasFeature(planInfo?.name, 'stocks')
+              ? <StocksTab onRefresh={fetchAllData} />
+              : <LockedFeatureCard feature="stocks" planName={planInfo?.name} />
+          )}
+
+          {activeTab === 'conference' && (
+            hasFeature(planInfo?.name, 'conference')
+              ? <ConferenceTab onRefresh={fetchAllData} />
+              : <LockedFeatureCard feature="conference" planName={planInfo?.name} />
           )}
 
           {activeTab === 'notifications' && (
-            <NotificationPanel onRefresh={fetchAllData} />
+            <NotificationPanel onRefresh={fetchAllData} planName={planInfo?.name} />
+          )}
+
+          {activeTab === 'formation' && (
+            hasFeature(planInfo?.name, 'formation')
+              ? <FormationTab />
+              : <LockedFeatureCard feature="formation" planName={planInfo?.name} />
           )}
 
           {activeTab === 'team' && (
@@ -814,6 +893,85 @@ export function OwnerDashboard({ profile, onLogout, isNewRegistration }: OwnerDa
           )}
         </div>
       </main>
+    </div>
+  )
+}
+
+// ─── Locked Feature Card ────────────────────────────────────────────────────
+
+function LockedFeatureCard({ feature, planName }: { feature: string; planName?: string }) {
+  const featureInfo: Record<string, { label: string; description: string; minPlan: string; icon: React.ReactNode }> = {
+    analytics: {
+      label: 'Analytique',
+      description: 'KPIs, graphiques de performance et tableaux de bord avancés',
+      minPlan: 'Standard',
+      icon: <BarChart3 className="h-8 w-8" />,
+    },
+    restaurant: {
+      label: 'Module Restaurant',
+      description: 'Gestion du restaurant, menu, commandes et facturation',
+      minPlan: 'Premium',
+      icon: <UtensilsCrossed className="h-8 w-8" />,
+    },
+    stocks: {
+      label: 'Module Stocks',
+      description: 'Suivi des stocks, alertes de rupture et approvisionnement',
+      minPlan: 'Premium',
+      icon: <Package className="h-8 w-8" />,
+    },
+    conference: {
+      label: 'Salles de Conférence',
+      description: 'Réservation et gestion des salles de réunion et séminaire',
+      minPlan: 'Premium',
+      icon: <Building2 className="h-8 w-8" />,
+    },
+    formation: {
+      label: 'Formation & Guides',
+      description: 'Guides pratiques et formations pour optimiser votre gestion',
+      minPlan: 'Premium',
+      icon: <GraduationCap className="h-8 w-8" />,
+    },
+  }
+
+  const info = featureInfo[feature]
+  if (!info) return null
+
+  return (
+    <div className="flex flex-col items-center justify-center py-16 text-center">
+      <div className="flex h-20 w-20 items-center justify-center rounded-2xl bg-gray-100 text-gray-300 mb-6 relative">
+        {info.icon}
+        <div className="absolute -top-2 -right-2 flex h-8 w-8 items-center justify-center rounded-full bg-amber-100 text-amber-600">
+          <Lock className="h-4 w-4" />
+        </div>
+      </div>
+      <h2 className="text-xl font-bold text-gray-900 mb-2">{info.label}</h2>
+      <p className="text-sm text-muted-foreground max-w-md mb-4">{info.description}</p>
+      <Badge className="bg-amber-100 text-amber-700 border-amber-200 hover:bg-amber-100 mb-6">
+        Disponible à partir du plan {info.minPlan}
+      </Badge>
+      <div className="flex flex-col sm:flex-row gap-3">
+        <a
+          href="https://wa.me/2250576103277?text=Bonjour%2C%20je%20souhaite%20mettre%20%C3%A0%20niveau%20mon%20abonnement%20H%C3%B4telCI"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-flex items-center justify-center gap-2 rounded-lg bg-gradient-to-r from-amber-500 to-orange-600 px-6 py-3 text-sm font-medium text-white hover:from-amber-600 hover:to-orange-700 transition-colors shadow-md shadow-amber-500/20"
+        >
+          <MessageSquare className="h-4 w-4" />
+          Mettre à niveau
+        </a>
+        <Button
+          variant="outline"
+          className="border-amber-200 text-amber-700 hover:bg-amber-50"
+          onClick={() => window.location.reload()}
+        >
+          Voir mon plan actuel
+        </Button>
+      </div>
+      {planName && (
+        <p className="text-xs text-muted-foreground mt-4">
+          Plan actuel : <strong>{planName}</strong>
+        </p>
+      )}
     </div>
   )
 }
@@ -1045,6 +1203,289 @@ function OverviewTab({
           </CardContent>
         </Card>
       </div>
+
+      {/* Locked Features — Upgrade Prompt */}
+      {planInfo && planInfo.name !== 'Premium' && (
+        <Card className="border-amber-200/60 bg-gradient-to-br from-gray-50 to-amber-50/30">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Sparkles className="h-5 w-5 text-amber-600" />
+              Fonctionnalités Premium
+            </CardTitle>
+            <CardDescription>Débloquez plus de puissance avec un plan supérieur</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+              {!hasFeature(planInfo.name, 'analytics') && (
+                <div className="rounded-lg border border-gray-200 bg-white/60 p-4 relative overflow-hidden">
+                  <div className="absolute top-2 right-2">
+                    <Lock className="h-4 w-4 text-gray-300" />
+                  </div>
+                  <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-gray-100 text-gray-400 mb-3">
+                    <BarChart3 className="h-5 w-5" />
+                  </div>
+                  <p className="font-medium text-sm text-gray-700">Analytique</p>
+                  <p className="text-xs text-gray-400 mt-1">KPIs & tableaux de bord</p>
+                  <Badge className="mt-2 bg-amber-50 text-amber-600 border-amber-200 hover:bg-amber-50 text-[10px]">
+                    Plan Standard+
+                  </Badge>
+                </div>
+              )}
+              {!hasFeature(planInfo.name, 'restaurant') && (
+                <div className="rounded-lg border border-gray-200 bg-white/60 p-4 relative overflow-hidden">
+                  <div className="absolute top-2 right-2">
+                    <Lock className="h-4 w-4 text-gray-300" />
+                  </div>
+                  <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-gray-100 text-gray-400 mb-3">
+                    <UtensilsCrossed className="h-5 w-5" />
+                  </div>
+                  <p className="font-medium text-sm text-gray-700">Restaurant</p>
+                  <p className="text-xs text-gray-400 mt-1">Menu, commandes, facturation</p>
+                  <Badge className="mt-2 bg-amber-50 text-amber-600 border-amber-200 hover:bg-amber-50 text-[10px]">
+                    Plan Premium
+                  </Badge>
+                </div>
+              )}
+              {!hasFeature(planInfo.name, 'stocks') && (
+                <div className="rounded-lg border border-gray-200 bg-white/60 p-4 relative overflow-hidden">
+                  <div className="absolute top-2 right-2">
+                    <Lock className="h-4 w-4 text-gray-300" />
+                  </div>
+                  <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-gray-100 text-gray-400 mb-3">
+                    <Package className="h-5 w-5" />
+                  </div>
+                  <p className="font-medium text-sm text-gray-700">Stocks</p>
+                  <p className="text-xs text-gray-400 mt-1">Suivi & approvisionnement</p>
+                  <Badge className="mt-2 bg-amber-50 text-amber-600 border-amber-200 hover:bg-amber-50 text-[10px]">
+                    Plan Premium
+                  </Badge>
+                </div>
+              )}
+              {!hasFeature(planInfo.name, 'conference') && (
+                <div className="rounded-lg border border-gray-200 bg-white/60 p-4 relative overflow-hidden">
+                  <div className="absolute top-2 right-2">
+                    <Lock className="h-4 w-4 text-gray-300" />
+                  </div>
+                  <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-gray-100 text-gray-400 mb-3">
+                    <Building2 className="h-5 w-5" />
+                  </div>
+                  <p className="font-medium text-sm text-gray-700">Salles conférence</p>
+                  <p className="text-xs text-gray-400 mt-1">Réservation & séminaires</p>
+                  <Badge className="mt-2 bg-amber-50 text-amber-600 border-amber-200 hover:bg-amber-50 text-[10px]">
+                    Plan Premium
+                  </Badge>
+                </div>
+              )}
+              {!hasFeature(planInfo.name, 'formation') && (
+                <div className="rounded-lg border border-gray-200 bg-white/60 p-4 relative overflow-hidden">
+                  <div className="absolute top-2 right-2">
+                    <Lock className="h-4 w-4 text-gray-300" />
+                  </div>
+                  <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-gray-100 text-gray-400 mb-3">
+                    <BookOpen className="h-5 w-5" />
+                  </div>
+                  <p className="font-medium text-sm text-gray-700">Formation</p>
+                  <p className="text-xs text-gray-400 mt-1">Guides & bonnes pratiques</p>
+                  <Badge className="mt-2 bg-amber-50 text-amber-600 border-amber-200 hover:bg-amber-50 text-[10px]">
+                    Plan Premium
+                  </Badge>
+                </div>
+              )}
+            </div>
+            <div className="mt-4 flex items-center gap-3">
+              <a
+                href="https://wa.me/2250576103277?text=Bonjour%2C%20je%20souhaite%20mettre%20%C3%A0%20niveau%20mon%20abonnement%20H%C3%B4telCI"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-2 rounded-lg bg-gradient-to-r from-amber-500 to-orange-600 px-4 py-2 text-sm font-medium text-white hover:from-amber-600 hover:to-orange-700 transition-colors"
+              >
+                <MessageSquare className="h-4 w-4" />
+                Mettre à niveau
+              </a>
+              <p className="text-xs text-muted-foreground">
+                Contactez-nous pour passer au plan {planInfo.name === 'Basique' ? 'Standard' : 'Premium'}
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+    </div>
+  )
+}
+
+// ─── Formation Tab ────────────────────────────────────────────────────────────
+
+function FormationTab() {
+  const guides = [
+    {
+      id: 'demarrage',
+      title: 'Guide de démarrage rapide',
+      icon: <BookOpen className="h-5 w-5" />,
+      color: 'text-amber-600',
+      bg: 'bg-amber-50',
+      sections: [
+        {
+          subtitle: 'Premiers pas',
+          content: 'Bienvenue dans HôtelCI ! Commencez par configurer votre hôtel en ajoutant vos chambres et les types de chambres disponibles. Ensuite, ajoutez les membres de votre équipe (réceptionnistes, managers) pour qu\'ils puissent accéder au système.',
+        },
+        {
+          subtitle: 'Configuration initiale',
+          content: 'Allez dans Paramètres pour vérifier les informations de votre hôtel (nom, adresse, téléphone). Assurez-vous que ces informations sont correctes car elles apparaîtront sur vos factures et documents.',
+        },
+        {
+          subtitle: 'Ajout des chambres',
+          content: 'Depuis l\'onglet Chambres, cliquez sur "Ajouter" pour créer vos premières chambres. Indiquez le numéro, le type (Simple, Double, Suite...) et le prix par nuit. Vous pouvez modifier ces informations à tout moment.',
+        },
+      ],
+    },
+    {
+      id: 'reservations',
+      title: 'Gestion des réservations',
+      icon: <Calendar className="h-5 w-5" />,
+      color: 'text-orange-600',
+      bg: 'bg-orange-50',
+      sections: [
+        {
+          subtitle: 'Créer une réservation',
+          content: 'Depuis l\'onglet Réservations, cliquez sur "Nouvelle réservation". Sélectionnez le client (ou créez-en un nouveau), choisissez la chambre, les dates d\'arrivée et de départ. Le système calcule automatiquement le montant total.',
+        },
+        {
+          subtitle: 'Check-in et Check-out',
+          content: 'Le jour de l\'arrivée, effectuez le check-in depuis la fiche de réservation. Le statut de la chambre passe automatiquement à "Occupée". Au départ, effectuez le check-out : la chambre passe en "Nettoyage" puis redevient "Disponible".',
+        },
+        {
+          subtitle: 'Gestion des conflits',
+          content: 'Le système empêche les doubles réservations sur une même chambre pour les mêmes dates. Vérifiez toujours la disponibilité avant de confirmer une réservation.',
+        },
+      ],
+    },
+    {
+      id: 'restaurant',
+      title: 'Module Restaurant',
+      icon: <UtensilsCrossed className="h-5 w-5" />,
+      color: 'text-emerald-600',
+      bg: 'bg-emerald-50',
+      sections: [
+        {
+          subtitle: 'Configuration du menu',
+          content: 'Depuis l\'onglet Restaurant, configurez votre carte avec les catégories (Entrées, Plats, Desserts, Boissons). Ajoutez chaque plat avec son prix et sa description.',
+        },
+        {
+          subtitle: 'Gestion des commandes',
+          content: 'Les réceptionnistes et le personnel de restaurant peuvent prendre les commandes directement depuis l\'application. Les commandes sont associées à un numéro de chambre ou à une table.',
+        },
+        {
+          subtitle: 'Facturation restaurant',
+          content: 'Les consommations du restaurant peuvent être ajoutées à la facture de la chambre du client pour un règlement unique au départ, ou facturées séparément.',
+        },
+      ],
+    },
+    {
+      id: 'stocks',
+      title: 'Module Stocks',
+      icon: <Package className="h-5 w-5" />,
+      color: 'text-sky-600',
+      bg: 'bg-sky-50',
+      sections: [
+        {
+          subtitle: 'Inventaire initial',
+          content: 'Commencez par créer vos catégories de produits (Boissons, Produits d\'entretien, Linge, Consommables). Puis ajoutez chaque produit avec sa quantité actuelle et son seuil d\'alerte.',
+        },
+        {
+          subtitle: 'Suivi des entrées/sorties',
+          content: 'Chaque mouvement de stock est enregistré : réception de marchandises (entrée), consommation ou perte (sortie). L\'historique permet de tracer tous les mouvements.',
+        },
+        {
+          subtitle: 'Alertes de rupture',
+          content: 'Le système vous alerte automatiquement quand le stock d\'un produit passe en dessous du seuil défini. Vous pouvez alors commander un réapprovisionnement.',
+        },
+      ],
+    },
+    {
+      id: 'bonnes-pratiques',
+      title: 'Bonnes pratiques',
+      icon: <Sparkles className="h-5 w-5" />,
+      color: 'text-purple-600',
+      bg: 'bg-purple-50',
+      sections: [
+        {
+          subtitle: 'Sauvegarde des données',
+          content: 'Vos données sont sauvegardées automatiquement sur nos serveurs sécurisés. Nous vous recommandons néanmoins d\'exporter régulièrement vos factures et rapports importants.',
+        },
+        {
+          subtitle: 'Gestion des accès',
+          content: 'Attribuez les bons rôles à chaque membre de l\'équipe. Les réceptionnistes n\'ont accès qu\'aux réservations et chambres. Les managers ont un accès plus large. Seul le propriétaire peut gérer l\'abonnement et les paramètres.',
+        },
+        {
+          subtitle: 'Optimisation des revenus',
+          content: 'Utilisez le module Analytique pour suivre votre taux d\'occupation et vos revenus. Ajustez vos prix en fonction de la saisonnalité et des événements locaux pour maximiser votre rentabilité.',
+        },
+      ],
+    },
+  ]
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center gap-3">
+        <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-amber-50">
+          <GraduationCap className="h-5 w-5 text-amber-600" />
+        </div>
+        <div>
+          <h2 className="text-xl font-bold tracking-tight text-gray-900">Formation & Guides</h2>
+          <p className="text-sm text-muted-foreground">Guides pratiques pour maîtriser HôtelCI</p>
+        </div>
+      </div>
+
+      <Card className="border-amber-200/60 bg-gradient-to-r from-amber-50 to-orange-50">
+        <CardContent className="p-5">
+          <div className="flex items-start gap-3">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-amber-100 text-amber-600">
+              <Sparkles className="h-5 w-5" />
+            </div>
+            <div>
+              <p className="font-medium text-amber-900">Contenu exclusif Premium</p>
+              <p className="text-sm text-amber-700 mt-1">
+                Ces guides et formations vous accompagnent pour tirer le meilleur parti de toutes les fonctionnalités d&apos;HôtelCI.
+              </p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Accordion type="multiple" className="space-y-3">
+        {guides.map((guide) => (
+          <AccordionItem key={guide.id} value={guide.id} className="border rounded-lg px-0 overflow-hidden">
+            <AccordionTrigger className="px-6 py-4 hover:no-underline hover:bg-gray-50/50 transition-colors">
+              <div className="flex items-center gap-3 text-left">
+                <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-lg ${guide.bg} ${guide.color}`}>
+                  {guide.icon}
+                </div>
+                <div>
+                  <p className="font-semibold text-gray-900">{guide.title}</p>
+                  <p className="text-xs text-muted-foreground">{guide.sections.length} sections</p>
+                </div>
+              </div>
+            </AccordionTrigger>
+            <AccordionContent className="px-6 pb-4">
+              <div className="space-y-4 pt-2">
+                {guide.sections.map((section, idx) => (
+                  <div key={idx} className="rounded-lg border border-gray-100 bg-gray-50/50 p-4">
+                    <h4 className="font-medium text-gray-900 mb-2 flex items-center gap-2">
+                      <span className="flex h-6 w-6 items-center justify-center rounded-full bg-amber-100 text-amber-700 text-xs font-bold shrink-0">
+                        {idx + 1}
+                      </span>
+                      {section.subtitle}
+                    </h4>
+                    <p className="text-sm text-gray-600 leading-relaxed ml-8">
+                      {section.content}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            </AccordionContent>
+          </AccordionItem>
+        ))}
+      </Accordion>
     </div>
   )
 }
