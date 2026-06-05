@@ -61,5 +61,10 @@ worklog.md
 /screenshots/
 *.png
 !.gitignore
-.zscripts/dev.pid
+.zscripts/
 download/
+examples/
+Caddyfile
+server.js
+package-lock.json
+invoices-module.sql
