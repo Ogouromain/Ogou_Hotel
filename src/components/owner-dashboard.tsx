@@ -328,28 +328,35 @@ function CopyButton({ text }: { text: string }) {
 
 function LimitIndicator({ current, max, label }: { current: number; max: number; label: string }) {
   const percentage = max > 0 ? Math.min((current / max) * 100, 100) : 0
-  const isNearLimit = percentage >= 80
-  const isAtLimit = current >= max
+  const isNearLimit = max > 0 && percentage >= 80
+  const isAtLimit = max > 0 && current >= max
+  const isNotAvailable = max === 0
 
   return (
     <div className="space-y-1.5">
       <div className="flex items-center justify-between text-sm">
         <span className="text-muted-foreground">{label}</span>
-        <span className={`font-medium ${isAtLimit ? 'text-red-600' : isNearLimit ? 'text-amber-600' : 'text-emerald-600'}`}>
+        <span className={`font-medium ${isNotAvailable ? 'text-gray-400' : isAtLimit ? 'text-red-600' : isNearLimit ? 'text-amber-600' : 'text-emerald-600'}`}>
           {current} / {max === 9999 ? '∞' : max}
         </span>
       </div>
       <Progress
-        value={max === 9999 ? 0 : percentage}
-        className={`h-2 ${isAtLimit ? '[&>div]:bg-red-500' : isNearLimit ? '[&>div]:bg-amber-500' : '[&>div]:bg-emerald-500'}`}
+        value={max === 9999 || max === 0 ? 0 : percentage}
+        className={`h-2 ${isNotAvailable ? '[&>div]:bg-gray-300' : isAtLimit ? '[&>div]:bg-red-500' : isNearLimit ? '[&>div]:bg-amber-500' : '[&>div]:bg-emerald-500'}`}
       />
-      {isAtLimit && (
+      {isNotAvailable && (
+        <p className="text-xs text-gray-500 flex items-center gap-1">
+          <AlertTriangle className="h-3 w-3" />
+          Non disponible sur ce plan
+        </p>
+      )}
+      {isAtLimit && !isNotAvailable && (
         <p className="text-xs text-red-600 flex items-center gap-1">
           <AlertTriangle className="h-3 w-3" />
           Limite atteinte — Mettez à niveau votre plan
         </p>
       )}
-      {isNearLimit && !isAtLimit && (
+      {isNearLimit && !isAtLimit && !isNotAvailable && (
         <p className="text-xs text-amber-600 flex items-center gap-1">
           <AlertTriangle className="h-3 w-3" />
           Approche de la limite
@@ -835,7 +842,7 @@ function OverviewTab({
   onNavigateToCustomers?: () => void
   onNavigateToInvoices?: () => void
 }) {
-  const totalEmployees = usage.receptionists + usage.managers + 1 // +1 for owner
+  const totalEmployees = usage.receptionists + usage.managers // Only count employees (not owner)
 
   const statCards = [
     { title: 'Chambres', value: usage.rooms, icon: <Bed className="h-5 w-5" />, color: 'text-amber-600', bg: 'bg-amber-50', max: planInfo?.limits.max_rooms, onClick: onNavigateToRooms },

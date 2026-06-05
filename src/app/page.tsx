@@ -26,6 +26,10 @@ const OwnerDashboard = dynamic(
   () => import('@/components/owner-dashboard').then(mod => ({ default: mod.OwnerDashboard })),
   { ssr: false }
 )
+const StaffDashboard = dynamic(
+  () => import('@/components/staff-dashboard').then(mod => ({ default: mod.StaffDashboard })),
+  { ssr: false }
+)
 
 type AppView = 'loading' | 'setup' | 'landing' | 'login' | 'register' | 'dashboard'
 
@@ -169,7 +173,11 @@ export default function Home() {
         />
       )
     }
-    // Other roles get the generic dashboard
+    // Staff roles (receptionist, manager, housekeeper, restaurant_staff) get the staff dashboard
+    if (['receptionist', 'manager', 'housekeeper', 'restaurant_staff'].includes(profile.role)) {
+      return <StaffDashboard profile={profile as Profile} onLogout={handleLogout} />
+    }
+    // Fallback for unknown roles — generic dashboard
     return <Dashboard profile={profile as Profile} onLogout={handleLogout} />
   }
 
