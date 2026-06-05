@@ -1,8 +1,6 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  output: "standalone",
-
   // ─── Performance Optimizations for Côte d'Ivoire Mobile Networks ──────────
   // These optimizations target slow 3G/4G connections and low-end devices
   // common in Côte d'Ivoire's mobile-first market.
