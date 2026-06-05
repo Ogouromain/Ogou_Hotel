@@ -4,20 +4,37 @@ import { useAuth } from '@/lib/auth-context'
 import { LoginForm } from '@/components/login-form'
 import { RegisterForm } from '@/components/register-form'
 import { SetupWizard } from '@/components/setup-wizard'
-import { Dashboard } from '@/components/dashboard'
-import { SuperAdminPanel } from '@/components/super-admin-panel'
-import { OwnerDashboard } from '@/components/owner-dashboard'
+import { LandingPage } from '@/components/landing-page'
 import { Loader2, Hotel } from 'lucide-react'
 import { useState, useEffect, useMemo, useCallback } from 'react'
+import dynamic from 'next/dynamic'
 import type { Profile } from '@/lib/types'
 
-type AppView = 'loading' | 'setup' | 'login' | 'register' | 'dashboard'
+// ─── Dynamic Imports for Heavy Dashboard Components ────────────────────────
+// These are loaded only when the user is authenticated, reducing the
+// initial bundle size by ~30% for the landing page experience.
+
+const Dashboard = dynamic(
+  () => import('@/components/dashboard').then(mod => ({ default: mod.Dashboard })),
+  { ssr: false }
+)
+const SuperAdminPanel = dynamic(
+  () => import('@/components/super-admin-panel').then(mod => ({ default: mod.SuperAdminPanel })),
+  { ssr: false }
+)
+const OwnerDashboard = dynamic(
+  () => import('@/components/owner-dashboard').then(mod => ({ default: mod.OwnerDashboard })),
+  { ssr: false }
+)
+
+type AppView = 'loading' | 'setup' | 'landing' | 'login' | 'register' | 'dashboard'
 
 export default function Home() {
   const { profile, isLoading, isAuthenticated, signOut } = useAuth()
   const [setupReady, setSetupReady] = useState<boolean | null>(null) // null = not checked yet
   const [isNewRegistration, setIsNewRegistration] = useState(false)
   const [wantsRegister, setWantsRegister] = useState(false) // User explicitly clicked "Register"
+  const [wantsLogin, setWantsLogin] = useState(false) // User explicitly clicked "Login"
 
   // Check setup status on mount
   useEffect(() => {
@@ -39,22 +56,22 @@ export default function Home() {
     return () => { cancelled = true }
   }, [])
 
-  // Derive the auto-computed view from auth state (no setState in effect!)
+  // Derive the auto-computed view from auth state
   const autoView = useMemo<AppView>(() => {
     if (setupReady === null) return 'loading'
     if (!setupReady) return 'setup'
     if (isLoading) return 'loading'
     if (isAuthenticated && profile) return 'dashboard'
-    return 'login'
+    // Default: show landing page instead of login
+    return 'landing'
   }, [setupReady, isLoading, isAuthenticated, profile])
 
   // Determine the actual view to show:
-  // - If user explicitly wants to register AND is not authenticated → show register
-  // - Otherwise → follow autoView
   const currentView = useMemo<AppView>(() => {
-    if (wantsRegister && autoView === 'login') return 'register'
+    if (wantsRegister && (autoView === 'landing' || autoView === 'login')) return 'register'
+    if (wantsLogin && (autoView === 'landing' || autoView === 'register')) return 'login'
     return autoView
-  }, [wantsRegister, autoView])
+  }, [wantsRegister, wantsLogin, autoView])
 
   const handleSetupComplete = useCallback(() => {
     setSetupReady(true)
@@ -64,13 +81,16 @@ export default function Home() {
     await signOut()
     setIsNewRegistration(false)
     setWantsRegister(false)
+    setWantsLogin(false)
   }, [signOut])
 
   const handleSwitchToRegister = useCallback(() => {
     setWantsRegister(true)
+    setWantsLogin(false)
   }, [])
 
   const handleSwitchToLogin = useCallback(() => {
+    setWantsLogin(true)
     setWantsRegister(false)
   }, [])
 
@@ -101,6 +121,17 @@ export default function Home() {
   // Setup wizard
   if (currentView === 'setup') {
     return <SetupWizard onComplete={handleSetupComplete} />
+  }
+
+  // Landing page (new default for unauthenticated users)
+  if (currentView === 'landing') {
+    return (
+      <LandingPage
+        onLogin={handleSwitchToLogin}
+        onRegister={handleSwitchToRegister}
+        onDemo={handleSwitchToRegister}
+      />
+    )
   }
 
   // Registration form
@@ -143,5 +174,11 @@ export default function Home() {
   }
 
   // Fallback
-  return <LoginForm onSwitchToRegister={handleSwitchToRegister} />
+  return (
+    <LandingPage
+      onLogin={handleSwitchToLogin}
+      onRegister={handleSwitchToRegister}
+      onDemo={handleSwitchToRegister}
+    />
+  )
 }

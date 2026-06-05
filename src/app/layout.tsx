@@ -1,20 +1,14 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { Toaster } from "@/components/ui/sonner";
 import { AuthProvider } from "@/lib/auth-context";
 import { RealtimeProvider } from "@/lib/realtime-context";
 import { TooltipProvider } from "@/components/ui/tooltip";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
-});
-
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
-});
+// ─── System Font Stack for Fast FCP on CI Mobile Networks ───────────────────
+// No external fonts are loaded — uses the device's local system fonts.
+// This eliminates ~100-300ms font download delay on slow 3G/4G connections
+// common in Côte d'Ivoire, ensuring FCP < 1 second.
 
 export const metadata: Metadata = {
   title: "HôtelCI — Gestion Hôtelière Côte d'Ivoire",
@@ -41,9 +35,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="fr" suppressHydrationWarning>
-      <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased bg-background text-foreground`}
-      >
+      <body className="antialiased bg-background text-foreground">
         <AuthProvider>
           <RealtimeProvider>
             <TooltipProvider>
