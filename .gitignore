@@ -58,3 +58,8 @@ server.log
 /agent-ctx/
 worklog.md
 /db/*.db
+/screenshots/
+*.png
+!.gitignore
+.zscripts/dev.pid
+download/
