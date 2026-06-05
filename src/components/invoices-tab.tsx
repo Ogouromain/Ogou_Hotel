@@ -19,6 +19,10 @@ import {
   Trash2,
   CheckCircle2,
   AlertTriangle,
+  FileSpreadsheet,
+  FileDown,
+  RotateCcw,
+  Ban,
 } from 'lucide-react'
 
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
@@ -70,8 +74,17 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+  DropdownMenuSeparator,
+} from '@/components/ui/dropdown-menu'
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 
 import type { Invoice, InvoiceItem, InvoiceStatus, PaymentMethod } from '@/lib/types'
+import { downloadCSV, INVOICE_EXPORT_COLUMNS, type InvoiceExportRow } from '@/lib/export-utils'
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -223,6 +236,9 @@ export function InvoicesTab({ onRefresh }: InvoicesTabProps) {
   const [statusDialogOpen, setStatusDialogOpen] = useState(false)
   const [statusChangeTarget, setStatusChangeTarget] = useState<'refund' | 'cancelled' | null>(null)
   const [statusChanging, setStatusChanging] = useState(false)
+
+  // Export state
+  const [exporting, setExporting] = useState(false)
 
   // ─── Fetch invoices ────────────────────────────────────────────────────
   const fetchInvoices = useCallback(async () => {
@@ -400,7 +416,6 @@ export function InvoicesTab({ onRefresh }: InvoicesTabProps) {
     setSelectedInvoice(invoice)
     setDetailOpen(true)
 
-    // Fetch full detail with items if not already loaded
     if (!invoice.invoice_items || invoice.invoice_items.length === 0) {
       setDetailLoading(true)
       try {
@@ -452,560 +467,240 @@ export function InvoicesTab({ onRefresh }: InvoicesTabProps) {
     }
   }
 
-  // ─── Print PDF (A4) ──────────────────────────────────────────────────
-  function printPDF(invoice: Invoice) {
-    const items = invoice.invoice_items || []
-    const customerName = invoice.customers
-      ? `${(invoice.customers as Record<string, unknown>).first_name} ${(invoice.customers as Record<string, unknown>).last_name}`
-      : 'N/A'
-    const customerPhone = invoice.customers
-      ? (invoice.customers as Record<string, unknown>).phone || ''
-      : ''
-
-    const html = `<!DOCTYPE html>
-<html lang="fr">
-<head>
-  <meta charset="UTF-8">
-  <title>Facture ${invoice.invoice_number}</title>
-  <style>
-    @page { size: A4; margin: 20mm; }
-    * { margin: 0; padding: 0; box-sizing: border-box; }
-    body { font-family: 'Segoe UI', Arial, sans-serif; font-size: 12px; color: #1a1a1a; }
-    .header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 30px; border-bottom: 3px solid #d97706; padding-bottom: 20px; }
-    .hotel-info h1 { font-size: 22px; color: #92400e; font-weight: 700; }
-    .hotel-info p { color: #555; margin-top: 4px; }
-    .invoice-title { text-align: right; }
-    .invoice-title h2 { font-size: 28px; color: #d97706; text-transform: uppercase; letter-spacing: 2px; }
-    .invoice-title p { color: #777; margin-top: 4px; font-size: 13px; }
-    .status-badge { display: inline-block; padding: 4px 12px; border-radius: 4px; font-weight: 600; font-size: 11px; margin-top: 8px; }
-    .status-paid { background: #d1fae5; color: #065f46; }
-    .status-refund { background: #ffedd5; color: #9a3412; }
-    .status-cancelled { background: #fee2e2; color: #991b1b; }
-    .sections { display: flex; justify-content: space-between; margin-bottom: 30px; }
-    .section { flex: 1; }
-    .section h3 { font-size: 11px; text-transform: uppercase; color: #92400e; letter-spacing: 1px; margin-bottom: 8px; border-bottom: 1px solid #fbbf24; padding-bottom: 4px; }
-    .section p { color: #444; margin: 3px 0; }
-    table { width: 100%; border-collapse: collapse; margin-bottom: 25px; }
-    thead th { background: #fffbeb; color: #92400e; padding: 10px 12px; text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 2px solid #d97706; }
-    thead th:last-child { text-align: right; }
-    tbody td { padding: 10px 12px; border-bottom: 1px solid #f3f4f6; }
-    tbody td:last-child { text-align: right; font-weight: 500; }
-    tbody tr:nth-child(even) { background: #fffbeb; }
-    .totals { margin-left: auto; width: 300px; }
-    .totals .row { display: flex; justify-content: space-between; padding: 6px 0; }
-    .totals .total-final { border-top: 2px solid #d97706; padding-top: 10px; margin-top: 6px; font-size: 16px; font-weight: 700; color: #92400e; }
-    .footer { margin-top: 40px; text-align: center; color: #92400e; font-size: 11px; border-top: 1px solid #fbbf24; padding-top: 15px; }
-    .payment-info { margin-top: 15px; padding: 10px; background: #fffbeb; border-radius: 6px; border-left: 3px solid #d97706; }
-    .payment-info span { font-weight: 600; color: #92400e; }
-    .notes { margin-top: 15px; padding: 10px; background: #f9fafb; border-radius: 6px; font-style: italic; color: #555; }
-    @media print { body { -webkit-print-color-adjust: exact; print-color-adjust: exact; } }
-  </style>
-</head>
-<body>
-  <div class="header">
-    <div class="hotel-info">
-      <h1>HôtelCI</h1>
-      <p>Votre établissement</p>
-      <p>Abidjan, Côte d'Ivoire</p>
-    </div>
-    <div class="invoice-title">
-      <h2>Facture</h2>
-      <p>N° ${invoice.invoice_number}</p>
-      <p>${formatDateFR(invoice.created_at)}</p>
-      <span class="status-badge status-${invoice.status}">${
-        invoice.status === 'paid' ? 'PAYÉE' : invoice.status === 'refund' ? 'REMBOURSÉE' : 'ANNULÉE'
-      }</span>
-    </div>
-  </div>
-  <div class="sections">
-    <div class="section">
-      <h3>Client</h3>
-      <p><strong>${customerName}</strong></p>
-      ${customerPhone ? `<p>Tél : ${customerPhone}</p>` : ''}
-    </div>
-    <div class="section" style="text-align: right;">
-      <h3>Informations</h3>
-      <p>Mode : ${getPaymentMethodLabel(invoice.payment_method)}</p>
-      ${invoice.reservation_id ? '<p>Liée à une réservation</p>' : ''}
-    </div>
-  </div>
-  <table>
-    <thead>
-      <tr>
-        <th>Description</th>
-        <th style="text-align:center;width:80px;">Qté</th>
-        <th style="text-align:right;width:120px;">Prix unitaire</th>
-        <th style="text-align:right;width:120px;">Total</th>
-      </tr>
-    </thead>
-    <tbody>
-      ${items
-        .map(
-          (item) => `<tr>
-        <td>${item.description}</td>
-        <td style="text-align:center;">${item.quantity}</td>
-        <td style="text-align:right;">${formatFCFA(item.unit_price)}</td>
-        <td style="text-align:right;">${formatFCFA(item.total)}</td>
-      </tr>`
-        )
-        .join('')}
-    </tbody>
-  </table>
-  <div class="totals">
-    <div class="row"><span>Sous-total HT</span><span>${formatFCFA(invoice.subtotal)}</span></div>
-    ${invoice.tourist_tax > 0 ? `<div class="row"><span>Taxe de séjour</span><span>${formatFCFA(invoice.tourist_tax)}</span></div>` : ''}
-    ${invoice.vat > 0 ? `<div class="row"><span>TVA (18%)</span><span>${formatFCFA(invoice.vat)}</span></div>` : ''}
-    <div class="row total-final"><span>Total TTC</span><span>${formatFCFA(invoice.total_amount)}</span></div>
-  </div>
-  <div class="payment-info">
-    <span>Mode de paiement :</span> ${getPaymentMethodLabel(invoice.payment_method)}
-  </div>
-  ${invoice.notes ? `<div class="notes">${invoice.notes}</div>` : ''}
-  <div class="footer">
-    Merci de votre confiance — HôtelCI
-  </div>
-</body>
-</html>`
-
-    const printWindow = window.open('', '_blank')
+  // ─── Print PDF (A4) via server ───────────────────────────────────────
+  function handlePrintA4(invoice: Invoice) {
+    const url = `/api/owner/invoices/pdf/${invoice.id}?format=a4`
+    const printWindow = window.open(url, '_blank')
     if (printWindow) {
-      printWindow.document.write(html)
-      printWindow.document.close()
       printWindow.onload = () => {
         printWindow.print()
       }
     }
   }
 
-  // ─── Print Thermal Receipt (80mm) ─────────────────────────────────────
-  function printThermal(invoice: Invoice) {
-    const items = invoice.invoice_items || []
-    const customerName = invoice.customers
-      ? `${(invoice.customers as Record<string, unknown>).first_name} ${(invoice.customers as Record<string, unknown>).last_name}`
-      : 'N/A'
-
-    const html = `<!DOCTYPE html>
-<html lang="fr">
-<head>
-  <meta charset="UTF-8">
-  <title>Reçu ${invoice.invoice_number}</title>
-  <style>
-    @page { size: 80mm auto; margin: 0; }
-    * { margin: 0; padding: 0; box-sizing: border-box; }
-    body { font-family: 'Courier New', monospace; font-size: 11px; color: #000; width: 80mm; padding: 5mm; }
-    .center { text-align: center; }
-    .bold { font-weight: bold; }
-    .separator { border-top: 1px dashed #555; margin: 6px 0; }
-    .hotel-name { font-size: 16px; font-weight: bold; }
-    .invoice-num { font-size: 13px; font-weight: bold; margin-top: 4px; }
-    .line-item { display: flex; justify-content: space-between; margin: 3px 0; }
-    .line-desc { font-size: 10px; margin-top: 1px; }
-    .total-row { display: flex; justify-content: space-between; margin: 2px 0; font-weight: bold; }
-    .grand-total { font-size: 14px; border-top: 2px solid #000; padding-top: 6px; margin-top: 6px; }
-    .footer { margin-top: 10px; text-align: center; font-size: 10px; }
-    @media print { body { -webkit-print-color-adjust: exact; print-color-adjust: exact; } }
-  </style>
-</head>
-<body>
-  <div class="center">
-    <div class="hotel-name">HôtelCI</div>
-    <div>Abidjan, Côte d'Ivoire</div>
-    <div style="margin-top:2px;">━━━━━━━━━━━━━━━━━━━━</div>
-    <div class="invoice-num">FACTURE</div>
-    <div>N° ${invoice.invoice_number}</div>
-    <div>${formatDateShort(invoice.created_at)}</div>
-  </div>
-  <div class="separator"></div>
-  <div><span class="bold">Client :</span> ${customerName}</div>
-  <div class="separator"></div>
-  ${items
-    .map(
-      (item) => `<div class="line-item">
-    <span>${item.description}</span>
-    <span>${formatFCFA(item.total)}</span>
-  </div>
-  <div class="line-desc">${item.quantity} x ${formatFCFA(item.unit_price)}</div>`
-    )
-    .join('')}
-  <div class="separator"></div>
-  <div class="total-row"><span>Sous-total</span><span>${formatFCFA(invoice.subtotal)}</span></div>
-  ${invoice.tourist_tax > 0 ? `<div class="total-row"><span>Taxe séjour</span><span>${formatFCFA(invoice.tourist_tax)}</span></div>` : ''}
-  ${invoice.vat > 0 ? `<div class="total-row"><span>TVA 18%</span><span>${formatFCFA(invoice.vat)}</span></div>` : ''}
-  <div class="total-row grand-total"><span>TOTAL TTC</span><span>${formatFCFA(invoice.total_amount)}</span></div>
-  <div class="separator"></div>
-  <div><span class="bold">Paiement :</span> ${getPaymentMethodLabel(invoice.payment_method)}</div>
-  ${invoice.notes ? `<div class="separator"></div><div style="font-size:10px;font-style:italic;">${invoice.notes}</div>` : ''}
-  <div class="separator"></div>
-  <div class="footer">
-    Merci de votre confiance<br/>— HôtelCI —
-  </div>
-</body>
-</html>`
-
-    const printWindow = window.open('', '_blank')
+  // ─── Print Thermal Receipt (80mm) via server ──────────────────────────
+  function handlePrintThermal(invoice: Invoice) {
+    const url = `/api/owner/invoices/pdf/${invoice.id}?format=thermal`
+    const printWindow = window.open(url, '_blank')
     if (printWindow) {
-      printWindow.document.write(html)
-      printWindow.document.close()
       printWindow.onload = () => {
         printWindow.print()
       }
     }
   }
+
+  // ─── Download PDF (opens A4 view, user can Save as PDF) ──────────────
+  function handleDownloadPDF(invoice: Invoice) {
+    window.open(`/api/owner/invoices/pdf/${invoice.id}?format=a4`, '_blank')
+  }
+
+  // ─── Export CSV (server-side) ─────────────────────────────────────────
+  async function handleExportCSV() {
+    setExporting(true)
+    try {
+      const params = new URLSearchParams()
+      if (statusFilter && statusFilter !== 'all') params.set('status', statusFilter)
+      if (paymentFilter && paymentFilter !== 'all') params.set('payment_method', paymentFilter)
+      if (dateFrom) params.set('date_from', dateFrom)
+      if (dateTo) params.set('date_to', dateTo)
+      if (searchQuery.trim()) params.set('search', searchQuery.trim())
+
+      const res = await fetch(`/api/owner/invoices/export?${params.toString()}`)
+      if (res.ok) {
+        const blob = await res.blob()
+        const url = URL.createObjectURL(blob)
+        const link = document.createElement('a')
+        link.href = url
+        link.download = `factures_hotelci_${new Date().toISOString().split('T')[0]}.csv`
+        document.body.appendChild(link)
+        link.click()
+        document.body.removeChild(link)
+        URL.revokeObjectURL(url)
+        toast.success(`${invoices.length} factures exportées en CSV`)
+      } else {
+        toast.error('Erreur lors de l\'export CSV')
+      }
+    } catch {
+      toast.error('Erreur de connexion')
+    } finally {
+      setExporting(false)
+    }
+  }
+
+  // ─── Quick client-side CSV (for current view) ─────────────────────────
+  function handleQuickExportCSV() {
+    if (invoices.length === 0) {
+      toast.error('Aucune facture à exporter')
+      return
+    }
+
+    const exportData: InvoiceExportRow[] = invoices.map((inv) => {
+      const customer = inv.customers as Record<string, unknown> | null
+      return {
+        invoice_number: inv.invoice_number,
+        customer_name: customer ? `${customer.first_name} ${customer.last_name}` : 'N/A',
+        customer_phone: customer ? String(customer.phone || '') : '',
+        subtotal: inv.subtotal,
+        tourist_tax: inv.tourist_tax,
+        vat: inv.vat,
+        total_amount: inv.total_amount,
+        payment_method: inv.payment_method,
+        status: inv.status,
+        created_at: inv.created_at,
+        reservation_id: inv.reservation_id,
+        items_count: inv.invoice_items?.length || 0,
+      }
+    })
+
+    downloadCSV(exportData, INVOICE_EXPORT_COLUMNS, `factures_hotelci_${new Date().toISOString().split('T')[0]}.csv`)
+    toast.success(`${invoices.length} factures exportées`)
+  }
+
+  // ─── Summary calculations ─────────────────────────────────────────────
+  const totalRevenue = invoices
+    .filter(i => i.status === 'paid')
+    .reduce((sum, i) => sum + Number(i.total_amount), 0)
+  const totalRefund = invoices
+    .filter(i => i.status === 'refund')
+    .reduce((sum, i) => sum + Number(i.total_amount), 0)
+  const paidCount = invoices.filter(i => i.status === 'paid').length
 
   // ─── Render ────────────────────────────────────────────────────────────
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <h2 className="text-2xl font-bold tracking-tight flex items-center gap-2">
-            <Receipt className="h-6 w-6 text-amber-600" />
-            Gestion des Factures
-          </h2>
-          <p className="text-muted-foreground">
-            {invoices.length} facture{invoices.length !== 1 ? 's' : ''}
-          </p>
-        </div>
-        <div className="flex items-center gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => fetchInvoices()}
-            disabled={loading}
-          >
-            <RefreshCw className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
-            Actualiser
-          </Button>
-          <Button
-            className="bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700 text-white shadow-md shadow-amber-500/20"
-            onClick={openCreateDialog}
-          >
-            <Plus className="h-4 w-4 mr-2" />
-            Nouvelle Facture
-          </Button>
-        </div>
-      </div>
-
-      {/* Filters */}
-      <Card>
-        <CardContent className="p-4">
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
-            {/* Search */}
-            <div className="relative sm:col-span-2 lg:col-span-1">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
-              <Input
-                placeholder="N° facture ou client..."
-                className="pl-9"
-                value={searchQuery}
-                onChange={(e) => handleSearchChange(e.target.value)}
-              />
-            </div>
-
-            {/* Status filter */}
-            <Select value={statusFilter} onValueChange={setStatusFilter}>
-              <SelectTrigger>
-                <Filter className="h-4 w-4 mr-2 text-gray-400" />
-                <SelectValue placeholder="Statut" />
-              </SelectTrigger>
-              <SelectContent>
-                {STATUS_OPTIONS.map((opt) => (
-                  <SelectItem key={opt.value} value={opt.value}>
-                    {opt.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-
-            {/* Payment method filter */}
-            <Select value={paymentFilter} onValueChange={setPaymentFilter}>
-              <SelectTrigger>
-                <CreditCard className="h-4 w-4 mr-2 text-gray-400" />
-                <SelectValue placeholder="Paiement" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Tous les modes</SelectItem>
-                {PAYMENT_METHOD_OPTIONS.map((opt) => (
-                  <SelectItem key={opt.value} value={opt.value}>
-                    {opt.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-
-            {/* Date from */}
-            <div>
-              <Input
-                type="date"
-                value={dateFrom}
-                onChange={(e) => setDateFrom(e.target.value)}
-                placeholder="Du"
-                className="text-sm"
-              />
-            </div>
-
-            {/* Date to */}
-            <div>
-              <Input
-                type="date"
-                value={dateTo}
-                onChange={(e) => setDateTo(e.target.value)}
-                placeholder="Au"
-                className="text-sm"
-              />
-            </div>
+    <TooltipProvider>
+      <div className="space-y-6">
+        {/* Header */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div>
+            <h2 className="text-2xl font-bold tracking-tight flex items-center gap-2">
+              <Receipt className="h-6 w-6 text-amber-600" />
+              Gestion des Factures
+            </h2>
+            <p className="text-muted-foreground">
+              {invoices.length} facture{invoices.length !== 1 ? 's' : ''} · {paidCount} payée{paidCount !== 1 ? 's' : ''}
+            </p>
           </div>
-        </CardContent>
-      </Card>
+          <div className="flex items-center gap-2 flex-wrap">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => fetchInvoices()}
+              disabled={loading}
+            >
+              <RefreshCw className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
+              Actualiser
+            </Button>
 
-      {/* Invoice Table */}
-      <Card>
-        <CardContent className="p-0">
-          {loading ? (
-            <div className="space-y-3 p-6">
-              {Array.from({ length: 5 }).map((_, i) => (
-                <Skeleton key={i} className="h-12 w-full" />
-              ))}
-            </div>
-          ) : invoices.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-12 text-center">
-              <div className="flex h-14 w-14 items-center justify-center rounded-full bg-amber-50 text-amber-400 mb-3">
-                <FileText className="h-7 w-7" />
-              </div>
-              <p className="text-muted-foreground">Aucune facture trouvée</p>
-              <p className="text-xs text-muted-foreground mt-1">Créez votre première facture pour commencer</p>
-              <Button
-                className="mt-4 bg-amber-600 hover:bg-amber-700 text-white"
-                onClick={openCreateDialog}
-              >
-                <Plus className="h-4 w-4 mr-2" />
-                Nouvelle Facture
-              </Button>
-            </div>
-          ) : (
-            <ScrollArea className="max-h-96">
-              <div className="overflow-x-auto">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead className="whitespace-nowrap">N° Facture</TableHead>
-                      <TableHead className="whitespace-nowrap">Client</TableHead>
-                      <TableHead className="whitespace-nowrap text-right">Montant TTC</TableHead>
-                      <TableHead className="whitespace-nowrap hidden md:table-cell">Mode Paiement</TableHead>
-                      <TableHead className="whitespace-nowrap">Statut</TableHead>
-                      <TableHead className="whitespace-nowrap hidden lg:table-cell">Date</TableHead>
-                      <TableHead className="whitespace-nowrap text-right">Actions</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {invoices.map((invoice) => {
-                      const customerName = invoice.customers
-                        ? `${(invoice.customers as Record<string, unknown>).first_name} ${(invoice.customers as Record<string, unknown>).last_name}`
-                        : '—'
-                      return (
-                        <TableRow
-                          key={invoice.id}
-                          className="cursor-pointer hover:bg-amber-50/50"
-                          onClick={() => openDetail(invoice)}
-                        >
-                          <TableCell className="font-medium whitespace-nowrap">
-                            {invoice.invoice_number}
-                          </TableCell>
-                          <TableCell className="whitespace-nowrap">{customerName}</TableCell>
-                          <TableCell className="text-right font-medium whitespace-nowrap">
-                            {formatFCFA(invoice.total_amount)}
-                          </TableCell>
-                          <TableCell className="hidden md:table-cell">
-                            {getPaymentMethodBadge(invoice.payment_method)}
-                          </TableCell>
-                          <TableCell>{getStatusBadge(invoice.status)}</TableCell>
-                          <TableCell className="hidden lg:table-cell whitespace-nowrap text-sm text-muted-foreground">
-                            {formatDateShort(invoice.created_at)}
-                          </TableCell>
-                          <TableCell className="text-right">
-                            <div className="flex items-center justify-end gap-1">
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                className="h-8 w-8"
-                                onClick={(e) => {
-                                  e.stopPropagation()
-                                  openDetail(invoice)
-                                }}
-                                title="Voir les détails"
-                              >
-                                <Eye className="h-3.5 w-3.5" />
-                              </Button>
-                            </div>
-                          </TableCell>
-                        </TableRow>
-                      )
-                    })}
-                  </TableBody>
-                </Table>
-              </div>
-            </ScrollArea>
-          )}
-        </CardContent>
-      </Card>
-
-      {/* ─── Create Invoice Dialog ────────────────────────────────────────── */}
-      <Dialog open={createOpen} onOpenChange={setCreateOpen}>
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-track]:bg-gray-100 [&::-webkit-scrollbar-thumb]:bg-gray-300 [&::-webkit-scrollbar-thumb]:rounded-full">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <Plus className="h-5 w-5 text-amber-600" />
-              Nouvelle Facture
-            </DialogTitle>
-            <DialogDescription>
-              Créez une facture pour un client
-            </DialogDescription>
-          </DialogHeader>
-
-          <div className="space-y-5 py-4">
-            {/* Customer and Reservation */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label>Client *</Label>
-                <Select value={formCustomerId} onValueChange={setFormCustomerId}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Sélectionner un client" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {customers.map((c) => (
-                      <SelectItem key={c.id} value={c.id}>
-                        {c.first_name} {c.last_name} ({c.phone})
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-2">
-                <Label>Réservation (optionnel)</Label>
-                <Select value={formReservationId} onValueChange={setFormReservationId}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Aucune réservation" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="none">Aucune réservation</SelectItem>
-                    {reservations.map((r) => {
-                      const roomNum = r.rooms?.room_number || '?'
-                      return (
-                        <SelectItem key={r.id} value={r.id}>
-                          Ch. {roomNum} — {formatDateShort(r.check_in_date)} au {formatDateShort(r.check_out_date)}
-                        </SelectItem>
-                      )
-                    })}
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-
-            <Separator />
-
-            {/* Invoice Lines */}
-            <div className="space-y-3">
-              <div className="flex items-center justify-between">
-                <Label className="text-sm font-semibold">Lignes de facture *</Label>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  className="h-7 text-xs border-amber-200 text-amber-700 hover:bg-amber-50"
-                  onClick={addLine}
-                >
-                  <Plus className="h-3 w-3 mr-1" />
-                  Ajouter ligne
+            {/* Export dropdown */}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" size="sm" disabled={exporting || invoices.length === 0}>
+                  {exporting ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Download className="h-4 w-4 mr-2" />}
+                  Exporter
                 </Button>
-              </div>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={handleQuickExportCSV}>
+                  <FileSpreadsheet className="h-4 w-4 mr-2 text-emerald-600" />
+                  Export rapide CSV
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={handleExportCSV}>
+                  <FileDown className="h-4 w-4 mr-2 text-blue-600" />
+                  Export CSV complet
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
 
-              {formLines.map((line, index) => (
-                <div key={index} className="flex items-end gap-2">
-                  <div className="flex-1 min-w-0">
-                    {index === 0 && <Label className="text-[10px] text-muted-foreground">Description</Label>}
-                    <Input
-                      placeholder="Description"
-                      value={line.description}
-                      onChange={(e) => updateLine(index, 'description', e.target.value)}
-                      className="text-sm"
-                    />
+            <Button
+              className="bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700 text-white shadow-md shadow-amber-500/20"
+              onClick={openCreateDialog}
+            >
+              <Plus className="h-4 w-4 mr-2" />
+              Nouvelle Facture
+            </Button>
+          </div>
+        </div>
+
+        {/* Summary Cards */}
+        {invoices.length > 0 && (
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <Card className="border-emerald-200/60 bg-gradient-to-br from-emerald-50/50 to-white">
+              <CardContent className="p-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-xs font-medium text-emerald-600">Total Payé</p>
+                    <p className="text-lg font-bold text-emerald-700">{formatFCFA(totalRevenue)}</p>
                   </div>
-                  <div className="w-20">
-                    {index === 0 && <Label className="text-[10px] text-muted-foreground">Qté</Label>}
-                    <Input
-                      type="number"
-                      min={1}
-                      value={line.quantity}
-                      onChange={(e) => updateLine(index, 'quantity', parseInt(e.target.value) || 0)}
-                      className="text-sm"
-                    />
+                  <div className="flex h-10 w-10 items-center justify-center rounded-full bg-emerald-100">
+                    <CheckCircle2 className="h-5 w-5 text-emerald-600" />
                   </div>
-                  <div className="w-32">
-                    {index === 0 && <Label className="text-[10px] text-muted-foreground">Prix unit. (FCFA)</Label>}
-                    <Input
-                      type="number"
-                      min={0}
-                      value={line.unit_price || ''}
-                      onChange={(e) => updateLine(index, 'unit_price', parseInt(e.target.value) || 0)}
-                      className="text-sm"
-                      placeholder="0"
-                    />
-                  </div>
-                  <div className="w-28 text-right text-sm font-medium py-2">
-                    {formatFCFA(line.quantity * line.unit_price)}
-                  </div>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon"
-                    className="h-9 w-9 shrink-0 text-red-400 hover:text-red-600"
-                    onClick={() => removeLine(index)}
-                    disabled={formLines.length <= 1}
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
                 </div>
-              ))}
-            </div>
+              </CardContent>
+            </Card>
+            <Card className="border-orange-200/60 bg-gradient-to-br from-orange-50/50 to-white">
+              <CardContent className="p-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-xs font-medium text-orange-600">Total Remboursé</p>
+                    <p className="text-lg font-bold text-orange-700">{formatFCFA(totalRefund)}</p>
+                  </div>
+                  <div className="flex h-10 w-10 items-center justify-center rounded-full bg-orange-100">
+                    <RotateCcw className="h-5 w-5 text-orange-600" />
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+            <Card className="border-amber-200/60 bg-gradient-to-br from-amber-50/50 to-white">
+              <CardContent className="p-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-xs font-medium text-amber-600">Net à percevoir</p>
+                    <p className="text-lg font-bold text-amber-700">{formatFCFA(totalRevenue - totalRefund)}</p>
+                  </div>
+                  <div className="flex h-10 w-10 items-center justify-center rounded-full bg-amber-100">
+                    <Receipt className="h-5 w-5 text-amber-600" />
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        )}
 
-            <Separator />
-
-            {/* Tax and VAT */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label>Taxe de séjour (FCFA)</Label>
+        {/* Filters */}
+        <Card>
+          <CardContent className="p-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
+              <div className="relative sm:col-span-2 lg:col-span-1">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
                 <Input
-                  type="number"
-                  min={0}
-                  value={formTouristTax || ''}
-                  onChange={(e) => setFormTouristTax(parseInt(e.target.value) || 0)}
-                  placeholder="0"
+                  placeholder="N° facture ou client..."
+                  className="pl-9"
+                  value={searchQuery}
+                  onChange={(e) => handleSearchChange(e.target.value)}
                 />
               </div>
-              <div className="space-y-2">
-                <Label>TVA</Label>
-                <Select
-                  value={formVatEnabled ? '18' : '0'}
-                  onValueChange={(v) => setFormVatEnabled(v === '18')}
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="18">18 % (Côte d&apos;Ivoire)</SelectItem>
-                    <SelectItem value="0">Exonéré (0 %)</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
 
-            {/* Payment Method */}
-            <div className="space-y-2">
-              <Label>Mode de paiement *</Label>
-              <Select value={formPaymentMethod} onValueChange={(v) => setFormPaymentMethod(v as PaymentMethod)}>
+              <Select value={statusFilter} onValueChange={setStatusFilter}>
                 <SelectTrigger>
-                  <SelectValue placeholder="Sélectionner un mode" />
+                  <Filter className="h-4 w-4 mr-2 text-gray-400" />
+                  <SelectValue placeholder="Statut" />
                 </SelectTrigger>
                 <SelectContent>
+                  {STATUS_OPTIONS.map((opt) => (
+                    <SelectItem key={opt.value} value={opt.value}>
+                      {opt.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+
+              <Select value={paymentFilter} onValueChange={setPaymentFilter}>
+                <SelectTrigger>
+                  <CreditCard className="h-4 w-4 mr-2 text-gray-400" />
+                  <SelectValue placeholder="Paiement" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Tous les modes</SelectItem>
                   {PAYMENT_METHOD_OPTIONS.map((opt) => (
                     <SelectItem key={opt.value} value={opt.value}>
                       {opt.label}
@@ -1013,299 +708,596 @@ export function InvoicesTab({ onRefresh }: InvoicesTabProps) {
                   ))}
                 </SelectContent>
               </Select>
-            </div>
 
-            {/* Notes */}
-            <div className="space-y-2">
-              <Label>Notes</Label>
-              <Textarea
-                placeholder="Notes ou observations..."
-                value={formNotes}
-                onChange={(e) => setFormNotes(e.target.value)}
-                rows={2}
-              />
-            </div>
-
-            <Separator />
-
-            {/* Summary */}
-            <div className="rounded-lg border border-amber-200 bg-amber-50/50 p-4 space-y-2">
-              <h4 className="text-sm font-semibold text-amber-900 mb-2">Résumé financier</h4>
-              <div className="flex justify-between text-sm">
-                <span className="text-muted-foreground">Sous-total HT</span>
-                <span className="font-medium">{formatFCFA(subtotal)}</span>
+              <div>
+                <Input
+                  type="date"
+                  value={dateFrom}
+                  onChange={(e) => setDateFrom(e.target.value)}
+                  placeholder="Du"
+                  className="text-sm"
+                />
               </div>
-              {formTouristTax > 0 && (
-                <div className="flex justify-between text-sm">
-                  <span className="text-muted-foreground">Taxe de séjour</span>
-                  <span className="font-medium">{formatFCFA(formTouristTax)}</span>
-                </div>
-              )}
-              {vat > 0 && (
-                <div className="flex justify-between text-sm">
-                  <span className="text-muted-foreground">TVA (18 %)</span>
-                  <span className="font-medium">{formatFCFA(vat)}</span>
-                </div>
-              )}
-              <Separator />
-              <div className="flex justify-between text-lg font-bold text-amber-900">
-                <span>Total TTC</span>
-                <span>{formatFCFA(totalTTC)}</span>
+
+              <div>
+                <Input
+                  type="date"
+                  value={dateTo}
+                  onChange={(e) => setDateTo(e.target.value)}
+                  placeholder="Au"
+                  className="text-sm"
+                />
               </div>
             </div>
-          </div>
+          </CardContent>
+        </Card>
 
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setCreateOpen(false)} disabled={submitting}>
-              Annuler
-            </Button>
-            <Button
-              className="bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700 text-white shadow-md shadow-amber-500/20"
-              disabled={submitting}
-              onClick={handleCreateInvoice}
-            >
-              {submitting ? (
-                <>
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  Création...
-                </>
-              ) : (
-                <>
-                  <CheckCircle2 className="h-4 w-4 mr-2" />
-                  Créer la Facture
-                </>
-              )}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+        {/* Invoice Table */}
+        <Card>
+          <CardContent className="p-0">
+            {loading ? (
+              <div className="space-y-3 p-6">
+                {Array.from({ length: 5 }).map((_, i) => (
+                  <Skeleton key={i} className="h-12 w-full" />
+                ))}
+              </div>
+            ) : invoices.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-12 text-center">
+                <div className="flex h-14 w-14 items-center justify-center rounded-full bg-amber-50 text-amber-400 mb-3">
+                  <FileText className="h-7 w-7" />
+                </div>
+                <p className="text-muted-foreground">Aucune facture trouvée</p>
+                <p className="text-xs text-muted-foreground mt-1">Créez votre première facture pour commencer</p>
+                <Button
+                  className="mt-4 bg-amber-600 hover:bg-amber-700 text-white"
+                  onClick={openCreateDialog}
+                >
+                  <Plus className="h-4 w-4 mr-2" />
+                  Nouvelle Facture
+                </Button>
+              </div>
+            ) : (
+              <ScrollArea className="max-h-96">
+                <div className="overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead className="whitespace-nowrap">N° Facture</TableHead>
+                        <TableHead className="whitespace-nowrap">Client</TableHead>
+                        <TableHead className="whitespace-nowrap text-right">Montant TTC</TableHead>
+                        <TableHead className="whitespace-nowrap hidden md:table-cell">Mode Paiement</TableHead>
+                        <TableHead className="whitespace-nowrap">Statut</TableHead>
+                        <TableHead className="whitespace-nowrap hidden lg:table-cell">Date</TableHead>
+                        <TableHead className="whitespace-nowrap text-right">Actions</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {invoices.map((invoice) => {
+                        const customerName = invoice.customers
+                          ? `${(invoice.customers as Record<string, unknown>).first_name} ${(invoice.customers as Record<string, unknown>).last_name}`
+                          : '—'
+                        return (
+                          <TableRow
+                            key={invoice.id}
+                            className="cursor-pointer hover:bg-amber-50/50"
+                            onClick={() => openDetail(invoice)}
+                          >
+                            <TableCell className="font-medium whitespace-nowrap">
+                              {invoice.invoice_number}
+                            </TableCell>
+                            <TableCell className="whitespace-nowrap">{customerName}</TableCell>
+                            <TableCell className="text-right font-medium whitespace-nowrap">
+                              {formatFCFA(invoice.total_amount)}
+                            </TableCell>
+                            <TableCell className="hidden md:table-cell">
+                              {getPaymentMethodBadge(invoice.payment_method)}
+                            </TableCell>
+                            <TableCell>{getStatusBadge(invoice.status)}</TableCell>
+                            <TableCell className="hidden lg:table-cell whitespace-nowrap text-sm text-muted-foreground">
+                              {formatDateShort(invoice.created_at)}
+                            </TableCell>
+                            <TableCell className="text-right">
+                              <div className="flex items-center justify-end gap-0.5">
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <Button
+                                      variant="ghost"
+                                      size="icon"
+                                      className="h-8 w-8"
+                                      onClick={(e) => {
+                                        e.stopPropagation()
+                                        openDetail(invoice)
+                                      }}
+                                    >
+                                      <Eye className="h-3.5 w-3.5" />
+                                    </Button>
+                                  </TooltipTrigger>
+                                  <TooltipContent>Voir</TooltipContent>
+                                </Tooltip>
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <Button
+                                      variant="ghost"
+                                      size="icon"
+                                      className="h-8 w-8"
+                                      onClick={(e) => {
+                                        e.stopPropagation()
+                                        handlePrintA4(invoice)
+                                      }}
+                                    >
+                                      <Printer className="h-3.5 w-3.5" />
+                                    </Button>
+                                  </TooltipTrigger>
+                                  <TooltipContent>Imprimer A4</TooltipContent>
+                                </Tooltip>
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <Button
+                                      variant="ghost"
+                                      size="icon"
+                                      className="h-8 w-8"
+                                      onClick={(e) => {
+                                        e.stopPropagation()
+                                        handleDownloadPDF(invoice)
+                                      }}
+                                    >
+                                      <FileDown className="h-3.5 w-3.5" />
+                                    </Button>
+                                  </TooltipTrigger>
+                                  <TooltipContent>Télécharger PDF</TooltipContent>
+                                </Tooltip>
+                              </div>
+                            </TableCell>
+                          </TableRow>
+                        )
+                      })}
+                    </TableBody>
+                  </Table>
+                </div>
+              </ScrollArea>
+            )}
+          </CardContent>
+        </Card>
 
-      {/* ─── Invoice Detail Sheet ─────────────────────────────────────────── */}
-      <Sheet open={detailOpen} onOpenChange={setDetailOpen}>
-        <SheetContent side="right" className="w-full sm:max-w-lg overflow-y-auto [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-track]:bg-gray-100 [&::-webkit-scrollbar-thumb]:bg-gray-300 [&::-webkit-scrollbar-thumb]:rounded-full">
-          <SheetHeader className="pr-6">
-            <SheetTitle className="flex items-center gap-2">
-              <FileText className="h-5 w-5 text-amber-600" />
-              Détail de la Facture
-            </SheetTitle>
-            <SheetDescription>
-              {selectedInvoice?.invoice_number}
-            </SheetDescription>
-          </SheetHeader>
+        {/* ─── Detail Sheet ──────────────────────────────────────────────── */}
+        <Sheet open={detailOpen} onOpenChange={setDetailOpen}>
+          <SheetContent className="w-full sm:max-w-2xl overflow-y-auto [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-track]:bg-gray-100 [&::-webkit-scrollbar-thumb]:bg-gray-300 [&::-webkit-scrollbar-thumb]:rounded-full">
+            <SheetHeader className="pb-4">
+              <SheetTitle className="flex items-center gap-2">
+                <Receipt className="h-5 w-5 text-amber-600" />
+                Détail de la facture
+              </SheetTitle>
+              <SheetDescription>
+                Visualisation, impression et export de la facture
+              </SheetDescription>
+            </SheetHeader>
 
-          {detailLoading ? (
-            <div className="space-y-3 p-4">
-              {Array.from({ length: 6 }).map((_, i) => (
-                <Skeleton key={i} className="h-6 w-full" />
-              ))}
-            </div>
-          ) : selectedInvoice ? (
-            <div className="space-y-5 px-4 pb-6">
-              {/* Header info */}
-              <div className="flex items-center justify-between">
+            {detailLoading ? (
+              <div className="space-y-4 py-4">
+                <Skeleton className="h-8 w-48" />
+                <Skeleton className="h-20 w-full" />
+                <Skeleton className="h-40 w-full" />
+              </div>
+            ) : selectedInvoice ? (
+              <div className="space-y-6 pb-8">
+                {/* Invoice Header */}
+                <div className="flex items-start justify-between">
+                  <div>
+                    <p className="text-xl font-bold text-amber-700">{selectedInvoice.invoice_number}</p>
+                    <p className="text-sm text-muted-foreground">{formatDateFR(selectedInvoice.created_at)}</p>
+                  </div>
+                  {getStatusBadge(selectedInvoice.status)}
+                </div>
+
+                <Separator />
+
+                {/* Customer & Payment Info */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="space-y-1">
+                    <p className="text-xs font-medium text-amber-700 uppercase tracking-wide">Client</p>
+                    {selectedInvoice.customers ? (
+                      <>
+                        <p className="font-medium">{(selectedInvoice.customers as Record<string, unknown>).first_name} {(selectedInvoice.customers as Record<string, unknown>).last_name}</p>
+                        <p className="text-sm text-muted-foreground">{(selectedInvoice.customers as Record<string, unknown>).phone || ''}</p>
+                      </>
+                    ) : (
+                      <p className="text-muted-foreground">N/A</p>
+                    )}
+                  </div>
+                  <div className="space-y-1">
+                    <p className="text-xs font-medium text-amber-700 uppercase tracking-wide">Paiement</p>
+                    <div className="flex items-center gap-2">
+                      {getPaymentMethodBadge(selectedInvoice.payment_method)}
+                      <span className="text-sm">{getPaymentMethodLabel(selectedInvoice.payment_method)}</span>
+                    </div>
+                    {selectedInvoice.reservation_id && (
+                      <p className="text-xs text-muted-foreground mt-1">Liée à une réservation</p>
+                    )}
+                  </div>
+                </div>
+
+                <Separator />
+
+                {/* Line Items */}
                 <div>
-                  <p className="text-xl font-bold text-gray-900">{selectedInvoice.invoice_number}</p>
-                  <p className="text-sm text-muted-foreground">{formatDateFR(selectedInvoice.created_at)}</p>
-                </div>
-                {getStatusBadge(selectedInvoice.status)}
-              </div>
-
-              <Separator />
-
-              {/* Hotel info */}
-              <div className="rounded-lg bg-amber-50/50 border border-amber-200/60 p-3">
-                <p className="text-sm font-semibold text-amber-900">HôtelCI</p>
-                <p className="text-xs text-amber-700">Abidjan, Côte d'Ivoire</p>
-              </div>
-
-              {/* Customer info */}
-              {selectedInvoice.customers && (
-                <div>
-                  <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-1">Client</p>
-                  <p className="font-medium">
-                    {(selectedInvoice.customers as Record<string, unknown>).first_name} {(selectedInvoice.customers as Record<string, unknown>).last_name}
-                  </p>
-                  {(selectedInvoice.customers as Record<string, unknown>).phone && (
-                    <p className="text-sm text-muted-foreground">
-                      {(selectedInvoice.customers as Record<string, unknown>).phone as string}
-                    </p>
-                  )}
-                  {(selectedInvoice.customers as Record<string, unknown>).email && (
-                    <p className="text-sm text-muted-foreground">
-                      {(selectedInvoice.customers as Record<string, unknown>).email as string}
-                    </p>
-                  )}
-                </div>
-              )}
-
-              {/* Line items */}
-              {(selectedInvoice.invoice_items || []).length > 0 && (
-                <div>
-                  <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2">Articles</p>
+                  <p className="text-xs font-medium text-amber-700 uppercase tracking-wide mb-3">Articles</p>
                   <div className="rounded-lg border overflow-hidden">
                     <Table>
                       <TableHeader>
-                        <TableRow>
-                          <TableHead className="text-[11px]">Description</TableHead>
-                          <TableHead className="text-[11px] text-center w-12">Qté</TableHead>
-                          <TableHead className="text-[11px] text-right w-24">P.U.</TableHead>
-                          <TableHead className="text-[11px] text-right w-24">Total</TableHead>
+                        <TableRow className="bg-amber-50/50">
+                          <TableHead className="text-xs">Description</TableHead>
+                          <TableHead className="text-xs text-center w-16">Qté</TableHead>
+                          <TableHead className="text-xs text-right w-28">P.U.</TableHead>
+                          <TableHead className="text-xs text-right w-28">Total</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
-                        {(selectedInvoice.invoice_items || []).map((item: InvoiceItem) => (
+                        {(selectedInvoice.invoice_items || []).map((item) => (
                           <TableRow key={item.id}>
-                            <TableCell className="text-sm py-2">{item.description}</TableCell>
-                            <TableCell className="text-sm text-center py-2">{item.quantity}</TableCell>
-                            <TableCell className="text-sm text-right py-2">{formatFCFA(item.unit_price)}</TableCell>
-                            <TableCell className="text-sm text-right font-medium py-2">{formatFCFA(item.total)}</TableCell>
+                            <TableCell className="text-sm">{item.description}</TableCell>
+                            <TableCell className="text-sm text-center">{item.quantity}</TableCell>
+                            <TableCell className="text-sm text-right">{formatFCFA(item.unit_price)}</TableCell>
+                            <TableCell className="text-sm text-right font-medium">{formatFCFA(item.total)}</TableCell>
                           </TableRow>
                         ))}
                       </TableBody>
                     </Table>
                   </div>
                 </div>
-              )}
 
-              {/* Financial summary */}
-              <div className="rounded-lg border border-amber-200/60 bg-amber-50/30 p-4 space-y-2">
-                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2">Résumé financier</p>
-                <div className="flex justify-between text-sm">
-                  <span className="text-muted-foreground">Sous-total HT</span>
-                  <span>{formatFCFA(selectedInvoice.subtotal)}</span>
+                {/* Totals */}
+                <div className="bg-amber-50/50 rounded-lg p-4 space-y-2">
+                  <div className="flex justify-between text-sm">
+                    <span className="text-muted-foreground">Sous-total HT</span>
+                    <span>{formatFCFA(selectedInvoice.subtotal)}</span>
+                  </div>
+                  {Number(selectedInvoice.tourist_tax) > 0 && (
+                    <div className="flex justify-between text-sm">
+                      <span className="text-muted-foreground">Taxe de séjour</span>
+                      <span>{formatFCFA(selectedInvoice.tourist_tax)}</span>
+                    </div>
+                  )}
+                  {Number(selectedInvoice.vat) > 0 && (
+                    <div className="flex justify-between text-sm">
+                      <span className="text-muted-foreground">TVA (18%)</span>
+                      <span>{formatFCFA(selectedInvoice.vat)}</span>
+                    </div>
+                  )}
+                  <Separator />
+                  <div className="flex justify-between text-lg font-bold text-amber-700">
+                    <span>Total TTC</span>
+                    <span>{formatFCFA(selectedInvoice.total_amount)}</span>
+                  </div>
                 </div>
-                {selectedInvoice.tourist_tax > 0 && (
-                  <div className="flex justify-between text-sm">
-                    <span className="text-muted-foreground">Taxe de séjour</span>
-                    <span>{formatFCFA(selectedInvoice.tourist_tax)}</span>
+
+                {/* Notes */}
+                {selectedInvoice.notes && (
+                  <div className="bg-gray-50 rounded-lg p-3">
+                    <p className="text-xs font-medium text-muted-foreground mb-1">Notes</p>
+                    <p className="text-sm italic">{selectedInvoice.notes}</p>
                   </div>
                 )}
-                {selectedInvoice.vat > 0 && (
-                  <div className="flex justify-between text-sm">
-                    <span className="text-muted-foreground">TVA (18 %)</span>
-                    <span>{formatFCFA(selectedInvoice.vat)}</span>
-                  </div>
-                )}
+
                 <Separator />
-                <div className="flex justify-between text-lg font-bold text-amber-900">
-                  <span>Total TTC</span>
-                  <span>{formatFCFA(selectedInvoice.total_amount)}</span>
+
+                {/* Action Buttons */}
+                <div className="space-y-3">
+                  <p className="text-xs font-medium text-amber-700 uppercase tracking-wide">Actions</p>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    <Button
+                      variant="outline"
+                      className="w-full justify-start"
+                      onClick={() => handlePrintA4(selectedInvoice)}
+                    >
+                      <Printer className="h-4 w-4 mr-2 text-amber-600" />
+                      Imprimer A4
+                    </Button>
+                    <Button
+                      variant="outline"
+                      className="w-full justify-start"
+                      onClick={() => handlePrintThermal(selectedInvoice)}
+                    >
+                      <Receipt className="h-4 w-4 mr-2 text-amber-600" />
+                      Ticket thermique 80mm
+                    </Button>
+                    <Button
+                      variant="outline"
+                      className="w-full justify-start"
+                      onClick={() => handleDownloadPDF(selectedInvoice)}
+                    >
+                      <FileDown className="h-4 w-4 mr-2 text-blue-600" />
+                      Télécharger PDF
+                    </Button>
+                    {selectedInvoice.status === 'paid' && (
+                      <>
+                        <Button
+                          variant="outline"
+                          className="w-full justify-start text-orange-600 hover:text-orange-700 hover:bg-orange-50"
+                          onClick={() => {
+                            setStatusChangeTarget('refund')
+                            setStatusDialogOpen(true)
+                          }}
+                        >
+                          <RotateCcw className="h-4 w-4 mr-2" />
+                          Marquer remboursée
+                        </Button>
+                        <Button
+                          variant="outline"
+                          className="w-full justify-start text-red-600 hover:text-red-700 hover:bg-red-50"
+                          onClick={() => {
+                            setStatusChangeTarget('cancelled')
+                            setStatusDialogOpen(true)
+                          }}
+                        >
+                          <Ban className="h-4 w-4 mr-2" />
+                          Annuler la facture
+                        </Button>
+                      </>
+                    )}
+                  </div>
                 </div>
               </div>
+            ) : null}
+          </SheetContent>
+        </Sheet>
 
-              {/* Payment method */}
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-muted-foreground">Mode de paiement</span>
-                {getPaymentMethodBadge(selectedInvoice.payment_method)}
-              </div>
+        {/* ─── Create Invoice Dialog ────────────────────────────────────────── */}
+        <Dialog open={createOpen} onOpenChange={setCreateOpen}>
+          <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-track]:bg-gray-100 [&::-webkit-scrollbar-thumb]:bg-gray-300 [&::-webkit-scrollbar-thumb]:rounded-full">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <Plus className="h-5 w-5 text-amber-600" />
+                Nouvelle Facture
+              </DialogTitle>
+              <DialogDescription>
+                Créez une facture pour un client
+              </DialogDescription>
+            </DialogHeader>
 
-              {/* Notes */}
-              {selectedInvoice.notes && (
-                <div className="rounded-lg bg-gray-50 border p-3">
-                  <p className="text-xs font-medium text-muted-foreground mb-1">Notes</p>
-                  <p className="text-sm">{selectedInvoice.notes}</p>
+            <div className="space-y-5 py-4">
+              {/* Customer and Reservation */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label>Client *</Label>
+                  <Select value={formCustomerId} onValueChange={setFormCustomerId}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Sélectionner un client" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {customers.map((c) => (
+                        <SelectItem key={c.id} value={c.id}>
+                          {c.first_name} {c.last_name} ({c.phone})
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
-              )}
+                <div className="space-y-2">
+                  <Label>Réservation (optionnel)</Label>
+                  <Select value={formReservationId} onValueChange={setFormReservationId}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Aucune réservation" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">Aucune réservation</SelectItem>
+                      {reservations.map((r) => {
+                        const roomNum = r.rooms?.room_number || '?'
+                        return (
+                          <SelectItem key={r.id} value={r.id}>
+                            Ch. {roomNum} — {formatDateShort(r.check_in_date)} au {formatDateShort(r.check_out_date)}
+                          </SelectItem>
+                        )
+                      })}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
 
               <Separator />
 
-              {/* Action buttons */}
+              {/* Invoice Lines */}
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <Label className="text-sm font-semibold">Lignes de facture *</Label>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="h-7 text-xs border-amber-200 text-amber-700 hover:bg-amber-50"
+                    onClick={addLine}
+                  >
+                    <Plus className="h-3 w-3 mr-1" />
+                    Ajouter ligne
+                  </Button>
+                </div>
+
+                {formLines.map((line, index) => (
+                  <div key={index} className="flex items-end gap-2">
+                    <div className="flex-1 min-w-0">
+                      {index === 0 && <Label className="text-[10px] text-muted-foreground">Description</Label>}
+                      <Input
+                        placeholder="Description"
+                        value={line.description}
+                        onChange={(e) => updateLine(index, 'description', e.target.value)}
+                        className="text-sm"
+                      />
+                    </div>
+                    <div className="w-20">
+                      {index === 0 && <Label className="text-[10px] text-muted-foreground">Qté</Label>}
+                      <Input
+                        type="number"
+                        min={1}
+                        value={line.quantity}
+                        onChange={(e) => updateLine(index, 'quantity', parseInt(e.target.value) || 0)}
+                        className="text-sm"
+                      />
+                    </div>
+                    <div className="w-32">
+                      {index === 0 && <Label className="text-[10px] text-muted-foreground">Prix unit. (FCFA)</Label>}
+                      <Input
+                        type="number"
+                        min={0}
+                        value={line.unit_price || ''}
+                        onChange={(e) => updateLine(index, 'unit_price', parseInt(e.target.value) || 0)}
+                        className="text-sm"
+                        placeholder="0"
+                      />
+                    </div>
+                    <div className="w-28 text-right text-sm font-medium py-2">
+                      {formatFCFA(line.quantity * line.unit_price)}
+                    </div>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      className="h-9 w-9 shrink-0 text-red-400 hover:text-red-600"
+                      onClick={() => removeLine(index)}
+                      disabled={formLines.length <= 1}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
+                ))}
+              </div>
+
+              <Separator />
+
+              {/* Tax and VAT */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label>Taxe de séjour (FCFA)</Label>
+                  <Input
+                    type="number"
+                    min={0}
+                    value={formTouristTax || ''}
+                    onChange={(e) => setFormTouristTax(parseInt(e.target.value) || 0)}
+                    placeholder="0"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>TVA</Label>
+                  <Select
+                    value={formVatEnabled ? '18' : '0'}
+                    onValueChange={(v) => setFormVatEnabled(v === '18')}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="18">18 % (Côte d&apos;Ivoire)</SelectItem>
+                      <SelectItem value="0">Exonéré (0 %)</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              {/* Payment Method */}
               <div className="space-y-2">
-                <Button
-                  variant="outline"
-                  className="w-full border-amber-200 text-amber-700 hover:bg-amber-50"
-                  onClick={() => printPDF(selectedInvoice)}
-                >
-                  <Download className="h-4 w-4 mr-2" />
-                  Télécharger PDF
-                </Button>
-                <Button
-                  variant="outline"
-                  className="w-full border-amber-200 text-amber-700 hover:bg-amber-50"
-                  onClick={() => printThermal(selectedInvoice)}
-                >
-                  <Printer className="h-4 w-4 mr-2" />
-                  Imprimer Reçu Thermique
-                </Button>
-                {selectedInvoice.status === 'paid' && (
-                  <>
-                    <Button
-                      variant="outline"
-                      className="w-full border-orange-200 text-orange-700 hover:bg-orange-50"
-                      onClick={() => {
-                        setStatusChangeTarget('refund')
-                        setStatusDialogOpen(true)
-                      }}
-                    >
-                      <Receipt className="h-4 w-4 mr-2" />
-                      Rembourser
-                    </Button>
-                    <Button
-                      variant="outline"
-                      className="w-full border-red-200 text-red-600 hover:bg-red-50"
-                      onClick={() => {
-                        setStatusChangeTarget('cancelled')
-                        setStatusDialogOpen(true)
-                      }}
-                    >
-                      <X className="h-4 w-4 mr-2" />
-                      Annuler
-                    </Button>
-                  </>
+                <Label>Mode de paiement *</Label>
+                <Select value={formPaymentMethod} onValueChange={(v) => setFormPaymentMethod(v as PaymentMethod)}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Sélectionner un mode" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {PAYMENT_METHOD_OPTIONS.map((opt) => (
+                      <SelectItem key={opt.value} value={opt.value}>
+                        {opt.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Notes */}
+              <div className="space-y-2">
+                <Label>Notes (optionnel)</Label>
+                <Textarea
+                  placeholder="Notes internes ou observations..."
+                  value={formNotes}
+                  onChange={(e) => setFormNotes(e.target.value)}
+                  rows={2}
+                />
+              </div>
+
+              {/* Total Preview */}
+              <div className="bg-amber-50/50 rounded-lg p-4 space-y-2">
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">Sous-total HT</span>
+                  <span>{formatFCFA(subtotal)}</span>
+                </div>
+                {formTouristTax > 0 && (
+                  <div className="flex justify-between text-sm">
+                    <span className="text-muted-foreground">Taxe de séjour</span>
+                    <span>{formatFCFA(formTouristTax)}</span>
+                  </div>
                 )}
+                {vat > 0 && (
+                  <div className="flex justify-between text-sm">
+                    <span className="text-muted-foreground">TVA (18%)</span>
+                    <span>{formatFCFA(vat)}</span>
+                  </div>
+                )}
+                <Separator />
+                <div className="flex justify-between text-lg font-bold text-amber-700">
+                  <span>Total TTC</span>
+                  <span>{formatFCFA(totalTTC)}</span>
+                </div>
               </div>
             </div>
-          ) : (
-            <div className="p-4 text-center text-muted-foreground">
-              Aucune facture sélectionnée
-            </div>
-          )}
-        </SheetContent>
-      </Sheet>
 
-      {/* ─── Status Change Confirmation ────────────────────────────────────── */}
-      <AlertDialog open={statusDialogOpen} onOpenChange={setStatusDialogOpen}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle className="flex items-center gap-2">
-              <AlertTriangle className="h-5 w-5 text-amber-500" />
-              Confirmer le changement de statut
-            </AlertDialogTitle>
-            <AlertDialogDescription>
-              Êtes-vous sûr de vouloir{' '}
-              <strong>
-                {statusChangeTarget === 'refund' ? 'rembourser' : 'annuler'}
-              </strong>{' '}
-              la facture <strong>{selectedInvoice?.invoice_number}</strong> ?
-              {statusChangeTarget === 'refund' && ' Le montant sera marqué comme remboursé.'}
-              {statusChangeTarget === 'cancelled' && ' La facture sera marquée comme annulée.'}
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel disabled={statusChanging}>Annuler</AlertDialogCancel>
-            <AlertDialogAction
-              className={
-                statusChangeTarget === 'refund'
-                  ? 'bg-orange-600 hover:bg-orange-700 text-white'
-                  : 'bg-red-600 hover:bg-red-700 text-white'
-              }
-              onClick={handleStatusChange}
-              disabled={statusChanging}
-            >
-              {statusChanging ? (
-                <>
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  Traitement...
-                </>
-              ) : statusChangeTarget === 'refund' ? (
-                'Confirmer le remboursement'
-              ) : (
-                'Confirmer l\'annulation'
-              )}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-    </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setCreateOpen(false)}>
+                Annuler
+              </Button>
+              <Button
+                onClick={handleCreateInvoice}
+                disabled={submitting}
+                className="bg-amber-600 hover:bg-amber-700 text-white"
+              >
+                {submitting ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Création...
+                  </>
+                ) : (
+                  <>
+                    <CheckCircle2 className="h-4 w-4 mr-2" />
+                    Créer la facture
+                  </>
+                )}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* ─── Status Change AlertDialog ──────────────────────────────────── */}
+        <AlertDialog open={statusDialogOpen} onOpenChange={setStatusDialogOpen}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>
+                {statusChangeTarget === 'refund' ? 'Rembourser la facture' : 'Annuler la facture'}
+              </AlertDialogTitle>
+              <AlertDialogDescription>
+                {statusChangeTarget === 'refund'
+                  ? `Êtes-vous sûr de vouloir marquer la facture ${selectedInvoice?.invoice_number} comme remboursée ? Cette action est irréversible.`
+                  : `Êtes-vous sûr de vouloir annuler la facture ${selectedInvoice?.invoice_number} ? Cette action est irréversible.`}
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Annuler</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={handleStatusChange}
+                className={statusChangeTarget === 'cancelled' ? 'bg-red-600 hover:bg-red-700' : 'bg-orange-600 hover:bg-orange-700'}
+              >
+                {statusChanging ? (
+                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                ) : null}
+                Confirmer
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+      </div>
+    </TooltipProvider>
   )
 }

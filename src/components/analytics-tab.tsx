@@ -16,6 +16,7 @@ import {
   Building2,
   ArrowUpRight,
   ArrowDownRight,
+  Download,
 } from 'lucide-react'
 import {
   Bar,
@@ -320,6 +321,42 @@ export function AnalyticsTab({ onRefresh }: AnalyticsTabProps) {
     onRefresh?.()
   }, [fetchAnalytics, onRefresh])
 
+  // ─── Export analytics to CSV ───────────────────────────────────────────
+  const handleExportAnalytics = useCallback(() => {
+    if (!data) return
+
+    const rows = [
+      { metric: 'Chambres totales', value: String(data.total_rooms), period: 'Actuel' },
+      { metric: 'Chambres occupées', value: String(data.occupied_rooms), period: 'Actuel' },
+      { metric: 'Taux d\'occupation (%)', value: data.occupancy_rate.toFixed(1), period: 'Actuel' },
+      { metric: 'Revenu mensuel (FCFA)', value: String(data.total_revenue_month), period: 'Ce mois-ci' },
+      { metric: 'Revenu annuel (FCFA)', value: String(data.total_revenue_year), period: 'Cette année' },
+      { metric: 'Réservations en attente', value: String(data.pending_reservations), period: 'Actuel' },
+      { metric: 'Clients enregistrés', value: String(data.checked_in_reservations), period: 'Actuel' },
+      { metric: 'ADR - Prix moyen/jour (FCFA)', value: String(data.adr), period: 'Cette année' },
+      { metric: 'RevPAR (FCFA)', value: String(data.revpar), period: 'Cette année' },
+      { metric: 'Revenu restaurant (FCFA)', value: String(data.restaurant_revenue_month), period: 'Ce mois-ci' },
+      { metric: 'Revenu conférence (FCFA)', value: String(data.conference_revenue_month), period: 'Ce mois-ci' },
+    ]
+
+    const BOM = '\uFEFF'
+    const sep = ';'
+    const header = `"Indicateur"${sep}"Valeur"${sep}"Période"`
+    const csvRows = rows.map(r => `"${r.metric}"${sep}"${r.value}"${sep}"${r.period}"`)
+    const csv = BOM + header + '\n' + csvRows.join('\n')
+
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' })
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = `analyses_hotelci_${new Date().toISOString().split('T')[0]}.csv`
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    URL.revokeObjectURL(url)
+    toast.success('Analyses exportées en CSV')
+  }, [data])
+
   // ─── Loading state ────────────────────────────────────────────────────
   if (loading && !data) {
     return <AnalyticsSkeleton />
@@ -382,6 +419,15 @@ export function AnalyticsTab({ onRefresh }: AnalyticsTabProps) {
           >
             <RefreshCw className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
             Actualiser
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleExportAnalytics}
+            disabled={loading || !data}
+          >
+            <Download className="h-4 w-4 mr-2" />
+            Exporter CSV
           </Button>
           {totalAlerts > 0 && (
             <Badge className="bg-red-100 text-red-700 border-red-200 hover:bg-red-100 gap-1">
