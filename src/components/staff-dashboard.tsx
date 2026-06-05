@@ -19,6 +19,7 @@ import {
   Utensils,
   Coffee,
   Wine,
+  MessageSquare,
 } from 'lucide-react'
 
 import { Card, CardContent } from '@/components/ui/card'
@@ -166,6 +167,32 @@ function getRoomInfo(rooms: RoomBrief | RoomBrief[] | null): RoomBrief | null {
   if (!rooms) return null
   if (Array.isArray(rooms)) return rooms[0] || null
   return rooms
+}
+
+// ─── Shared Support Footer ──────────────────────────────────────────────────
+
+function StaffFooter({ onLogout }: { onLogout: () => void }) {
+  return (
+    <div className="sticky bottom-0 bg-white border-t border-amber-200/50 px-4 py-3 space-y-2">
+      <a
+        href="https://wa.me/2250576103277"
+        target="_blank"
+        rel="noopener noreferrer"
+        className="flex items-center justify-center gap-2 rounded-xl bg-emerald-50 border border-emerald-200 px-4 py-2.5 text-sm font-medium text-emerald-700 hover:bg-emerald-100 transition-colors w-full"
+      >
+        <MessageSquare className="h-4 w-4" />
+        Support WhatsApp
+      </a>
+      <Button
+        variant="outline"
+        className="w-full h-12 text-base font-medium rounded-xl border-amber-200 text-amber-700 hover:bg-amber-50"
+        onClick={onLogout}
+      >
+        <LogOut className="h-4 w-4 mr-2" />
+        Déconnexion
+      </Button>
+    </div>
+  )
 }
 
 // ─── Housekeeper View ────────────────────────────────────────────────────────
@@ -356,16 +383,7 @@ function HousekeeperView({ profile, onLogout }: StaffDashboardProps) {
       </div>
 
       {/* Footer */}
-      <div className="sticky bottom-0 bg-white border-t border-amber-200/50 px-4 py-3">
-        <Button
-          variant="outline"
-          className="w-full h-14 text-base font-medium rounded-xl border-amber-200 text-amber-700 hover:bg-amber-50"
-          onClick={onLogout}
-        >
-          <LogOut className="h-5 w-5 mr-2" />
-          Déconnexion
-        </Button>
-      </div>
+      <StaffFooter onLogout={onLogout} />
     </div>
   )
 }
@@ -632,16 +650,7 @@ function RestaurantStaffView({ profile, onLogout }: StaffDashboardProps) {
       </div>
 
       {/* Footer */}
-      <div className="sticky bottom-0 bg-white border-t border-amber-200/50 px-4 py-3">
-        <Button
-          variant="outline"
-          className="w-full h-14 text-base font-medium rounded-xl border-amber-200 text-amber-700 hover:bg-amber-50"
-          onClick={onLogout}
-        >
-          <LogOut className="h-5 w-5 mr-2" />
-          Déconnexion
-        </Button>
-      </div>
+      <StaffFooter onLogout={onLogout} />
     </div>
   )
 }
@@ -954,16 +963,7 @@ function ReceptionistView({ profile, onLogout }: StaffDashboardProps) {
       </div>
 
       {/* Footer */}
-      <div className="sticky bottom-0 bg-white border-t border-amber-200/50 px-4 py-3">
-        <Button
-          variant="outline"
-          className="w-full h-14 text-base font-medium rounded-xl border-amber-200 text-amber-700 hover:bg-amber-50"
-          onClick={onLogout}
-        >
-          <LogOut className="h-5 w-5 mr-2" />
-          Déconnexion
-        </Button>
-      </div>
+      <StaffFooter onLogout={onLogout} />
     </div>
   )
 }

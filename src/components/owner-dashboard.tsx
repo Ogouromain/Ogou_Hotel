@@ -35,6 +35,7 @@ import {
   Sparkles,
   Bell,
   FileText,
+  MessageSquare,
 } from 'lucide-react'
 
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
@@ -527,6 +528,19 @@ export function OwnerDashboard({ profile, onLogout, isNewRegistration }: OwnerDa
           </div>
         )}
 
+        {/* WhatsApp Support Button */}
+        <div className="px-4 py-2 border-t border-amber-200/50">
+          <a
+            href="https://wa.me/2250576103277"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center gap-2 rounded-lg bg-emerald-50 border border-emerald-200 px-3 py-2.5 text-sm font-medium text-emerald-700 hover:bg-emerald-100 transition-colors w-full"
+          >
+            <MessageSquare className="h-4 w-4 text-emerald-600 shrink-0" />
+            <span className="truncate">Support WhatsApp</span>
+          </a>
+        </div>
+
         {/* User Info */}
         <div className="border-t border-amber-200/50 px-4 py-4">
           <div className="flex items-center gap-3 mb-3">
@@ -665,6 +679,50 @@ export function OwnerDashboard({ profile, onLogout, isNewRegistration }: OwnerDa
                 <Button variant="ghost" size="sm" className="text-emerald-600 hover:text-emerald-800" onClick={() => setShowSuccessBanner(false)}>
                   ✕
                 </Button>
+              </div>
+            </div>
+          )}
+
+          {/* Subscription Expiry / Expired Banner */}
+          {subscription && (subscription.status === 'expired' || subscription.status === 'suspended') && (
+            <div className="mb-6 rounded-xl border-2 border-red-200 bg-gradient-to-r from-red-50 to-orange-50 p-6">
+              <div className="flex items-start gap-4">
+                <div className="flex h-12 w-12 items-center justify-center rounded-full bg-red-100 text-red-600 shrink-0">
+                  <AlertTriangle className="h-6 w-6" />
+                </div>
+                <div className="flex-1">
+                  <h2 className="text-xl font-bold text-red-800">
+                    Abonnement {subscription.status === 'expired' ? 'expiré' : 'suspendu'}
+                  </h2>
+                  <p className="text-sm text-red-700 mt-1">
+                    Votre plan {planInfo?.name || ''} a expiré le {formatDateFR(subscription.ends_at)}. Certaines fonctionnalités peuvent être limitées.
+                  </p>
+                  <div className="mt-4 rounded-lg bg-white/80 border border-red-200 p-4">
+                    <p className="text-sm font-semibold text-red-800 mb-2">Pour renouveler votre abonnement :</p>
+                    <ol className="text-sm text-red-700 space-y-1.5 list-decimal list-inside">
+                      <li>Effectuez le paiement via <strong>Orange Money</strong>, <strong>MTN Money</strong> ou <strong>Wave</strong></li>
+                      <li>Contactez notre support pour recevoir votre code de renouvellement</li>
+                    </ol>
+                    <div className="flex flex-col sm:flex-row gap-2 mt-3">
+                      <a
+                        href="https://wa.me/2250576103277?text=Bonjour%2C%20je%20souhaite%20renouveler%20mon%20abonnement%20H%C3%B4telCI"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center justify-center gap-2 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-700 transition-colors"
+                      >
+                        <MessageSquare className="h-4 w-4" />
+                        WhatsApp : +225 05 76 10 32 77
+                      </a>
+                      <a
+                        href="mailto:omouitsi@gmail.com?subject=Renouvellement%20abonnement%20H%C3%B4telCI"
+                        className="inline-flex items-center justify-center gap-2 rounded-lg bg-amber-600 px-4 py-2 text-sm font-medium text-white hover:bg-amber-700 transition-colors"
+                      >
+                        <Mail className="h-4 w-4" />
+                        omouitsi@gmail.com
+                      </a>
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
           )}

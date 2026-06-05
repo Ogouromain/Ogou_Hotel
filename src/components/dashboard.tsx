@@ -534,7 +534,7 @@ function HotelsPage() {
                     type="email"
                     value={form.email}
                     onChange={(e) => setForm({ ...form, email: e.target.value })}
-                    placeholder="contact@hotel.ci"
+                    placeholder="email@exemple.ci"
                   />
                 </div>
               </div>

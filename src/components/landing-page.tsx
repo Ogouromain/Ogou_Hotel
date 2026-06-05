@@ -23,6 +23,7 @@ import {
   Zap,
   Globe,
   ChevronDown,
+  Mail,
 } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
@@ -340,7 +341,7 @@ function LeadFormDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (
                   <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                   <Input
                     id="prospect_phone"
-                    placeholder="07 08 09 10 11"
+                    placeholder="05 76 10 32 77"
                     className="pl-9"
                     value={form.prospect_phone}
                     onChange={e => updateField('prospect_phone', e.target.value)}
@@ -354,7 +355,7 @@ function LeadFormDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (
                 <Input
                   id="prospect_email"
                   type="email"
-                  placeholder="contact@hotel.ci"
+                  placeholder="omouitsi@gmail.com"
                   value={form.prospect_email}
                   onChange={e => updateField('prospect_email', e.target.value)}
                 />
@@ -689,7 +690,15 @@ export function LandingPage({ onLogin, onRegister, onDemo }: LandingPageProps) {
               <ul className="space-y-2 text-sm">
                 <li className="flex items-center gap-2">
                   <Phone className="h-3.5 w-3.5" />
-                  +225 07 08 09 10 11
+                  <a href="https://wa.me/2250576103277" target="_blank" rel="noopener noreferrer" className="hover:text-amber-400 transition-colors">+225 05 76 10 32 77</a>
+                </li>
+                <li className="flex items-center gap-2">
+                  <MessageSquare className="h-3.5 w-3.5" />
+                  <a href="https://wa.me/2250576103277" target="_blank" rel="noopener noreferrer" className="hover:text-amber-400 transition-colors">WhatsApp Support</a>
+                </li>
+                <li className="flex items-center gap-2">
+                  <Mail className="h-3.5 w-3.5" />
+                  <a href="mailto:omouitsi@gmail.com" className="hover:text-amber-400 transition-colors">omouitsi@gmail.com</a>
                 </li>
                 <li className="flex items-center gap-2">
                   <Globe className="h-3.5 w-3.5" />
