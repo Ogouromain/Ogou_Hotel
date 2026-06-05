@@ -23,6 +23,7 @@ import {
   RefreshCw,
   Pencil,
   Trash2,
+  KeyRound,
   AlertTriangle,
   Eye,
   EyeOff,
@@ -1466,14 +1467,17 @@ function TeamTab({
   const [addDialogOpen, setAddDialogOpen] = useState(false)
   const [editDialogOpen, setEditDialogOpen] = useState(false)
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
+  const [resetPasswordDialogOpen, setResetPasswordDialogOpen] = useState(false)
   const [selectedEmployee, setSelectedEmployee] = useState<EmployeeInfo | null>(null)
   const [submitting, setSubmitting] = useState(false)
 
-  // Password reveal dialog
+  // Password reveal dialog (shared for add & reset)
   const [passwordDialogOpen, setPasswordDialogOpen] = useState(false)
   const [generatedPassword, setGeneratedPassword] = useState('')
   const [newEmployeeName, setNewEmployeeName] = useState('')
   const [newEmployeeEmail, setNewEmployeeEmail] = useState('')
+  const [passwordDialogTitle, setPasswordDialogTitle] = useState('✅ Employé ajouté avec succès')
+  const [passwordDialogDesc, setPasswordDialogDesc] = useState('')
 
   // Add form state
   const [addFirstName, setAddFirstName] = useState('')
@@ -1573,6 +1577,41 @@ function TeamTab({
   function openDeleteDialog(employee: EmployeeInfo) {
     setSelectedEmployee(employee)
     setDeleteDialogOpen(true)
+  }
+
+  function openResetPasswordDialog(employee: EmployeeInfo) {
+    setSelectedEmployee(employee)
+    setResetPasswordDialogOpen(true)
+  }
+
+  async function handleResetPassword() {
+    if (!selectedEmployee) return
+    setSubmitting(true)
+    try {
+      const res = await fetch(`/api/owner/employees/${selectedEmployee.id}/reset-password`, {
+        method: 'POST',
+      })
+
+      if (res.ok) {
+        const data = await res.json()
+        setGeneratedPassword(data.newPassword)
+        setNewEmployeeName(`${data.employee.first_name} ${data.employee.last_name}`)
+        setNewEmployeeEmail('')
+        setPasswordDialogTitle('🔑 Mot de passe réinitialisé')
+        setPasswordDialogDesc(
+          `Transmettez le nouveau mot de passe à ${data.employee.first_name} ${data.employee.last_name}. L'ancien mot de passe ne fonctionne plus.`
+        )
+        setResetPasswordDialogOpen(false)
+        setPasswordDialogOpen(true)
+      } else {
+        const data = await res.json()
+        toast.error(data.error || 'Erreur lors de la réinitialisation')
+      }
+    } catch {
+      toast.error('Erreur de connexion')
+    } finally {
+      setSubmitting(false)
+    }
   }
 
   async function handleEditEmployee() {
@@ -1717,6 +1756,15 @@ function TeamTab({
                       <TableCell className="text-right">
                         {emp.id !== ownerId && (
                           <div className="flex items-center justify-end gap-1">
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-8 w-8 text-amber-600 hover:text-amber-800 hover:bg-amber-50"
+                              onClick={() => openResetPasswordDialog(emp)}
+                              title="Réinitialiser le mot de passe"
+                            >
+                              <KeyRound className="h-3.5 w-3.5" />
+                            </Button>
                             <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openEditDialog(emp)}>
                               <Pencil className="h-3.5 w-3.5" />
                             </Button>
@@ -1792,37 +1840,41 @@ function TeamTab({
         </DialogContent>
       </Dialog>
 
-      {/* Password Reveal Dialog */}
+      {/* Password Reveal Dialog (shared for add & reset) */}
       <Dialog open={passwordDialogOpen} onOpenChange={setPasswordDialogOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>✅ Employé ajouté avec succès</DialogTitle>
+            <DialogTitle>{passwordDialogTitle}</DialogTitle>
             <DialogDescription>
-              Transmettez ces identifiants à <strong>{newEmployeeName}</strong>. Le mot de passe ne sera plus affiché.
+              {passwordDialogDesc || <>Transmettez ces identifiants à <strong>{newEmployeeName}</strong>. Le mot de passe ne sera plus affiché.</>}
             </DialogDescription>
           </DialogHeader>
           <div className="py-6">
             <div className="rounded-lg border-2 border-emerald-200 bg-emerald-50 p-4 space-y-3">
+              {newEmployeeEmail && (
+                <>
+                  <div className="space-y-1">
+                    <p className="text-xs font-medium text-emerald-600 uppercase tracking-wider">Email de connexion</p>
+                    <p className="text-sm font-mono">{newEmployeeEmail || '—'}</p>
+                  </div>
+                  <Separator />
+                </>
+              )}
               <div className="space-y-1">
-                <p className="text-xs font-medium text-emerald-600 uppercase tracking-wider">Email de connexion</p>
-                <p className="text-sm font-mono">{newEmployeeEmail || '—'}</p>
-              </div>
-              <Separator />
-              <div className="space-y-1">
-                <p className="text-xs font-medium text-emerald-600 uppercase tracking-wider">Mot de passe généré</p>
+                <p className="text-xs font-medium text-emerald-600 uppercase tracking-wider">Nouveau mot de passe</p>
                 <div className="flex items-center gap-2">
                   <code className="rounded bg-white px-3 py-1.5 text-sm font-mono font-bold text-emerald-800 border border-emerald-200">
                     {generatedPassword}
                   </code>
-                  <CopyButton text={`Email: ${newEmployeeEmail}\nMot de passe: ${generatedPassword}`} />
+                  <CopyButton text={newEmployeeEmail ? `Email: ${newEmployeeEmail}\nMot de passe: ${generatedPassword}` : `Mot de passe: ${generatedPassword}`} />
                 </div>
               </div>
             </div>
           </div>
           <DialogFooter>
-            <Button className="bg-emerald-600 hover:bg-emerald-700 text-white" onClick={() => setPasswordDialogOpen(false)}>
+            <Button className="bg-emerald-600 hover:bg-emerald-700 text-white" onClick={() => { setPasswordDialogOpen(false); setPasswordDialogTitle('✅ Employé ajouté avec succès'); setPasswordDialogDesc(''); }}>
               <Check className="h-4 w-4 mr-2" />
-              J&apos;ai noté les identifiants
+              J&apos;ai noté le mot de passe
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -1873,6 +1925,33 @@ function TeamTab({
             <Button className="bg-amber-600 hover:bg-amber-700 text-white" onClick={handleEditEmployee} disabled={submitting}>
               {submitting ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Pencil className="h-4 w-4 mr-2" />}
               Modifier
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Reset Password Confirmation Dialog */}
+      <Dialog open={resetPasswordDialogOpen} onOpenChange={setResetPasswordDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Réinitialiser le mot de passe</DialogTitle>
+            <DialogDescription>
+              Êtes-vous sûr de vouloir réinitialiser le mot de passe de <strong>{selectedEmployee?.first_name} {selectedEmployee?.last_name}</strong> ?
+              Un nouveau mot de passe sera généré. L&apos;ancien ne fonctionnera plus.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 flex items-start gap-3">
+            <KeyRound className="h-5 w-5 text-amber-600 mt-0.5 shrink-0" />
+            <div className="text-sm text-amber-800">
+              <p className="font-medium">Attention</p>
+              <p className="mt-1">L&apos;employé devra utiliser le nouveau mot de passe pour se connecter. Assurez-vous de lui transmettre.</p>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setResetPasswordDialogOpen(false)}>Annuler</Button>
+            <Button className="bg-amber-600 hover:bg-amber-700 text-white" onClick={handleResetPassword} disabled={submitting}>
+              {submitting ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <KeyRound className="h-4 w-4 mr-2" />}
+              Réinitialiser
             </Button>
           </DialogFooter>
         </DialogContent>
