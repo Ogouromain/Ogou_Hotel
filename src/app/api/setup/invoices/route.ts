@@ -1,5 +1,6 @@
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { validateSetupKey } from '@/lib/setup-auth'
 
 const INVOICES_SQL = `
 -- =========================================================
@@ -91,6 +92,24 @@ USING (
     FROM public.profiles p
     WHERE p.id = auth.uid()
   )
+)
+WITH CHECK (
+  hotel_id = (
+    SELECT p.hotel_id
+    FROM public.profiles p
+    WHERE p.id = auth.uid()
+  )
+);
+
+DROP POLICY IF EXISTS "Users can delete invoices of own hotel" ON public.invoices;
+CREATE POLICY "Users can delete invoices of own hotel"
+ON public.invoices FOR DELETE
+USING (
+  hotel_id = (
+    SELECT p.hotel_id
+    FROM public.profiles p
+    WHERE p.id = auth.uid()
+  )
 );
 
 -- RLS Policies for invoice_items
@@ -110,6 +129,38 @@ DROP POLICY IF EXISTS "Users can insert invoice items for own hotel" ON public.i
 CREATE POLICY "Users can insert invoice items for own hotel"
 ON public.invoice_items FOR INSERT
 WITH CHECK (
+  invoice_id IN (
+    SELECT i.id FROM public.invoices i
+    WHERE i.hotel_id = (
+      SELECT p.hotel_id FROM public.profiles p WHERE p.id = auth.uid()
+    )
+  )
+);
+
+DROP POLICY IF EXISTS "Users can update invoice items of own hotel" ON public.invoice_items;
+CREATE POLICY "Users can update invoice items of own hotel"
+ON public.invoice_items FOR UPDATE
+USING (
+  invoice_id IN (
+    SELECT i.id FROM public.invoices i
+    WHERE i.hotel_id = (
+      SELECT p.hotel_id FROM public.profiles p WHERE p.id = auth.uid()
+    )
+  )
+)
+WITH CHECK (
+  invoice_id IN (
+    SELECT i.id FROM public.invoices i
+    WHERE i.hotel_id = (
+      SELECT p.hotel_id FROM public.profiles p WHERE p.id = auth.uid()
+    )
+  )
+);
+
+DROP POLICY IF EXISTS "Users can delete invoice items of own hotel" ON public.invoice_items;
+CREATE POLICY "Users can delete invoice items of own hotel"
+ON public.invoice_items FOR DELETE
+USING (
   invoice_id IN (
     SELECT i.id FROM public.invoices i
     WHERE i.hotel_id = (
@@ -154,7 +205,10 @@ EXECUTE FUNCTION public.notify_new_invoice();
  * GET /api/setup/invoices
  * Check if the invoices module tables exist and are properly configured.
  */
-export async function GET() {
+export async function GET(request: NextRequest) {
+  const authError = validateSetupKey(request)
+  if (authError) return authError
+
   try {
     const adminClient = createAdminClient()
 
@@ -218,7 +272,10 @@ export async function GET() {
  * 
  * Body: { db_password: string }
  */
-export async function POST(request: Request) {
+export async function POST(request: NextRequest) {
+  const authError = validateSetupKey(request)
+  if (authError) return authError
+
   try {
     const body = await request.json()
     const dbPassword = body.db_password

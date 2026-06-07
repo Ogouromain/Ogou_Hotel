@@ -1,4 +1,5 @@
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
+import { validateSetupKey } from '@/lib/setup-auth'
 
 /**
  * GET /api/setup/step8
@@ -8,7 +9,9 @@ import { NextResponse } from 'next/server'
  *
  * These must be run in the Supabase SQL Editor because the JS client cannot execute DDL.
  */
-export async function GET() {
+export async function GET(request: NextRequest) {
+  const authError = validateSetupKey(request)
+  if (authError) return authError
   const sql = `
 -- =========================================================
 -- HÔTELCI - Étape 8 : Notifications, Analytics & Temps Réel
@@ -52,6 +55,15 @@ USING (
   )
 );
 
+DROP POLICY IF EXISTS "Users can insert notifications for own hotel" ON public.notifications;
+CREATE POLICY "Users can insert notifications for own hotel"
+ON public.notifications FOR INSERT
+WITH CHECK (
+  hotel_id = (
+    SELECT p.hotel_id FROM public.profiles p WHERE p.id = auth.uid()
+  )
+);
+
 DROP POLICY IF EXISTS "Users can update notifications of own hotel" ON public.notifications;
 CREATE POLICY "Users can update notifications of own hotel"
 ON public.notifications FOR UPDATE
@@ -59,16 +71,20 @@ USING (
   hotel_id = (
     SELECT p.hotel_id FROM public.profiles p WHERE p.id = auth.uid()
   )
-);
-
-DROP POLICY IF EXISTS "System can insert notifications" ON public.notifications;
-CREATE POLICY "System can insert notifications"
-ON public.notifications FOR INSERT
+)
 WITH CHECK (
   hotel_id = (
     SELECT p.hotel_id FROM public.profiles p WHERE p.id = auth.uid()
   )
-  OR auth.uid() IS NULL
+);
+
+DROP POLICY IF EXISTS "Users can delete notifications of own hotel" ON public.notifications;
+CREATE POLICY "Users can delete notifications of own hotel"
+ON public.notifications FOR DELETE
+USING (
+  hotel_id = (
+    SELECT p.hotel_id FROM public.profiles p WHERE p.id = auth.uid()
+  )
 );
 
 -- 3. Trigger: Notification sur changement de réservation

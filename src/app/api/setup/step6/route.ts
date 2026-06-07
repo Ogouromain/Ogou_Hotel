@@ -1,5 +1,6 @@
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { validateSetupKey } from '@/lib/setup-auth'
 
 /**
  * POST /api/setup/step6
@@ -8,7 +9,9 @@ import { createAdminClient } from '@/lib/supabase/admin'
  * 2. Create customer-documents storage bucket
  * 3. Set up RLS policies for the bucket
  */
-export async function POST() {
+export async function POST(request: NextRequest) {
+  const authError = validateSetupKey(request)
+  if (authError) return authError
   try {
     const adminClient = createAdminClient()
 
@@ -108,7 +111,10 @@ export async function POST() {
  * GET /api/setup/step6
  * Check Step 6 setup status.
  */
-export async function GET() {
+export async function GET(request: NextRequest) {
+  const authError = validateSetupKey(request)
+  if (authError) return authError
+
   try {
     const adminClient = createAdminClient()
 

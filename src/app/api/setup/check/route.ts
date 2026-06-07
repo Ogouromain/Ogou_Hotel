@@ -1,7 +1,11 @@
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { validateSetupKey } from '@/lib/setup-auth'
 
-export async function GET() {
+export async function GET(request: NextRequest) {
+  const authError = validateSetupKey(request)
+  if (authError) return authError
+
   try {
     const supabase = createAdminClient()
 

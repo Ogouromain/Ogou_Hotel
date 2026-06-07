@@ -1,4 +1,5 @@
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
+import { validateSetupKey } from '@/lib/setup-auth'
 
 /**
  * GET /api/setup/triggers
@@ -7,7 +8,9 @@ import { NextResponse } from 'next/server'
  * for enforcing subscription limits at the database level.
  * These are safety nets — application-level validation is the primary enforcement.
  */
-export async function GET() {
+export async function GET(request: NextRequest) {
+  const authError = validateSetupKey(request)
+  if (authError) return authError
   const sql = `
 -- =========================================================
 -- HÔTELCI - Triggers de Validation des Limites d'Abonnement

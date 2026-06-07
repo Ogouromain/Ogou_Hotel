@@ -1,7 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { validateSetupKey } from '@/lib/setup-auth'
 
 export async function POST(request: NextRequest) {
+  const authError = validateSetupKey(request)
+  if (authError) return authError
+
   try {
     const body = await request.json()
     const { email, password, firstName, lastName } = body

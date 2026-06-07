@@ -1,5 +1,6 @@
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { validateSetupKey } from '@/lib/setup-auth'
 
 /**
  * POST /api/setup/step7
@@ -8,7 +9,10 @@ import { createAdminClient } from '@/lib/supabase/admin'
  * 2. Create stock transaction trigger (auto-deduct/add)
  * 3. Add indexes for new tables
  */
-export async function POST() {
+export async function POST(request: NextRequest) {
+  const authError = validateSetupKey(request)
+  if (authError) return authError
+
   try {
     const adminClient = createAdminClient()
 
@@ -54,7 +58,41 @@ export async function POST() {
     UNIQUE (hotel_id, name)
 );`,
         'CREATE INDEX idx_menu_items_hotel_id ON public.menu_items(hotel_id);',
-        'CREATE INDEX idx_menu_items_category ON public.menu_items(category);'
+        'CREATE INDEX idx_menu_items_category ON public.menu_items(category);',
+        '',
+        '-- RLS pour menu_items',
+        'ALTER TABLE public.menu_items ENABLE ROW LEVEL SECURITY;',
+        '',
+        `DROP POLICY IF EXISTS "Users can read menu items of own hotel" ON public.menu_items;`,
+        `CREATE POLICY "Users can read menu items of own hotel" ON public.menu_items FOR SELECT USING (hotel_id = (SELECT p.hotel_id FROM public.profiles p WHERE p.id = auth.uid()));`,
+        '',
+        `DROP POLICY IF EXISTS "Users can insert menu items for own hotel" ON public.menu_items;`,
+        `CREATE POLICY "Users can insert menu items for own hotel" ON public.menu_items FOR INSERT WITH CHECK (hotel_id = (SELECT p.hotel_id FROM public.profiles p WHERE p.id = auth.uid()));`,
+        '',
+        `DROP POLICY IF EXISTS "Users can update menu items of own hotel" ON public.menu_items;`,
+        `CREATE POLICY "Users can update menu items of own hotel" ON public.menu_items FOR UPDATE USING (hotel_id = (SELECT p.hotel_id FROM public.profiles p WHERE p.id = auth.uid())) WITH CHECK (hotel_id = (SELECT p.hotel_id FROM public.profiles p WHERE p.id = auth.uid()));`,
+        '',
+        `DROP POLICY IF EXISTS "Users can delete menu items of own hotel" ON public.menu_items;`,
+        `CREATE POLICY "Users can delete menu items of own hotel" ON public.menu_items FOR DELETE USING (hotel_id = (SELECT p.hotel_id FROM public.profiles p WHERE p.id = auth.uid()));`
+      )
+    } else {
+      // Even if table exists, ensure RLS is enabled and policies are in place
+      sqlCommands.push(
+        '',
+        '-- Sécurisation RLS pour menu_items (table existante)',
+        'ALTER TABLE public.menu_items ENABLE ROW LEVEL SECURITY;',
+        '',
+        `DROP POLICY IF EXISTS "Users can read menu items of own hotel" ON public.menu_items;`,
+        `CREATE POLICY "Users can read menu items of own hotel" ON public.menu_items FOR SELECT USING (hotel_id = (SELECT p.hotel_id FROM public.profiles p WHERE p.id = auth.uid()));`,
+        '',
+        `DROP POLICY IF EXISTS "Users can insert menu items for own hotel" ON public.menu_items;`,
+        `CREATE POLICY "Users can insert menu items for own hotel" ON public.menu_items FOR INSERT WITH CHECK (hotel_id = (SELECT p.hotel_id FROM public.profiles p WHERE p.id = auth.uid()));`,
+        '',
+        `DROP POLICY IF EXISTS "Users can update menu items of own hotel" ON public.menu_items;`,
+        `CREATE POLICY "Users can update menu items of own hotel" ON public.menu_items FOR UPDATE USING (hotel_id = (SELECT p.hotel_id FROM public.profiles p WHERE p.id = auth.uid())) WITH CHECK (hotel_id = (SELECT p.hotel_id FROM public.profiles p WHERE p.id = auth.uid()));`,
+        '',
+        `DROP POLICY IF EXISTS "Users can delete menu items of own hotel" ON public.menu_items;`,
+        `CREATE POLICY "Users can delete menu items of own hotel" ON public.menu_items FOR DELETE USING (hotel_id = (SELECT p.hotel_id FROM public.profiles p WHERE p.id = auth.uid()));`
       )
     }
 
@@ -113,7 +151,10 @@ FOR EACH ROW EXECUTE FUNCTION public.process_stock_transaction();`,
  * GET /api/setup/step7
  * Check Step 7 setup status.
  */
-export async function GET() {
+export async function GET(request: NextRequest) {
+  const authError = validateSetupKey(request)
+  if (authError) return authError
+
   try {
     const adminClient = createAdminClient()
 

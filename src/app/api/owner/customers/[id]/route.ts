@@ -1,17 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { validateIdentityDocument, mimeToExtension, type AllowedMimeType } from '@/lib/file-validation'
 
-// ─── Helper: map mime type to file extension ────────────────────────
-function mimeToExtension(mimeType: string): string {
-  const map: Record<string, string> = {
-    'image/jpeg': 'jpg',
-    'image/png': 'png',
-    'image/webp': 'webp',
-    'application/pdf': 'pdf',
-  }
-  return map[mimeType] || 'jpg'
-}
+// mimeToExtension is now imported from @/lib/file-validation
 
 /**
  * PATCH /api/owner/customers/[id]
@@ -87,14 +79,27 @@ export async function PATCH(
 
     // ─── Handle identity document upload ──────────────────────
     if (body.identity_document_file && body.identity_document_mime_type) {
-      const ext = mimeToExtension(body.identity_document_mime_type)
+      // SECURITY: Validate file size and real MIME type server-side
+      const fileValidation = validateIdentityDocument(
+        body.identity_document_file,
+        body.identity_document_mime_type
+      )
+
+      if (!fileValidation.valid) {
+        return NextResponse.json(
+          { error: fileValidation.error },
+          { status: 400 }
+        )
+      }
+
+      const ext = mimeToExtension(fileValidation.detectedMimeType!) || 'jpg'
       const filePath = `${hotelId}/${id}_cni.${ext}`
       const buffer = Buffer.from(body.identity_document_file, 'base64')
 
       const { error: uploadError } = await adminClient.storage
         .from('customer-documents')
         .upload(filePath, buffer, {
-          contentType: body.identity_document_mime_type,
+          contentType: fileValidation.detectedMimeType!,
           upsert: true,
         })
 

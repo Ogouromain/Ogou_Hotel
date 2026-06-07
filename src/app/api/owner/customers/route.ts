@@ -1,17 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
-
-// ─── Helper: map mime type to file extension ────────────────────────
-function mimeToExtension(mimeType: string): string {
-  const map: Record<string, string> = {
-    'image/jpeg': 'jpg',
-    'image/png': 'png',
-    'image/webp': 'webp',
-    'application/pdf': 'pdf',
-  }
-  return map[mimeType] || 'jpg'
-}
+import { validateIdentityDocument, mimeToExtension, type AllowedMimeType } from '@/lib/file-validation'
 
 // ─── Helper: upload identity document to Supabase Storage ──────────
 async function uploadIdentityDocument(
@@ -22,7 +12,7 @@ async function uploadIdentityDocument(
   mimeType: string
 ): Promise<{ path: string } | null> {
   try {
-    const ext = mimeToExtension(mimeType)
+    const ext = mimeToExtension(mimeType as AllowedMimeType) || 'jpg'
     const filePath = `${hotelId}/${customerId}_cni.${ext}`
 
     // Decode base64
@@ -212,12 +202,27 @@ export async function POST(request: NextRequest) {
 
     // ─── Upload identity document if provided ─────────────────
     if (identity_document_file && identity_document_mime_type && customer) {
+      // SECURITY: Validate file size and real MIME type server-side
+      const fileValidation = validateIdentityDocument(
+        identity_document_file,
+        identity_document_mime_type
+      )
+
+      if (!fileValidation.valid) {
+        // Delete the customer we just created since the document is invalid
+        await adminClient.from('customers').delete().eq('id', customer.id)
+        return NextResponse.json(
+          { error: fileValidation.error },
+          { status: 400 }
+        )
+      }
+
       const result = await uploadIdentityDocument(
         adminClient,
         hotelId,
         customer.id,
         identity_document_file,
-        identity_document_mime_type
+        fileValidation.detectedMimeType!
       )
 
       if (result) {

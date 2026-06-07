@@ -9,10 +9,46 @@ import { NextResponse, type NextRequest } from 'next/server'
  * 2. Route protection (unauthenticated users → login)
  * 3. Role-based access (x-user-role, x-user-id headers)
  * 4. Security headers on all responses
+ * 5. Setup route protection (x-setup-key validation)
  */
 
 // Paths that are completely excluded from middleware processing
-const EXCLUDED_PATHS = ['/api/', '/_next/', '/static/', '/favicon.ico', '/logo.svg']
+const EXCLUDED_PATHS = ['/_next/', '/static/', '/favicon.ico', '/logo.svg']
+
+// ─── Role-Based Route Access Control ──────────────────────────────────────────
+// Defines which roles can access which route prefixes.
+// Routes not listed here are accessible to all authenticated users.
+
+const ROLE_ROUTE_ACCESS: Record<string, string[]> = {
+  // Super-admin routes: only super_admin can access
+  '/api/super-admin': ['super_admin'],
+
+  // Owner routes: owner and manager can access
+  '/api/owner': ['owner', 'manager'],
+
+  // Staff routes: all hotel staff can access
+  '/api/staff': ['owner', 'manager', 'receptionist'],
+
+  // Setup routes: handled separately via x-setup-key header
+  '/api/setup': [],
+}
+
+/**
+ * Determines if a user with the given role can access a path.
+ * Returns true if the path has no role restriction or the role is allowed.
+ */
+function canAccessRoute(pathname: string, role: string | null): boolean {
+  for (const [routePrefix, allowedRoles] of Object.entries(ROLE_ROUTE_ACCESS)) {
+    if (pathname.startsWith(routePrefix)) {
+      // Setup routes have their own auth via x-setup-key
+      if (routePrefix === '/api/setup') return true
+      // Check if user's role is in the allowed list
+      return allowedRoles.includes(role || '')
+    }
+  }
+  // Route has no specific role restriction
+  return true
+}
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
@@ -35,21 +71,54 @@ export async function middleware(request: NextRequest) {
   supabaseResponse.headers.set('X-Content-Type-Options', 'nosniff')
   supabaseResponse.headers.set('Referrer-Policy', 'strict-origin-when-cross-origin')
   supabaseResponse.headers.set('X-XSS-Protection', '1; mode=block')
+  supabaseResponse.headers.set(
+    'Permissions-Policy',
+    'camera=(), microphone=(), geolocation=()'
+  )
 
   // ---- 4. Role-based headers for downstream consumption ----
   if (user) {
     const role = user.app_metadata?.role || 'unknown'
+    const hotelId = user.app_metadata?.hotel_id || ''
     supabaseResponse.headers.set('x-user-role', role)
     supabaseResponse.headers.set('x-user-id', user.id)
+    supabaseResponse.headers.set('x-user-hotel-id', hotelId)
+
+    // ---- 5. Role-based route protection ----
+    if (!canAccessRoute(pathname, role)) {
+      // User is authenticated but doesn't have the right role for this route
+      if (pathname.startsWith('/api/')) {
+        return NextResponse.json(
+          { error: 'Accès refusé. Vous n\'avez pas les permissions nécessaires.' },
+          { status: 403 }
+        )
+      }
+      // For page routes, redirect to home
+      const url = request.nextUrl.clone()
+      url.pathname = '/'
+      return NextResponse.redirect(url)
+    }
 
     // Authenticated user visiting root — let client-side handle dashboard display
     // No redirect needed; the frontend decides whether to show login or dashboard
   } else {
-    // Unauthenticated user trying to access a protected route (anything other than /)
+    // Unauthenticated user trying to access a protected route
     if (pathname !== '/') {
-      const url = request.nextUrl.clone()
-      url.pathname = '/'
-      return NextResponse.redirect(url)
+      // API routes should return 401
+      if (pathname.startsWith('/api/')) {
+        // Allow auth routes without authentication
+        if (!pathname.startsWith('/api/auth/')) {
+          return NextResponse.json(
+            { error: 'Non authentifié. Veuillez vous connecter.' },
+            { status: 401 }
+          )
+        }
+      } else {
+        // Page routes redirect to home
+        const url = request.nextUrl.clone()
+        url.pathname = '/'
+        return NextResponse.redirect(url)
+      }
     }
     // Unauthenticated user visiting / — let client-side show login form
   }

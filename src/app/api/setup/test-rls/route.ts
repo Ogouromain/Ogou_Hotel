@@ -1,14 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createAdminClient, isSupabaseAdminConfigured } from '@/lib/supabase/admin'
 import { createClient } from '@supabase/supabase-js'
+import { validateSetupKey } from '@/lib/setup-auth'
 
 // ─── GET /api/setup/test-rls ─────────────────────────────────────────────────
 // Security penetration test for RLS (Row Level Security) isolation.
 // Validates multi-tenant data isolation between hotels.
 //
-// Access: Secured by a secret key (x-test-key header) to prevent
-// unauthorized use in production. Only works in development/staging
-// or with the correct key.
+// Access: Secured by the x-setup-key header (linked to SETUP_SECRET_KEY env var)
+// to prevent unauthorized use in production.
 //
 // Strategy:
 // 1. Use admin client (bypasses RLS) to insert test rooms for Hotel A
@@ -18,7 +18,8 @@ import { createClient } from '@supabase/supabase-js'
 // 5. Clean up all test data
 // 6. Return compliance report
 
-const TEST_KEY = process.env.RLS_TEST_KEY || 'hotelci-rls-test-2025'
+// Test key is now validated by the shared validateSetupKey function
+// which uses SETUP_SECRET_KEY from environment variables.
 
 interface TestResult {
   test: string
@@ -28,14 +29,9 @@ interface TestResult {
 
 export async function GET(request: NextRequest) {
   try {
-    // Security gate: require test key
-    const testKey = request.headers.get('x-test-key')
-    if (testKey !== TEST_KEY) {
-      return NextResponse.json(
-        { error: 'Accès non autorisé. Clé de test invalide.' },
-        { status: 401 }
-      )
-    }
+    // Security gate: use shared setup key validation
+    const authError = validateSetupKey(request)
+    if (authError) return authError
 
     if (!isSupabaseAdminConfigured()) {
       return NextResponse.json(
