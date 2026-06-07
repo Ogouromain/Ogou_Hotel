@@ -438,7 +438,7 @@ export function LandingPage({ onLogin, onRegister, onDemo }: LandingPageProps) {
             {/* Badge */}
             <Badge className="bg-amber-100 text-amber-800 border-amber-200 hover:bg-amber-100 px-4 py-1.5 text-sm font-medium">
               <Zap className="h-3.5 w-3.5 mr-1.5" />
-              SaaS de Gestion Hôtelière #1 en Côte d&apos;Ivoire
+              Application de Gestion Hôtelière N° 1 en Côte d&apos;Ivoire
             </Badge>
 
             {/* Headline */}
@@ -669,7 +669,7 @@ export function LandingPage({ onLogin, onRegister, onDemo }: LandingPageProps) {
                 <span className="text-xl font-bold text-white">HôtelCI</span>
               </div>
               <p className="text-sm leading-relaxed max-w-sm">
-                La plateforme SaaS de gestion hôtelière multi-tenant conçue pour les établissements de Côte d&apos;Ivoire.
+                La plateforme de gestion hôtelière multi-tenant conçue pour les établissements de Côte d&apos;Ivoire.
                 Simple, sécurisée, mobile.
               </p>
             </div>

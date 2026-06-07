@@ -13,12 +13,12 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 export const metadata: Metadata = {
   title: "HôtelCI — Gestion Hôtelière Côte d'Ivoire",
   description:
-    "Système SaaS de gestion hôtelière multi-tenant pour les hôtels de Côte d'Ivoire. Gestion des réservations, chambres, clients et plus.",
+    "Application de gestion hôtelière N° 1 en Côte d'Ivoire. Gestion des réservations, chambres, clients et plus.",
   keywords: [
     "HôtelCI",
     "gestion hôtelière",
     "Côte d'Ivoire",
-    "SaaS",
+    "application",
     "hôtellerie",
     "réservation",
   ],
