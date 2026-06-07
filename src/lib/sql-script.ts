@@ -229,6 +229,19 @@ CREATE TABLE IF NOT EXISTS public.restaurant_order_items (
     CONSTRAINT chk_qty CHECK (quantity > 0)
 );
 
+-- 15b. Table des Articles du Menu Restaurant
+CREATE TABLE IF NOT EXISTS public.menu_items (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    hotel_id UUID NOT NULL REFERENCES public.hotels(id) ON DELETE CASCADE,
+    name VARCHAR(255) NOT NULL,
+    category VARCHAR(100) NOT NULL DEFAULT 'Autre',
+    description TEXT,
+    price NUMERIC(12, 2) NOT NULL,
+    is_available BOOLEAN NOT NULL DEFAULT true,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
+    UNIQUE (hotel_id, name)
+);
+
 -- 16. Table des Articles en Stock
 CREATE TABLE IF NOT EXISTS public.stock_items (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
@@ -278,6 +291,8 @@ CREATE INDEX IF NOT EXISTS idx_rooms_status ON public.rooms(status);
 CREATE INDEX IF NOT EXISTS idx_customers_hotel_id ON public.customers(hotel_id);
 CREATE INDEX IF NOT EXISTS idx_reservations_hotel_id_dates ON public.reservations(hotel_id, check_in_date, check_out_date);
 CREATE INDEX IF NOT EXISTS idx_stock_items_hotel_id ON public.stock_items(hotel_id);
+CREATE INDEX IF NOT EXISTS idx_menu_items_hotel_id ON public.menu_items(hotel_id);
+CREATE INDEX IF NOT EXISTS idx_menu_items_category ON public.menu_items(category);
 CREATE INDEX IF NOT EXISTS idx_audit_logs_created_at ON public.audit_logs(created_at DESC);
 
 -- ==================== SYNC AUTOMATIQUE DES CUSTOM CLAIMS JWT ====================
@@ -446,6 +461,60 @@ USING (
 ALTER TABLE public.customers
 ADD COLUMN IF NOT EXISTS identity_document_path TEXT;
 
+-- ==================== MENU_ITEMS RLS ====================
+ALTER TABLE public.menu_items ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Users can read menu items of own hotel" ON public.menu_items;
+CREATE POLICY "Users can read menu items of own hotel"
+ON public.menu_items FOR SELECT
+USING (
+  hotel_id = (
+    SELECT p.hotel_id
+    FROM public.profiles p
+    WHERE p.id = auth.uid()
+  )
+);
+
+DROP POLICY IF EXISTS "Users can insert menu items for own hotel" ON public.menu_items;
+CREATE POLICY "Users can insert menu items for own hotel"
+ON public.menu_items FOR INSERT
+WITH CHECK (
+  hotel_id = (
+    SELECT p.hotel_id
+    FROM public.profiles p
+    WHERE p.id = auth.uid()
+  )
+);
+
+DROP POLICY IF EXISTS "Users can update menu items of own hotel" ON public.menu_items;
+CREATE POLICY "Users can update menu items of own hotel"
+ON public.menu_items FOR UPDATE
+USING (
+  hotel_id = (
+    SELECT p.hotel_id
+    FROM public.profiles p
+    WHERE p.id = auth.uid()
+  )
+)
+WITH CHECK (
+  hotel_id = (
+    SELECT p.hotel_id
+    FROM public.profiles p
+    WHERE p.id = auth.uid()
+  )
+);
+
+DROP POLICY IF EXISTS "Users can delete menu items of own hotel" ON public.menu_items;
+CREATE POLICY "Users can delete menu items of own hotel"
+ON public.menu_items FOR DELETE
+USING (
+  hotel_id = (
+    SELECT p.hotel_id
+    FROM public.profiles p
+    WHERE p.id = auth.uid()
+  )
+);
+
 -- =========================================================
 -- STEP 8: NOTIFICATIONS, AUTO-NOTIFICATION TRIGGERS,
 --         ANALYTICS FUNCTION & REALTIME ENABLEMENT
@@ -485,6 +554,19 @@ USING (
   )
 );
 
+DROP POLICY IF EXISTS "Users can insert notifications for own hotel" ON public.notifications;
+DROP POLICY IF EXISTS "System can insert notifications" ON public.notifications;
+CREATE POLICY "Users can insert notifications for own hotel"
+ON public.notifications FOR INSERT
+WITH CHECK (
+  hotel_id = (
+    SELECT p.hotel_id
+    FROM public.profiles p
+    WHERE p.id = auth.uid()
+  )
+);
+
+-- SECURITÉ: WITH CHECK empêche le déplacement d'une notification vers un autre hôtel
 DROP POLICY IF EXISTS "Users can update notifications of own hotel" ON public.notifications;
 CREATE POLICY "Users can update notifications of own hotel"
 ON public.notifications FOR UPDATE
@@ -494,18 +576,25 @@ USING (
     FROM public.profiles p
     WHERE p.id = auth.uid()
   )
-);
-
-DROP POLICY IF EXISTS "System can insert notifications" ON public.notifications;
-CREATE POLICY "System can insert notifications"
-ON public.notifications FOR INSERT
+)
 WITH CHECK (
   hotel_id = (
     SELECT p.hotel_id
     FROM public.profiles p
     WHERE p.id = auth.uid()
   )
-  OR auth.uid() IS NULL  -- Allow triggers (system) to insert
+);
+
+-- SECURITÉ: Politique DELETE manquante ajoutée
+DROP POLICY IF EXISTS "Users can delete notifications of own hotel" ON public.notifications;
+CREATE POLICY "Users can delete notifications of own hotel"
+ON public.notifications FOR DELETE
+USING (
+  hotel_id = (
+    SELECT p.hotel_id
+    FROM public.profiles p
+    WHERE p.id = auth.uid()
+  )
 );
 
 -- ==================== 8b. AUTO-NOTIFICATION TRIGGERS ====================
@@ -823,9 +912,29 @@ WITH CHECK (
   )
 );
 
+-- SECURITÉ: WITH CHECK empêche le déplacement d'une facture vers un autre hôtel
 DROP POLICY IF EXISTS "Users can update invoices of own hotel" ON public.invoices;
 CREATE POLICY "Users can update invoices of own hotel"
 ON public.invoices FOR UPDATE
+USING (
+  hotel_id = (
+    SELECT p.hotel_id
+    FROM public.profiles p
+    WHERE p.id = auth.uid()
+  )
+)
+WITH CHECK (
+  hotel_id = (
+    SELECT p.hotel_id
+    FROM public.profiles p
+    WHERE p.id = auth.uid()
+  )
+);
+
+-- SECURITÉ: Politique DELETE manquante ajoutée
+DROP POLICY IF EXISTS "Users can delete invoices of own hotel" ON public.invoices;
+CREATE POLICY "Users can delete invoices of own hotel"
+ON public.invoices FOR DELETE
 USING (
   hotel_id = (
     SELECT p.hotel_id
@@ -851,6 +960,39 @@ DROP POLICY IF EXISTS "Users can insert invoice items for own hotel" ON public.i
 CREATE POLICY "Users can insert invoice items for own hotel"
 ON public.invoice_items FOR INSERT
 WITH CHECK (
+  invoice_id IN (
+    SELECT i.id FROM public.invoices i
+    WHERE i.hotel_id = (
+      SELECT p.hotel_id FROM public.profiles p WHERE p.id = auth.uid()
+    )
+  )
+);
+
+-- SECURITÉ: Politiques UPDATE et DELETE manquantes ajoutées
+DROP POLICY IF EXISTS "Users can update invoice items of own hotel" ON public.invoice_items;
+CREATE POLICY "Users can update invoice items of own hotel"
+ON public.invoice_items FOR UPDATE
+USING (
+  invoice_id IN (
+    SELECT i.id FROM public.invoices i
+    WHERE i.hotel_id = (
+      SELECT p.hotel_id FROM public.profiles p WHERE p.id = auth.uid()
+    )
+  )
+)
+WITH CHECK (
+  invoice_id IN (
+    SELECT i.id FROM public.invoices i
+    WHERE i.hotel_id = (
+      SELECT p.hotel_id FROM public.profiles p WHERE p.id = auth.uid()
+    )
+  )
+);
+
+DROP POLICY IF EXISTS "Users can delete invoice items of own hotel" ON public.invoice_items;
+CREATE POLICY "Users can delete invoice items of own hotel"
+ON public.invoice_items FOR DELETE
+USING (
   invoice_id IN (
     SELECT i.id FROM public.invoices i
     WHERE i.hotel_id = (
