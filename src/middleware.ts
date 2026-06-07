@@ -108,10 +108,14 @@ export async function middleware(request: NextRequest) {
       if (pathname.startsWith('/api/')) {
         // Allow auth routes without authentication
         if (!pathname.startsWith('/api/auth/')) {
-          return NextResponse.json(
-            { error: 'Non authentifié. Veuillez vous connecter.' },
-            { status: 401 }
-          )
+          // Allow setup routes without authentication — they have their own
+          // x-setup-key validation in the route handlers themselves
+          if (!pathname.startsWith('/api/setup/')) {
+            return NextResponse.json(
+              { error: 'Non authentifié. Veuillez vous connecter.' },
+              { status: 401 }
+            )
+          }
         }
       } else {
         // Page routes redirect to home
