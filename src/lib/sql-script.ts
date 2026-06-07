@@ -1,5 +1,5 @@
 export const INIT_SQL_SCRIPT = `-- =========================================================
--- HÔTELCI SaaS - Script d'initialisation Base de Données
+-- OGOU_HÔTEL SaaS - Script d'initialisation Base de Données
 -- Système de Gestion Hôtelière Multi-Tenant - Côte d'Ivoire
 -- IDEMPOTENT: Can be run multiple times safely
 -- =========================================================

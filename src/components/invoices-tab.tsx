@@ -511,7 +511,7 @@ export function InvoicesTab({ onRefresh }: InvoicesTabProps) {
         const url = URL.createObjectURL(blob)
         const link = document.createElement('a')
         link.href = url
-        link.download = `factures_hotelci_${new Date().toISOString().split('T')[0]}.csv`
+        link.download = `factures_ogou_hotel_${new Date().toISOString().split('T')[0]}.csv`
         document.body.appendChild(link)
         link.click()
         document.body.removeChild(link)
@@ -552,7 +552,7 @@ export function InvoicesTab({ onRefresh }: InvoicesTabProps) {
       }
     })
 
-    downloadCSV(exportData, INVOICE_EXPORT_COLUMNS, `factures_hotelci_${new Date().toISOString().split('T')[0]}.csv`)
+    downloadCSV(exportData, INVOICE_EXPORT_COLUMNS, `factures_ogou_hotel_${new Date().toISOString().split('T')[0]}.csv`)
     toast.success(`${invoices.length} factures exportées`)
   }
 

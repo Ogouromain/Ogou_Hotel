@@ -14,7 +14,7 @@ export async function GET(request: NextRequest) {
   if (authError) return authError
   const sql = `
 -- =========================================================
--- HÔTELCI - Étape 8 : Notifications, Analytics & Temps Réel
+-- OGOU_HÔTEL - Étape 8 : Notifications, Analytics & Temps Réel
 -- IDEMPOTENT: Peut être exécuté plusieurs fois sans erreur
 -- =========================================================
 

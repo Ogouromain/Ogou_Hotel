@@ -1235,7 +1235,7 @@ function SidebarContent({
         </div>
         <div>
           <h1 className="text-lg font-bold tracking-tight bg-gradient-to-r from-amber-600 to-orange-600 bg-clip-text text-transparent">
-            HôtelCI
+            OGOU_Hôtel
           </h1>
           <p className="text-[10px] text-muted-foreground leading-none">Gestion Hôtelière</p>
         </div>
@@ -1498,7 +1498,7 @@ export function Dashboard({ profile, onLogout }: DashboardProps) {
           {/* Footer */}
           <footer className="mt-auto border-t bg-white px-4 py-4 sm:px-6">
             <div className="flex flex-col sm:flex-row items-center justify-between gap-2 text-xs text-muted-foreground">
-              <p>© {new Date().getFullYear()} HôtelCI — Gestion Hôtelière, Côte d&apos;Ivoire</p>
+              <p>© {new Date().getFullYear()} OGOU_Hôtel — Gestion Hôtelière, Côte d&apos;Ivoire</p>
               <div className="flex items-center gap-4">
                 <a
                   href="https://wa.me/2250576103277"

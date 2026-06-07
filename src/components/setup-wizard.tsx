@@ -239,7 +239,7 @@ export function SetupWizard({ onComplete }: SetupWizardProps) {
               <Hotel className="w-6 h-6 text-white" />
             </div>
             <h1 className="text-3xl sm:text-4xl font-bold bg-gradient-to-r from-amber-600 to-orange-600 bg-clip-text text-transparent">
-              HôtelCI
+              OGOU_Hôtel
             </h1>
           </div>
           <p className="text-muted-foreground text-sm sm:text-base">
@@ -463,7 +463,7 @@ export function SetupWizard({ onComplete }: SetupWizardProps) {
                   type="email"
                   value={adminForm.email}
                   onChange={(e) => setAdminForm({ ...adminForm, email: e.target.value })}
-                  placeholder="admin@hotelci.com"
+                  placeholder="admin@ogouhotel.com"
                   className="transition-colors focus-visible:border-amber-500 focus-visible:ring-amber-500/25"
                 />
               </div>
@@ -535,7 +535,7 @@ export function SetupWizard({ onComplete }: SetupWizardProps) {
 
               <div className="space-y-2">
                 <h2 className="text-2xl font-bold text-green-700">
-                  Votre système HôtelCI est prêt !
+                  Votre système OGOU_Hôtel est prêt !
                 </h2>
                 <p className="text-muted-foreground max-w-md">
                   La base de données est configurée et le Super Administrateur a été créé.
@@ -578,7 +578,7 @@ export function SetupWizard({ onComplete }: SetupWizardProps) {
 
         {/* Footer */}
         <div className="text-center mt-8 text-xs text-muted-foreground">
-          <p>HôtelCI — Système de gestion hôtelière pour la Côte d&apos;Ivoire</p>
+          <p>OGOU_Hôtel — Système de gestion hôtelière pour la Côte d&apos;Ivoire</p>
         </div>
       </div>
     </div>

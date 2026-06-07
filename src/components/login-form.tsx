@@ -71,7 +71,7 @@ export function LoginForm({ onSwitchToRegister }: LoginFormProps) {
       }
 
       toast.success('Connexion réussie', {
-        description: 'Bienvenue sur HôtelCI !',
+        description: 'Bienvenue sur OGOU_Hôtel !',
       })
     } catch (err) {
       const errorMessage =
@@ -98,7 +98,7 @@ export function LoginForm({ onSwitchToRegister }: LoginFormProps) {
           <div className="space-y-1">
             <h1 className="text-3xl font-bold tracking-tight">
               <span className="bg-gradient-to-r from-amber-600 to-orange-600 bg-clip-text text-transparent">
-                HôtelCI
+                OGOU_Hôtel
               </span>
             </h1>
             <p className="text-sm text-muted-foreground">
@@ -238,7 +238,7 @@ export function LoginForm({ onSwitchToRegister }: LoginFormProps) {
         {/* Footer */}
         <div className="text-center text-xs text-muted-foreground">
           <p>
-            © {new Date().getFullYear()} HôtelCI — Gestion Hôtelière, Côte
+            © {new Date().getFullYear()} OGOU_Hôtel — Gestion Hôtelière, Côte
             d&apos;Ivoire
           </p>
         </div>

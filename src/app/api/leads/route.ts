@@ -61,7 +61,7 @@ export async function POST(request: NextRequest) {
     // If not provided, use a placeholder based on phone number
     const prospect_email = body.prospect_email && typeof body.prospect_email === 'string' && body.prospect_email.trim().length > 0
       ? body.prospect_email.trim()
-      : `prospect+${prospect_phone.trim()}@hotelci.ci`
+      : `prospect+${prospect_phone.trim()}@ogouhotel.ci`
 
     // Combine city with hotel name if provided (city not a separate DB column)
     const city = body.city && typeof body.city === 'string' ? body.city.trim() : ''

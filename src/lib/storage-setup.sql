@@ -1,5 +1,5 @@
 -- =========================================================
--- HÔTELCI - Configuration du Bucket de Stockage Privé
+-- OGOU_HÔTEL - Configuration du Bucket de Stockage Privé
 -- Stockage sécurisé des pièces d'identité des clients
 -- =========================================================
 

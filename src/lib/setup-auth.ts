@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 
 /**
- * HôtelCI Setup Route Security
+ * OGOU_Hôtel Setup Route Security
  *
  * All /api/setup/* routes must be protected by a setup key to prevent
  * unauthorized access in production. The key is verified via the

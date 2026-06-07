@@ -13,7 +13,7 @@ export async function GET(request: NextRequest) {
   if (authError) return authError
   const sql = `
 -- =========================================================
--- HÔTELCI - Triggers de Validation des Limites d'Abonnement
+-- OGOU_HÔTEL - Triggers de Validation des Limites d'Abonnement
 -- Ces triggers sont un filet de sécurité au niveau base de données.
 -- L'application valide aussi ces limites côté API (défense en profondeur).
 -- =========================================================

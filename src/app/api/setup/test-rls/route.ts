@@ -230,7 +230,7 @@ export async function GET(request: NextRequest) {
           first_name: 'RLS',
           last_name: 'Test',
           phone: '0000000000',
-          email: `rls-test-${Date.now()}@hotelci.ci`,
+          email: `rls-test-${Date.now()}@ogouhotel.ci`,
           id_document_number: `RLS-TEST-${Date.now()}`,
         })
         .select('id')

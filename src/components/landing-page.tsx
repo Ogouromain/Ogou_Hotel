@@ -165,7 +165,7 @@ const TESTIMONIALS = [
     name: 'Aminata Koné',
     hotel: 'Hôtel Les Palmiers',
     city: 'Abidjan',
-    text: 'HôtelCI a transformé notre gestion. Nous avons réduit les erreurs de réservation de 80% en un mois.',
+    text: 'OGOU_Hôtel a transformé notre gestion. Nous avons réduit les erreurs de réservation de 80% en un mois.',
     rating: 5,
   },
   {
@@ -409,7 +409,7 @@ export function LandingPage({ onLogin, onRegister, onDemo }: LandingPageProps) {
             <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-amber-500 to-orange-600 shadow-md shadow-amber-500/20">
               <Hotel className="h-5 w-5 text-white" />
             </div>
-            <span className="text-xl font-bold tracking-tight text-amber-900">HôtelCI</span>
+            <span className="text-xl font-bold tracking-tight text-amber-900">OGOU_Hôtel</span>
           </div>
           <nav className="hidden md:flex items-center gap-6 text-sm font-medium">
             <a href="#features" className="text-gray-600 hover:text-amber-700 transition-colors">Fonctionnalités</a>
@@ -632,7 +632,7 @@ export function LandingPage({ onLogin, onRegister, onDemo }: LandingPageProps) {
             Prêt à transformer votre gestion hôtelière ?
           </h2>
           <p className="text-lg text-amber-100 mb-8 max-w-2xl mx-auto">
-            Rejoignez les hôtels ivoiriens qui utilisent déjà HôtelCI pour optimiser leurs opérations au quotidien.
+            Rejoignez les hôtels ivoiriens qui utilisent déjà OGOU_Hôtel pour optimiser leurs opérations au quotidien.
           </p>
           <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
             <Button
@@ -666,7 +666,7 @@ export function LandingPage({ onLogin, onRegister, onDemo }: LandingPageProps) {
                 <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-amber-500 to-orange-600">
                   <Hotel className="h-5 w-5 text-white" />
                 </div>
-                <span className="text-xl font-bold text-white">HôtelCI</span>
+                <span className="text-xl font-bold text-white">OGOU_Hôtel</span>
               </div>
               <p className="text-sm leading-relaxed max-w-sm">
                 La plateforme de gestion hôtelière multi-tenant conçue pour les établissements de Côte d&apos;Ivoire.
@@ -709,7 +709,7 @@ export function LandingPage({ onLogin, onRegister, onDemo }: LandingPageProps) {
           </div>
 
           <div className="border-t border-gray-800 mt-8 pt-8 flex flex-col sm:flex-row items-center justify-between gap-4">
-            <p className="text-xs text-gray-500">&copy; {new Date().getFullYear()} HôtelCI. Tous droits réservés.</p>
+            <p className="text-xs text-gray-500">&copy; {new Date().getFullYear()} OGOU_Hôtel. Tous droits réservés.</p>
             <p className="text-xs text-gray-500 flex items-center gap-1">
               Fait avec <span className="text-amber-400">&hearts;</span> en Côte d&apos;Ivoire
             </p>

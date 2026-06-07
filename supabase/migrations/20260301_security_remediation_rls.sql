@@ -1,5 +1,5 @@
 -- =========================================================
--- HÔTELCI - Correctif de Sécurité #1 : Renforcement RLS
+-- OGOU_HÔTEL - Correctif de Sécurité #1 : Renforcement RLS
 -- Date: 2026-03-01 (Updated)
 -- Objet: Créer les tables manquantes, WITH CHECK sur UPDATE,
 --        isolation invoices/menu_items/notifications

@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * HôtelCI - Invoices Module Setup Script
+ * OGOU_Hôtel - Invoices Module Setup Script
  * 
  * This script creates the invoices and invoice_items tables in the Supabase database.
  * 

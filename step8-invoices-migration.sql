@@ -1,5 +1,5 @@
 -- =========================================================
--- HÔTELCI - Étape 8 + Invoices Module
+-- OGOU_HÔTEL - Étape 8 + Invoices Module
 -- Notifications, Analytics, Realtime & Factures
 -- IDEMPOTENT: Peut être exécuté plusieurs fois sans erreur
 -- =========================================================

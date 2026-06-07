@@ -269,7 +269,7 @@ function HousekeeperView({ profile, onLogout }: StaffDashboardProps) {
               <SprayCan className="h-5 w-5 text-white" />
             </div>
             <div>
-              <h1 className="text-lg font-bold text-amber-900">HôtelCI</h1>
+              <h1 className="text-lg font-bold text-amber-900">OGOU_Hôtel</h1>
               <p className="text-[10px] uppercase tracking-wider text-amber-600 font-semibold">Ménage</p>
             </div>
           </div>
@@ -474,7 +474,7 @@ function RestaurantStaffView({ profile, onLogout }: StaffDashboardProps) {
               <UtensilsCrossed className="h-5 w-5 text-white" />
             </div>
             <div>
-              <h1 className="text-lg font-bold text-amber-900">HôtelCI</h1>
+              <h1 className="text-lg font-bold text-amber-900">OGOU_Hôtel</h1>
               <p className="text-[10px] uppercase tracking-wider text-orange-600 font-semibold">Restaurant</p>
             </div>
           </div>
@@ -867,7 +867,7 @@ function ReceptionistView({ profile, onLogout }: StaffDashboardProps) {
               <Hotel className="h-5 w-5 text-white" />
             </div>
             <div>
-              <h1 className="text-lg font-bold text-amber-900">HôtelCI</h1>
+              <h1 className="text-lg font-bold text-amber-900">OGOU_Hôtel</h1>
               <p className="text-[10px] uppercase tracking-wider text-amber-600 font-semibold">Réception</p>
             </div>
           </div>
@@ -993,7 +993,7 @@ function ManagerView({ profile, onLogout }: StaffDashboardProps) {
               <Hotel className="h-5 w-5 text-white" />
             </div>
             <div>
-              <h1 className="text-lg font-bold text-amber-900">HôtelCI</h1>
+              <h1 className="text-lg font-bold text-amber-900">OGOU_Hôtel</h1>
               <p className="text-[10px] uppercase tracking-wider text-amber-600 font-semibold">Manager</p>
             </div>
           </div>

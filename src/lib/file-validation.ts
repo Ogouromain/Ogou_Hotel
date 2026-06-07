@@ -1,5 +1,5 @@
 /**
- * HôtelCI - File Validation Utilities
+ * OGOU_Hôtel - File Validation Utilities
  *
  * Security: Validates uploaded files server-side using:
  * 1. Size limit enforcement (prevents DoS via oversized uploads)

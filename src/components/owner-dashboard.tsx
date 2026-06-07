@@ -546,7 +546,7 @@ export function OwnerDashboard({ profile, onLogout, isNewRegistration }: OwnerDa
             <Hotel className="h-5 w-5 text-white" />
           </div>
           <div className="flex-1 min-w-0">
-            <h1 className="text-lg font-bold text-amber-900">HôtelCI</h1>
+            <h1 className="text-lg font-bold text-amber-900">OGOU_Hôtel</h1>
             <div className="flex items-center gap-2">
               <p className="text-[10px] uppercase tracking-wider text-amber-600 font-semibold">Propriétaire</p>
               <RealtimeIndicator compact />
@@ -668,7 +668,7 @@ export function OwnerDashboard({ profile, onLogout, isNewRegistration }: OwnerDa
                       <Hotel className="h-5 w-5 text-white" />
                     </div>
                     <div className="flex-1 min-w-0">
-                      <h1 className="text-lg font-bold text-amber-900">HôtelCI</h1>
+                      <h1 className="text-lg font-bold text-amber-900">OGOU_Hôtel</h1>
                       <div className="flex items-center gap-2">
                         <p className="text-[10px] uppercase tracking-wider text-amber-600 font-semibold">Propriétaire</p>
                         <RealtimeIndicator compact />
@@ -700,7 +700,7 @@ export function OwnerDashboard({ profile, onLogout, isNewRegistration }: OwnerDa
                 </div>
               </SheetContent>
             </Sheet>
-            <span className="font-bold text-amber-900">HôtelCI</span>
+            <span className="font-bold text-amber-900">OGOU_Hôtel</span>
           </div>
           <div className="flex items-center gap-2">
             <RealtimeIndicator />
@@ -1326,7 +1326,7 @@ function FormationTab() {
       sections: [
         {
           subtitle: 'Premiers pas',
-          content: 'Bienvenue dans HôtelCI ! Commencez par configurer votre hôtel en ajoutant vos chambres et les types de chambres disponibles. Ensuite, ajoutez les membres de votre équipe (réceptionnistes, managers) pour qu\'ils puissent accéder au système.',
+          content: 'Bienvenue dans OGOU_Hôtel ! Commencez par configurer votre hôtel en ajoutant vos chambres et les types de chambres disponibles. Ensuite, ajoutez les membres de votre équipe (réceptionnistes, managers) pour qu\'ils puissent accéder au système.',
         },
         {
           subtitle: 'Configuration initiale',
@@ -1432,7 +1432,7 @@ function FormationTab() {
         </div>
         <div>
           <h2 className="text-xl font-bold tracking-tight text-gray-900">Formation & Guides</h2>
-          <p className="text-sm text-muted-foreground">Guides pratiques pour maîtriser HôtelCI</p>
+          <p className="text-sm text-muted-foreground">Guides pratiques pour maîtriser OGOU_Hôtel</p>
         </div>
       </div>
 
@@ -1445,7 +1445,7 @@ function FormationTab() {
             <div>
               <p className="font-medium text-amber-900">Contenu exclusif Premium</p>
               <p className="text-sm text-amber-700 mt-1">
-                Ces guides et formations vous accompagnent pour tirer le meilleur parti de toutes les fonctionnalités d&apos;HôtelCI.
+                Ces guides et formations vous accompagnent pour tirer le meilleur parti de toutes les fonctionnalités d&apos;OGOU_Hôtel.
               </p>
             </div>
           </div>

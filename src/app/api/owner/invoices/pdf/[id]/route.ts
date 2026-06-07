@@ -57,7 +57,7 @@ export async function GET(
       .eq('id', hotelId)
       .single()
 
-    const hotelName = hotel?.name || 'HôtelCI'
+    const hotelName = hotel?.name || 'OGOU_Hôtel'
     const hotelAddress = hotel?.address || ''
     const hotelCity = hotel?.city || 'Abidjan'
     const hotelPhone = hotel?.phone || ''

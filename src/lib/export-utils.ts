@@ -1,5 +1,5 @@
 /**
- * HôtelCI — Export Utilities
+ * OGOU_Hôtel — Export Utilities
  * CSV and data export utilities for the hotel management SaaS.
  * Supports French formatting (FCFA, dates FR) and BOM for Excel compatibility.
  */

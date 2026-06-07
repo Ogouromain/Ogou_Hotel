@@ -349,7 +349,7 @@ export function AnalyticsTab({ onRefresh }: AnalyticsTabProps) {
     const url = URL.createObjectURL(blob)
     const link = document.createElement('a')
     link.href = url
-    link.download = `analyses_hotelci_${new Date().toISOString().split('T')[0]}.csv`
+    link.download = `analyses_ogou_hotel_${new Date().toISOString().split('T')[0]}.csv`
     document.body.appendChild(link)
     link.click()
     document.body.removeChild(link)

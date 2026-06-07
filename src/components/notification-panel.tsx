@@ -61,17 +61,17 @@ const SMS_TEMPLATES = [
   {
     id: 'confirmation',
     label: 'Confirmation de réservation',
-    message: 'Bonjour, votre réservation a été confirmée. Nous vous attendons avec impatience ! — HôtelCI',
+    message: 'Bonjour, votre réservation a été confirmée. Nous vous attendons avec impatience ! — OGOU_Hôtel',
   },
   {
     id: 'rappel',
     label: 'Rappel check-in',
-    message: 'Rappel : votre check-in est prévu aujourd\'hui. Présentez-vous à la réception avec votre pièce d\'identité. — HôtelCI',
+    message: 'Rappel : votre check-in est prévu aujourd\'hui. Présentez-vous à la réception avec votre pièce d\'identité. — OGOU_Hôtel',
   },
   {
     id: 'commande',
     label: 'Notification de commande',
-    message: 'Votre commande a été enregistrée et est en cours de préparation. Merci ! — HôtelCI',
+    message: 'Votre commande a été enregistrée et est en cours de préparation. Merci ! — OGOU_Hôtel',
   },
 ]
 

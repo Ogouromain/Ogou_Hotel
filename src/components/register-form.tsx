@@ -296,7 +296,7 @@ export function RegisterForm({ onSwitchToLogin, onRegistrationSuccess }: Registe
           <div className="space-y-1">
             <h1 className="text-3xl font-bold tracking-tight">
               <span className="bg-gradient-to-r from-amber-600 to-orange-600 bg-clip-text text-transparent">
-                HôtelCI
+                OGOU_Hôtel
               </span>
             </h1>
             <p className="text-sm text-muted-foreground">
@@ -689,7 +689,7 @@ export function RegisterForm({ onSwitchToLogin, onRegistrationSuccess }: Registe
         {/* Footer */}
         <div className="text-center text-xs text-muted-foreground">
           <p>
-            © {new Date().getFullYear()} HôtelCI — Gestion Hôtelière, Côte d&apos;Ivoire
+            © {new Date().getFullYear()} OGOU_Hôtel — Gestion Hôtelière, Côte d&apos;Ivoire
           </p>
         </div>
       </div>

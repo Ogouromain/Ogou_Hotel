@@ -11,20 +11,20 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 // common in Côte d'Ivoire, ensuring FCP < 1 second.
 
 export const metadata: Metadata = {
-  title: "HôtelCI — Gestion Hôtelière Côte d'Ivoire",
+  title: "OGOU_Hôtel — Gestion Hôtelière Côte d'Ivoire",
   description:
     "Application de gestion hôtelière N° 1 en Côte d'Ivoire. Gestion des réservations, chambres, clients et plus.",
   keywords: [
-    "HôtelCI",
+    "OGOU_Hôtel",
     "gestion hôtelière",
     "Côte d'Ivoire",
     "application",
     "hôtellerie",
     "réservation",
   ],
-  authors: [{ name: "HôtelCI" }],
+  authors: [{ name: "OGOU_Hôtel" }],
   icons: {
-    icon: "https://z-cdn.chatglm.cn/z-ai/static/logo.svg",
+    icon: "/logo.svg",
   },
 };
 

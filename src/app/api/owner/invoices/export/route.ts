@@ -119,7 +119,7 @@ export async function GET(request: NextRequest) {
     // Generate filename with current date
     const now = new Date()
     const dateStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`
-    const filename = `factures_hotelci_${dateStr}.csv`
+    const filename = `factures_ogou_hotel_${dateStr}.csv`
 
     return new NextResponse(csv, {
       headers: {

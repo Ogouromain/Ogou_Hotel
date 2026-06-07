@@ -2,7 +2,7 @@ import { updateSession } from '@/lib/supabase/middleware'
 import { NextResponse, type NextRequest } from 'next/server'
 
 /**
- * HôtelCI Middleware
+ * OGOU_Hôtel Middleware
  *
  * Handles:
  * 1. Session refresh via Supabase SSR

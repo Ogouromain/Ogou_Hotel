@@ -249,7 +249,7 @@ function SidebarContent({
           <Hotel className="h-5 w-5 text-white" />
         </div>
         <div>
-          <h1 className="text-lg font-bold text-amber-900">HôtelCI</h1>
+          <h1 className="text-lg font-bold text-amber-900">OGOU_Hôtel</h1>
           <p className="text-[10px] uppercase tracking-wider text-amber-600 font-semibold">Super Admin</p>
         </div>
       </div>
@@ -386,7 +386,7 @@ function StatsTab() {
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-2xl font-bold tracking-tight">📊 Tableau de Bord</h2>
-          <p className="text-muted-foreground">Vue d&apos;ensemble de la plateforme HôtelCI</p>
+          <p className="text-muted-foreground">Vue d&apos;ensemble de la plateforme OGOU_Hôtel</p>
         </div>
         <Button variant="outline" size="sm" onClick={fetchStats} disabled={loading}>
           <RefreshCw className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
@@ -1209,7 +1209,7 @@ export function SuperAdminPanel({ onLogout, profile }: SuperAdminPanelProps) {
           {/* Footer */}
           <footer className="mt-auto border-t bg-white px-4 py-4 sm:px-6">
             <div className="flex flex-col sm:flex-row items-center justify-between gap-2 text-xs text-muted-foreground">
-              <p>© {new Date().getFullYear()} HôtelCI — Gestion Hôtelière, Côte d&apos;Ivoire</p>
+              <p>© {new Date().getFullYear()} OGOU_Hôtel — Gestion Hôtelière, Côte d&apos;Ivoire</p>
               <p className="flex items-center gap-1">
                 <Shield className="h-3 w-3" />
                 Panneau Super Admin

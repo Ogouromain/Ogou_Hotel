@@ -1,4 +1,4 @@
-# 🏨 HôtelCI - SaaS de Gestion Hôtelière
+# 🏨 OGOU_Hôtel - SaaS de Gestion Hôtelière
 
 Application SaaS multi-tenant de gestion hôtelière conçue pour la Côte d'Ivoire.
 
