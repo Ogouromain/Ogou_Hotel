@@ -1,5 +1,5 @@
-import { NextResponse } from 'next/server'
-import { createClient } from '@/lib/supabase/server'
+import { NextRequest, NextResponse } from 'next/server'
+import { createClientWithCookies } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 
 const ALLOWED_ROLES = ['owner', 'manager', 'receptionist']
@@ -12,10 +12,21 @@ const ALLOWED_ROLES = ['owner', 'manager', 'receptionist']
  * doesn't exist, falls back to computing analytics directly
  * from database tables using the admin client.
  */
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
-    // 1. Authenticate via cookie-based session (consistent with other routes)
-    const supabase = await createClient()
+    // 1. Authenticate via cookie-based session.
+    //    Read cookies directly from the middleware-modified request to avoid
+    //    issues where cookies() from next/headers may not see the refreshed
+    //    session cookies set by the middleware's setAll() callback.
+    const supabase = createClientWithCookies({
+      getAll() {
+        return request.cookies.getAll()
+      },
+      setAll() {
+        // Cookie persistence is handled by the middleware;
+        // no-op here to avoid interfering with the response.
+      },
+    })
     const { data: { user } } = await supabase.auth.getUser()
 
     if (!user) {

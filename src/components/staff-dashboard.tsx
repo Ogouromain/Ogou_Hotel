@@ -1091,7 +1091,13 @@ function ReceptionistView({ profile, onLogout }: StaffDashboardProps) {
             <div className="space-y-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <h2 className="text-2xl font-bold text-gray-900">Bonjour, {profile.first_name} 👋</h2>
+                  <div className="flex items-center gap-3">
+                    <h2 className="text-2xl font-bold text-gray-900">Bonjour, {profile.first_name} 👋</h2>
+                    <Badge className="bg-emerald-100 text-emerald-700 border-emerald-200 hover:bg-emerald-100 text-xs animate-pulse">
+                      <div className="h-2 w-2 rounded-full bg-emerald-500 mr-1.5" />
+                      En service
+                    </Badge>
+                  </div>
                   {today && <p className="text-sm text-muted-foreground mt-1">{formatDateFR(today)}</p>}
                 </div>
                 <Button
@@ -1175,6 +1181,49 @@ function ReceptionistView({ profile, onLogout }: StaffDashboardProps) {
                   </div>
                 </CardContent>
               </Card>
+
+              {/* Priority Tasks Summary */}
+              {(checkIns.length > 0 || checkOuts.length > 0 || roomStats.cleaning > 0) && (
+                <Card className="border-amber-300/60 bg-gradient-to-r from-amber-50 to-orange-50">
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-base flex items-center gap-2">
+                      <Clock className="h-4 w-4 text-amber-600" />
+                      Tâches prioritaires du jour
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                      {checkIns.length > 0 && (
+                        <div className="flex items-center gap-2 rounded-lg bg-emerald-50 border border-emerald-200 px-3 py-2">
+                          <DoorOpen className="h-4 w-4 text-emerald-600 shrink-0" />
+                          <div>
+                            <p className="text-sm font-semibold text-emerald-800">{checkIns.length} arrivée{checkIns.length > 1 ? 's' : ''}</p>
+                            <p className="text-xs text-emerald-600">Check-in à effectuer</p>
+                          </div>
+                        </div>
+                      )}
+                      {checkOuts.length > 0 && (
+                        <div className="flex items-center gap-2 rounded-lg bg-amber-50 border border-amber-200 px-3 py-2">
+                          <DoorOpen className="h-4 w-4 text-amber-600 shrink-0" />
+                          <div>
+                            <p className="text-sm font-semibold text-amber-800">{checkOuts.length} départ{checkOuts.length > 1 ? 's' : ''}</p>
+                            <p className="text-xs text-amber-600">Check-out à effectuer</p>
+                          </div>
+                        </div>
+                      )}
+                      {roomStats.cleaning > 0 && (
+                        <div className="flex items-center gap-2 rounded-lg bg-orange-50 border border-orange-200 px-3 py-2">
+                          <SprayCan className="h-4 w-4 text-orange-600 shrink-0" />
+                          <div>
+                            <p className="text-sm font-semibold text-orange-800">{roomStats.cleaning} nettoyage</p>
+                            <p className="text-xs text-orange-600">Chambres à vérifier</p>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
 
               {/* Today's Check-ins */}
               <div>

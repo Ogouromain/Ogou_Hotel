@@ -59,24 +59,10 @@ export async function GET() {
       return NextResponse.json({ error: checkOutError.message }, { status: 500 })
     }
 
-    // Flatten joined data
-    const formatReservation = (r: Record<string, unknown>) => ({
-      ...r,
-      customer_name: r.customers
-        ? `${(r.customers as Record<string, string>).first_name} ${(r.customers as Record<string, string>).last_name}`
-        : null,
-      customer_phone: r.customers ? (r.customers as Record<string, string>).phone : null,
-      customer_email: r.customers ? (r.customers as Record<string, string>).email : null,
-      room_number: r.rooms ? (r.rooms as Record<string, string>).room_number : null,
-      room_type: r.rooms ? (r.rooms as Record<string, string>).room_type : null,
-      customers: undefined,
-      rooms: undefined,
-    })
-
     return NextResponse.json({
-      check_ins: (checkIns || []).map(formatReservation),
-      check_outs: (checkOuts || []).map(formatReservation),
-      date: todayStr,
+      checkIns: checkIns || [],
+      checkOuts: checkOuts || [],
+      today: todayStr,
     })
   } catch (error) {
     console.error('Staff reception GET error:', error)

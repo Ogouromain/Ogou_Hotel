@@ -872,9 +872,12 @@ export function InvoicesTab({ onRefresh }: InvoicesTabProps) {
 
         {/* ─── Detail Sheet ──────────────────────────────────────────────── */}
         <Sheet open={detailOpen} onOpenChange={setDetailOpen}>
-          <SheetContent className="w-full sm:max-w-2xl overflow-y-auto [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-track]:bg-gray-100 [&::-webkit-scrollbar-thumb]:bg-gray-300 [&::-webkit-scrollbar-thumb]:rounded-full">
-            <SheetHeader className="pb-4">
-              <SheetTitle>Facture N° {selectedInvoice?.invoice_number || ''}</SheetTitle>
+          <SheetContent className="w-full sm:max-w-3xl overflow-y-auto [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-track]:bg-gray-100 [&::-webkit-scrollbar-thumb]:bg-gray-300 [&::-webkit-scrollbar-thumb]:rounded-full">
+            <SheetHeader className="pb-2">
+              <SheetTitle className="flex items-center gap-2">
+                <FileText className="h-5 w-5 text-amber-600" />
+                Facture N° {selectedInvoice?.invoice_number || ''}
+              </SheetTitle>
             </SheetHeader>
 
             {detailLoading ? (
@@ -885,262 +888,341 @@ export function InvoicesTab({ onRefresh }: InvoicesTabProps) {
               </div>
             ) : selectedInvoice ? (
               <div className="space-y-4 pb-8">
-                {/* ── Professional Invoice Paper ────────────────────────── */}
-                <div className="bg-white rounded-xl shadow-lg border border-gray-100 relative overflow-hidden">
+                {/* ── Professional Invoice Document ──────────────────────── */}
+                <div className="bg-white rounded-lg shadow-xl border border-gray-200/60 relative overflow-hidden print:shadow-none print:border-gray-300">
 
-                  {/* ── Status Watermark (subtle) ─────────────────────── */}
+                  {/* ── Status Watermark ──────────────────────────────── */}
                   {(selectedInvoice.status === 'cancelled' || selectedInvoice.status === 'refund') && (
                     <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-10 pointer-events-none select-none">
                       <span
-                        className={`text-6xl sm:text-8xl font-black uppercase tracking-[0.2em] opacity-[0.07] ${
+                        className={`text-7xl sm:text-9xl font-black uppercase tracking-[0.25em] opacity-[0.06] ${
                           selectedInvoice.status === 'cancelled' ? 'text-red-600' : 'text-orange-600'
                         }`}
-                        style={{ transform: 'rotate(-18deg)', display: 'inline-block' }}
+                        style={{ transform: 'rotate(-22deg)', display: 'inline-block' }}
                       >
                         {selectedInvoice.status === 'cancelled' ? 'ANNULÉE' : 'REMBOURSÉE'}
                       </span>
                     </div>
                   )}
 
-                  {/* ── Invoice Header ───────────────────────────────── */}
-                  <div className="px-6 pt-6 sm:px-8 sm:pt-8 pb-5 flex items-start justify-between gap-4">
-                    {/* Left: Branding + Contact */}
-                    <div className="space-y-3">
-                      <div className="flex items-center gap-3">
-                        <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-amber-500 to-orange-600 shadow-lg shadow-amber-500/25">
-                          <Hotel className="h-7 w-7 text-white" />
+                  {/* ═══════════════════════════════════════════════════════
+                      INVOICE HEADER — Hotel branding + Invoice metadata
+                      ═══════════════════════════════════════════════════════ */}
+                  <div className="relative bg-gradient-to-br from-amber-50 via-white to-orange-50/30 px-6 sm:px-10 pt-7 pb-6">
+                    {/* Decorative top-right corner accent */}
+                    <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-bl from-amber-100/40 to-transparent rounded-bl-full" />
+
+                    <div className="relative flex flex-col sm:flex-row items-start justify-between gap-5">
+                      {/* Left: Hotel Branding */}
+                      <div className="space-y-3">
+                        <div className="flex items-center gap-3.5">
+                          <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-amber-500 to-orange-600 shadow-lg shadow-amber-500/30">
+                            <Hotel className="h-8 w-8 text-white" />
+                          </div>
+                          <div>
+                            <h3 className="text-2xl font-extrabold text-gray-900 tracking-tight leading-none">OGOU_Hôtel</h3>
+                            <p className="text-[11px] text-amber-600 font-bold tracking-[0.18em] uppercase mt-0.5">Hôtellerie &amp; Restauration</p>
+                          </div>
                         </div>
-                        <div>
-                          <h3 className="text-xl font-bold text-gray-900 tracking-tight leading-tight">OGOU_Hôtel</h3>
-                          <p className="text-[11px] text-amber-600 font-semibold tracking-wide uppercase">Hôtellerie &amp; Restauration</p>
+                        <div className="space-y-1.5 pl-[68px]">
+                          <div className="flex items-center gap-2 text-xs text-gray-500">
+                            <MapPin className="h-3.5 w-3.5 shrink-0 text-amber-500" />
+                            <span>Abidjan, Côte d&apos;Ivoire</span>
+                          </div>
+                          <div className="flex items-center gap-2 text-xs text-gray-500">
+                            <Phone className="h-3.5 w-3.5 shrink-0 text-amber-500" />
+                            <span>+225 01 02 03 04 05</span>
+                          </div>
+                          <div className="flex items-center gap-2 text-xs text-gray-500">
+                            <Mail className="h-3.5 w-3.5 shrink-0 text-amber-500" />
+                            <span>contact@ogouhotel.ci</span>
+                          </div>
                         </div>
                       </div>
-                      <div className="space-y-1 pl-[60px]">
-                        <div className="flex items-center gap-1.5 text-[11px] text-gray-400">
-                          <MapPin className="h-3 w-3 shrink-0 text-amber-400" />
-                          <span>Abidjan, Côte d&apos;Ivoire</span>
+
+                      {/* Right: Invoice metadata */}
+                      <div className="text-right space-y-3 min-w-[180px]">
+                        <div>
+                          <p className="text-3xl sm:text-4xl font-black tracking-[0.12em] text-amber-700/80 uppercase leading-none">FACTURE</p>
                         </div>
-                        <div className="flex items-center gap-1.5 text-[11px] text-gray-400">
-                          <Phone className="h-3 w-3 shrink-0 text-amber-400" />
-                          <span>+225 01 02 03 04 05</span>
-                        </div>
-                        <div className="flex items-center gap-1.5 text-[11px] text-gray-400">
-                          <Mail className="h-3 w-3 shrink-0 text-amber-400" />
-                          <span>contact@ogouhotel.ci</span>
+                        <div className="bg-white/80 backdrop-blur-sm rounded-lg border border-amber-200/50 px-4 py-3 shadow-sm space-y-2">
+                          <div className="flex items-center justify-between gap-4">
+                            <span className="text-[10px] font-bold text-amber-700 uppercase tracking-wider">N°</span>
+                            <span className="text-sm font-bold text-gray-800">{selectedInvoice.invoice_number}</span>
+                          </div>
+                          <div className="h-px bg-amber-100" />
+                          <div className="flex items-center justify-between gap-4">
+                            <span className="text-[10px] font-bold text-amber-700 uppercase tracking-wider">Date</span>
+                            <span className="text-xs font-semibold text-gray-600">{formatDateFR(selectedInvoice.created_at)}</span>
+                          </div>
+                          <div className="h-px bg-amber-100" />
+                          <div className="flex items-center justify-between gap-4">
+                            <span className="text-[10px] font-bold text-amber-700 uppercase tracking-wider">Statut</span>
+                            {selectedInvoice.status === 'paid' ? (
+                              <Badge className="bg-emerald-500 text-white border-emerald-500 hover:bg-emerald-500 px-2.5 py-0.5 text-xs font-bold">
+                                <CheckCircle2 className="h-3 w-3 mr-1" />
+                                Payée
+                              </Badge>
+                            ) : selectedInvoice.status === 'refund' ? (
+                              <Badge className="bg-orange-500 text-white border-orange-500 hover:bg-orange-500 px-2.5 py-0.5 text-xs font-bold">
+                                <RotateCcw className="h-3 w-3 mr-1" />
+                                Remboursée
+                              </Badge>
+                            ) : selectedInvoice.status === 'cancelled' ? (
+                              <Badge className="bg-red-500 text-white border-red-500 hover:bg-red-500 px-2.5 py-0.5 text-xs font-bold">
+                                <Ban className="h-3 w-3 mr-1" />
+                                Annulée
+                              </Badge>
+                            ) : (
+                              getStatusBadge(selectedInvoice.status)
+                            )}
+                          </div>
                         </div>
                       </div>
                     </div>
+                  </div>
 
-                    {/* Right: FACTURE label + Status */}
-                    <div className="text-right space-y-2">
-                      <p className="text-3xl sm:text-4xl font-black tracking-wider text-gray-800/90 uppercase leading-none">FACTURE</p>
-                      <div className="space-y-0.5">
-                        <p className="text-sm font-bold text-gray-600 tracking-wide">{selectedInvoice.invoice_number}</p>
-                        <p className="text-xs text-gray-400">{formatDateFR(selectedInvoice.created_at)}</p>
+                  {/* Gradient separator bar */}
+                  <div className="h-1.5 bg-gradient-to-r from-amber-400 via-orange-500 to-amber-400" />
+
+                  {/* ═══════════════════════════════════════════════════════
+                      CLIENT & PAYMENT INFO
+                      ═══════════════════════════════════════════════════════ */}
+                  <div className="px-6 sm:px-10 py-6 grid grid-cols-1 sm:grid-cols-2 gap-5">
+                    {/* Client info */}
+                    <div className="space-y-3">
+                      <div className="flex items-center gap-2">
+                        <div className="flex h-6 w-6 items-center justify-center rounded-md bg-amber-100">
+                          <Stamp className="h-3.5 w-3.5 text-amber-700" />
+                        </div>
+                        <p className="text-[11px] font-black text-amber-700 uppercase tracking-[0.15em]">Facturé à</p>
                       </div>
-                      <div className="pt-1">
-                        {selectedInvoice.status === 'paid' ? (
-                          <Badge className="bg-emerald-500 text-white border-emerald-500 hover:bg-emerald-500 px-3 py-1 text-sm font-bold shadow-sm shadow-emerald-500/30">
-                            <CheckCircle2 className="h-3.5 w-3.5 mr-1.5" />
-                            Payée
-                          </Badge>
-                        ) : selectedInvoice.status === 'refund' ? (
-                          <Badge className="bg-orange-500 text-white border-orange-500 hover:bg-orange-500 px-3 py-1 text-sm font-bold shadow-sm shadow-orange-500/30">
-                            <RotateCcw className="h-3.5 w-3.5 mr-1.5" />
-                            Remboursée
-                          </Badge>
-                        ) : selectedInvoice.status === 'cancelled' ? (
-                          <Badge className="bg-red-500 text-white border-red-500 hover:bg-red-500 px-3 py-1 text-sm font-bold shadow-sm shadow-red-500/30">
-                            <Ban className="h-3.5 w-3.5 mr-1.5" />
-                            Annulée
-                          </Badge>
+                      <div className="rounded-lg border border-gray-200 bg-gray-50/50 p-4 space-y-2">
+                        {selectedInvoice.customers ? (
+                          <>
+                            <p className="font-bold text-gray-900 text-base leading-tight">
+                              {(selectedInvoice.customers as Record<string, unknown>).first_name} {(selectedInvoice.customers as Record<string, unknown>).last_name}
+                            </p>
+                            {(selectedInvoice.customers as Record<string, unknown>).phone && (
+                              <div className="flex items-center gap-2 text-sm text-gray-600">
+                                <Phone className="h-3.5 w-3.5 shrink-0 text-gray-400" />
+                                <span>{String((selectedInvoice.customers as Record<string, unknown>).phone)}</span>
+                              </div>
+                            )}
+                            {(selectedInvoice.customers as Record<string, unknown>).email && (
+                              <div className="flex items-center gap-2 text-sm text-gray-600">
+                                <Mail className="h-3.5 w-3.5 shrink-0 text-gray-400" />
+                                <span>{String((selectedInvoice.customers as Record<string, unknown>).email)}</span>
+                              </div>
+                            )}
+                            {(selectedInvoice.customers as Record<string, unknown>).identity_document_number && (
+                              <div className="flex items-center gap-2 text-xs text-gray-400 mt-1 pt-1.5 border-t border-gray-200/60">
+                                <span className="font-medium">Pièce d&apos;identité :</span>
+                                <span>{String((selectedInvoice.customers as Record<string, unknown>).identity_document_number)}</span>
+                              </div>
+                            )}
+                          </>
                         ) : (
-                          getStatusBadge(selectedInvoice.status)
+                          <p className="text-sm text-gray-400 italic">Client non renseigné</p>
                         )}
                       </div>
                     </div>
-                  </div>
 
-                  {/* Amber gradient separator */}
-                  <div className="h-1 bg-gradient-to-r from-amber-400 via-orange-500 to-amber-400" />
-
-                  {/* ── Client & Payment Section ─────────────────────── */}
-                  <div className="px-6 sm:px-8 py-5 grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    {/* Client card */}
-                    <div className="rounded-lg border border-gray-200/70 bg-gradient-to-br from-gray-50/80 to-white p-4 space-y-3">
-                      <p className="text-[10px] font-extrabold text-amber-600 uppercase tracking-[0.15em] flex items-center gap-1.5">
-                        <Stamp className="h-3 w-3" />
-                        Facturé à
-                      </p>
-                      {selectedInvoice.customers ? (
-                        <div className="space-y-1.5">
-                          <p className="font-bold text-gray-900 text-[15px]">
-                            {(selectedInvoice.customers as Record<string, unknown>).first_name} {(selectedInvoice.customers as Record<string, unknown>).last_name}
-                          </p>
-                          {(selectedInvoice.customers as Record<string, unknown>).phone && (
-                            <div className="flex items-center gap-1.5 text-sm text-gray-500">
-                              <Phone className="h-3.5 w-3.5 shrink-0 text-gray-400" />
-                              <span>{String((selectedInvoice.customers as Record<string, unknown>).phone)}</span>
-                            </div>
-                          )}
-                          {(selectedInvoice.customers as Record<string, unknown>).email && (
-                            <div className="flex items-center gap-1.5 text-sm text-gray-500">
-                              <Mail className="h-3.5 w-3.5 shrink-0 text-gray-400" />
-                              <span>{String((selectedInvoice.customers as Record<string, unknown>).email)}</span>
-                            </div>
-                          )}
+                    {/* Payment & Reservation info */}
+                    <div className="space-y-3">
+                      <div className="flex items-center gap-2">
+                        <div className="flex h-6 w-6 items-center justify-center rounded-md bg-amber-100">
+                          <CircleDollarSign className="h-3.5 w-3.5 text-amber-700" />
                         </div>
-                      ) : (
-                        <p className="text-sm text-gray-400 italic">Client non renseigné</p>
-                      )}
-                    </div>
-
-                    {/* Payment card */}
-                    <div className="rounded-lg border border-gray-200/70 bg-gradient-to-br from-gray-50/80 to-white p-4 space-y-3">
-                      <p className="text-[10px] font-extrabold text-amber-600 uppercase tracking-[0.15em] flex items-center gap-1.5">
-                        <CircleDollarSign className="h-3 w-3" />
-                        Paiement
-                      </p>
-                      <div className="space-y-1.5">
-                        <div className="flex items-center gap-2">
+                        <p className="text-[11px] font-black text-amber-700 uppercase tracking-[0.15em]">Mode de paiement</p>
+                      </div>
+                      <div className="rounded-lg border border-gray-200 bg-gray-50/50 p-4 space-y-3">
+                        <div className="flex items-center gap-2.5">
                           {getPaymentMethodBadge(selectedInvoice.payment_method)}
-                          <span className="text-sm font-semibold text-gray-700">{getPaymentMethodLabel(selectedInvoice.payment_method)}</span>
+                          <span className="text-sm font-semibold text-gray-800">{getPaymentMethodLabel(selectedInvoice.payment_method)}</span>
                         </div>
-                        <div className="flex items-center gap-1.5 text-sm text-gray-500">
+                        <div className="flex items-center gap-2 text-xs text-gray-500">
                           <CalendarDays className="h-3.5 w-3.5 shrink-0 text-gray-400" />
                           <span>Émise le {formatDateFR(selectedInvoice.created_at)}</span>
                         </div>
-                      </div>
 
-                      {/* Reservation details */}
-                      {selectedInvoice.reservation_id && (() => {
-                        const reservation = selectedInvoice.reservations as Record<string, unknown> | null
-                        return (
-                          <div className="mt-2 pt-2 border-t border-gray-200/60 space-y-1.5">
-                            <p className="text-[10px] font-extrabold text-amber-600 uppercase tracking-[0.15em] flex items-center gap-1.5">
-                              <BedDouble className="h-3 w-3" />
-                              Réservation liée
-                            </p>
-                            {reservation?.rooms && (
-                              <div className="flex items-center gap-1.5 text-sm text-gray-600">
-                                <Hotel className="h-3.5 w-3.5 shrink-0 text-gray-400" />
-                                <span>Chambre {(reservation.rooms as Record<string, unknown>).room_number} — {(reservation.rooms as Record<string, unknown>).room_type}</span>
+                        {/* Reservation details */}
+                        {selectedInvoice.reservation_id && (() => {
+                          const reservation = selectedInvoice.reservations as Record<string, unknown> | null
+                          return (
+                            <div className="pt-3 mt-1 border-t border-gray-200/80 space-y-2.5">
+                              <div className="flex items-center gap-2">
+                                <div className="flex h-5 w-5 items-center justify-center rounded bg-orange-100">
+                                  <BedDouble className="h-3 w-3 text-orange-700" />
+                                </div>
+                                <p className="text-[10px] font-black text-orange-700 uppercase tracking-[0.15em]">Séjour</p>
                               </div>
-                            )}
-                            {reservation?.check_in_date && (
-                              <div className="flex items-center gap-1.5 text-xs text-gray-500">
-                                <CalendarDays className="h-3 w-3 shrink-0 text-gray-400" />
-                                <span>Arrivée {formatDateShort(reservation.check_in_date as string)}</span>
-                                <span className="text-gray-300 mx-0.5">→</span>
-                                <span>Départ {formatDateShort(reservation.check_out_date as string)}</span>
-                              </div>
-                            )}
-                            {!reservation && (
-                              <div className="flex items-center gap-1.5 text-xs text-gray-400">
-                                <Link2 className="h-3 w-3 shrink-0" />
-                                <span>Liée à une réservation</span>
-                              </div>
-                            )}
-                          </div>
-                        )
-                      })()}
+                              {reservation?.rooms && (
+                                <div className="flex items-center gap-2 text-sm font-semibold text-gray-800">
+                                  <Hotel className="h-3.5 w-3.5 shrink-0 text-gray-400" />
+                                  <span>Chambre {(reservation.rooms as Record<string, unknown>).room_number}</span>
+                                  <span className="text-gray-300">·</span>
+                                  <span className="font-normal text-gray-500">{(reservation.rooms as Record<string, unknown>).room_type}</span>
+                                </div>
+                              )}
+                              {reservation?.check_in_date && (
+                                <div className="grid grid-cols-2 gap-2">
+                                  <div className="rounded-md bg-emerald-50 border border-emerald-100 px-3 py-2 text-center">
+                                    <p className="text-[9px] font-bold text-emerald-600 uppercase tracking-wider">Arrivée</p>
+                                    <p className="text-xs font-bold text-emerald-800 mt-0.5">{formatDateShort(reservation.check_in_date as string)}</p>
+                                  </div>
+                                  <div className="rounded-md bg-orange-50 border border-orange-100 px-3 py-2 text-center">
+                                    <p className="text-[9px] font-bold text-orange-600 uppercase tracking-wider">Départ</p>
+                                    <p className="text-xs font-bold text-orange-800 mt-0.5">{formatDateShort(reservation.check_out_date as string)}</p>
+                                  </div>
+                                </div>
+                              )}
+                              {!reservation && (
+                                <div className="flex items-center gap-1.5 text-xs text-gray-400">
+                                  <Link2 className="h-3 w-3 shrink-0" />
+                                  <span>Liée à une réservation</span>
+                                </div>
+                              )}
+                            </div>
+                          )
+                        })()}
+                      </div>
                     </div>
                   </div>
 
-                  {/* ── Line Items Table ────────────────────────────── */}
-                  <div className="px-6 sm:px-8 pb-5">
-                    <div className="rounded-lg border border-gray-200/80 overflow-hidden shadow-sm">
+                  {/* ═══════════════════════════════════════════════════════
+                      ITEMIZED BILLING TABLE
+                      ═══════════════════════════════════════════════════════ */}
+                  <div className="px-6 sm:px-10 pb-6">
+                    <div className="rounded-lg border border-gray-200 overflow-hidden">
                       <Table>
                         <TableHeader>
-                          <TableRow className="bg-gradient-to-r from-amber-50 to-orange-50 hover:from-amber-50 hover:to-orange-50">
-                            <TableHead className="text-[10px] font-extrabold uppercase tracking-[0.12em] text-amber-800 py-3">Désignation</TableHead>
-                            <TableHead className="text-[10px] font-extrabold uppercase tracking-[0.12em] text-amber-800 text-center w-16 py-3">Qté</TableHead>
-                            <TableHead className="text-[10px] font-extrabold uppercase tracking-[0.12em] text-amber-800 text-right w-32 py-3">Prix Unit.</TableHead>
-                            <TableHead className="text-[10px] font-extrabold uppercase tracking-[0.12em] text-amber-800 text-right w-32 py-3">Total</TableHead>
+                          <TableRow className="bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-600 hover:to-orange-600">
+                            <TableHead className="text-[10px] font-black uppercase tracking-[0.14em] text-white py-3.5 pl-4">Désignation</TableHead>
+                            <TableHead className="text-[10px] font-black uppercase tracking-[0.14em] text-white text-center w-[72px] py-3.5">Nuits</TableHead>
+                            <TableHead className="text-[10px] font-black uppercase tracking-[0.14em] text-white text-right w-[130px] py-3.5">Prix unitaire</TableHead>
+                            <TableHead className="text-[10px] font-black uppercase tracking-[0.14em] text-white text-right w-[130px] py-3.5 pr-4">Total</TableHead>
                           </TableRow>
                         </TableHeader>
                         <TableBody>
                           {(selectedInvoice.invoice_items || []).map((item, idx) => (
                             <TableRow
                               key={item.id}
-                              className={`border-b border-gray-100 ${idx % 2 === 1 ? 'bg-amber-50/30 hover:bg-amber-50/30' : 'hover:bg-gray-50/50'}`}
+                              className={`border-b border-gray-100 ${idx % 2 === 1 ? 'bg-amber-50/20' : 'bg-white'} hover:bg-amber-50/40`}
                             >
-                              <TableCell className="text-sm text-gray-800 font-medium py-3">{item.description}</TableCell>
-                              <TableCell className="text-sm text-center text-gray-500 py-3">{item.quantity}</TableCell>
-                              <TableCell className="text-sm text-right text-gray-500 py-3 tabular-nums">{formatFCFA(item.unit_price)}</TableCell>
-                              <TableCell className="text-sm text-right font-bold text-gray-900 py-3 tabular-nums">{formatFCFA(item.total)}</TableCell>
+                              <TableCell className="text-sm text-gray-800 font-medium py-3.5 pl-4">{item.description}</TableCell>
+                              <TableCell className="text-sm text-center text-gray-600 py-3.5 tabular-nums">{item.quantity}</TableCell>
+                              <TableCell className="text-sm text-right text-gray-500 py-3.5 tabular-nums">{formatFCFA(item.unit_price)}</TableCell>
+                              <TableCell className="text-sm text-right font-bold text-gray-900 py-3.5 pr-4 tabular-nums">{formatFCFA(item.total)}</TableCell>
                             </TableRow>
                           ))}
+                          {/* Empty state if no items */}
+                          {(!selectedInvoice.invoice_items || selectedInvoice.invoice_items.length === 0) && (
+                            <TableRow>
+                              <TableCell colSpan={4} className="text-center text-sm text-gray-400 py-6 italic">
+                                Aucun article facturé
+                              </TableCell>
+                            </TableRow>
+                          )}
                         </TableBody>
                       </Table>
                     </div>
                   </div>
 
-                  {/* ── Totals Section ──────────────────────────────── */}
-                  <div className="px-6 sm:px-8 pb-5">
+                  {/* ═══════════════════════════════════════════════════════
+                      TOTALS SECTION
+                      ═══════════════════════════════════════════════════════ */}
+                  <div className="px-6 sm:px-10 pb-6">
                     <div className="flex justify-end">
-                      <div className="w-full sm:w-80 space-y-2">
-                        <div className="flex justify-between text-sm py-1">
-                          <span className="text-gray-500">Sous-total HT</span>
-                          <span className="text-gray-700 font-medium tabular-nums">{formatFCFA(selectedInvoice.subtotal)}</span>
+                      <div className="w-full sm:w-[340px] space-y-0">
+                        {/* Subtotal */}
+                        <div className="flex justify-between items-center py-2.5 px-4 border-b border-gray-100">
+                          <span className="text-sm text-gray-500">Sous-total HT</span>
+                          <span className="text-sm font-semibold text-gray-700 tabular-nums">{formatFCFA(selectedInvoice.subtotal)}</span>
                         </div>
+                        {/* Tourist tax */}
                         {Number(selectedInvoice.tourist_tax) > 0 && (
-                          <div className="flex justify-between text-sm py-1">
-                            <span className="text-gray-500">Taxe de séjour</span>
-                            <span className="text-gray-700 font-medium tabular-nums">{formatFCFA(selectedInvoice.tourist_tax)}</span>
+                          <div className="flex justify-between items-center py-2.5 px-4 border-b border-gray-100">
+                            <span className="text-sm text-gray-500">Taxe de séjour</span>
+                            <span className="text-sm font-semibold text-gray-700 tabular-nums">{formatFCFA(selectedInvoice.tourist_tax)}</span>
                           </div>
                         )}
+                        {/* VAT */}
                         {Number(selectedInvoice.vat) > 0 && (
-                          <div className="flex justify-between text-sm py-1">
-                            <span className="text-gray-500">TVA 18%</span>
-                            <span className="text-gray-700 font-medium tabular-nums">{formatFCFA(selectedInvoice.vat)}</span>
+                          <div className="flex justify-between items-center py-2.5 px-4 border-b border-gray-100">
+                            <span className="text-sm text-gray-500">TVA (18%)</span>
+                            <span className="text-sm font-semibold text-gray-700 tabular-nums">{formatFCFA(selectedInvoice.vat)}</span>
                           </div>
                         )}
-                        <div className="h-[2px] bg-gray-200 rounded-full my-2" />
-                        <div className="flex justify-between items-center rounded-lg bg-gradient-to-r from-amber-500 to-orange-500 px-5 py-3.5 shadow-md shadow-amber-500/20">
-                          <span className="text-base font-bold text-white tracking-wide">Total TTC</span>
-                          <span className="text-2xl font-black text-white tabular-nums">{formatFCFA(selectedInvoice.total_amount)}</span>
+                        {/* Grand Total */}
+                        <div className="mt-2 rounded-lg bg-gradient-to-r from-amber-500 to-orange-600 px-5 py-4 shadow-lg shadow-amber-500/25 flex justify-between items-center">
+                          <span className="text-base font-extrabold text-white tracking-wide uppercase">Total TTC</span>
+                          <span className="text-xl sm:text-2xl font-black text-white tabular-nums tracking-tight">{formatFCFA(selectedInvoice.total_amount)}</span>
                         </div>
                       </div>
                     </div>
                   </div>
 
-                  {/* ── Notes Section ───────────────────────────────── */}
+                  {/* ═══════════════════════════════════════════════════════
+                      NOTES SECTION
+                      ═══════════════════════════════════════════════════════ */}
                   {selectedInvoice.notes && (
-                    <div className="px-6 sm:px-8 pb-5">
-                      <div className="rounded-lg border border-amber-100 bg-gradient-to-r from-amber-50/40 to-orange-50/30 p-4 flex gap-3">
-                        <Quote className="h-5 w-5 shrink-0 text-amber-300 mt-0.5" />
+                    <div className="px-6 sm:px-10 pb-6">
+                      <div className="rounded-lg border border-amber-200/60 bg-gradient-to-r from-amber-50/50 to-orange-50/30 p-4 flex gap-3">
+                        <Quote className="h-5 w-5 shrink-0 text-amber-400 mt-0.5" />
                         <div>
-                          <p className="text-[10px] font-extrabold text-amber-600 uppercase tracking-[0.15em] mb-1">Notes</p>
-                          <p className="text-sm italic text-gray-500 leading-relaxed">{selectedInvoice.notes}</p>
+                          <p className="text-[10px] font-black text-amber-700 uppercase tracking-[0.15em] mb-1">Notes</p>
+                          <p className="text-sm text-gray-600 leading-relaxed">{selectedInvoice.notes}</p>
                         </div>
                       </div>
                     </div>
                   )}
 
-                  {/* ── Footer ─────────────────────────────────────── */}
-                  <div className="border-t border-gray-200/60 bg-gray-50/30 px-6 sm:px-8 py-5">
-                    <div className="text-center space-y-2">
-                      <div className="flex items-center justify-center flex-wrap gap-x-2 gap-y-1 text-xs text-gray-400">
-                        <div className="flex items-center gap-1">
-                          <Building2 className="h-3 w-3 text-amber-400" />
-                          <span className="font-semibold text-gray-500">OGOU_Hôtel</span>
+                  {/* ═══════════════════════════════════════════════════════
+                      PROFESSIONAL FOOTER
+                      ═══════════════════════════════════════════════════════ */}
+                  <div className="border-t-2 border-amber-200/40 bg-gradient-to-b from-gray-50/50 to-gray-100/30 px-6 sm:px-10 py-5">
+                    <div className="space-y-3">
+                      {/* Hotel legal info row */}
+                      <div className="flex flex-wrap items-center justify-center gap-x-3 gap-y-1.5 text-[11px] text-gray-500">
+                        <div className="flex items-center gap-1.5">
+                          <Building2 className="h-3.5 w-3.5 text-amber-500" />
+                          <span className="font-bold text-gray-700">OGOU_Hôtel</span>
                         </div>
-                        <span className="text-gray-200">|</span>
-                        <div className="flex items-center gap-1">
-                          <MapPin className="h-3 w-3 text-amber-400" />
+                        <span className="text-gray-300">•</span>
+                        <div className="flex items-center gap-1.5">
+                          <MapPin className="h-3.5 w-3.5 text-amber-500" />
                           <span>Abidjan, Côte d&apos;Ivoire</span>
                         </div>
-                        <span className="text-gray-200">|</span>
-                        <span>N° CC : CI-ABJ-2024-001</span>
+                        <span className="text-gray-300">•</span>
+                        <div className="flex items-center gap-1.5">
+                          <Phone className="h-3.5 w-3.5 text-amber-500" />
+                          <span>+225 01 02 03 04 05</span>
+                        </div>
+                        <span className="text-gray-300">•</span>
+                        <div className="flex items-center gap-1.5">
+                          <Mail className="h-3.5 w-3.5 text-amber-500" />
+                          <span>contact@ogouhotel.ci</span>
+                        </div>
                       </div>
-                      <p className="text-[10px] text-gray-300 tracking-wide">
-                        Compte Bancaire : CI00 XXXX XXXX XXXX | BIC : OGOUCCIAB
-                      </p>
-                      <Separator className="max-w-[120px] mx-auto bg-amber-200/50" />
-                      <p className="text-xs italic text-amber-500 font-semibold tracking-wide">
-                        Merci pour votre confiance
-                      </p>
+
+                      {/* Banking & legal */}
+                      <div className="text-center space-y-1">
+                        <p className="text-[10px] text-gray-400 tracking-wide">
+                          N° CC : CI-ABJ-2024-001 · Compte Bancaire : CI00 XXXX XXXX XXXX · BIC : OGOUCCIAB
+                        </p>
+                      </div>
+
+                      {/* Thank you message */}
+                      <div className="text-center pt-1">
+                        <Separator className="max-w-[100px] mx-auto bg-gradient-to-r from-transparent via-amber-300 to-transparent h-px" />
+                        <p className="text-xs font-bold text-amber-600 tracking-widest uppercase mt-2">
+                          Merci pour votre confiance
+                        </p>
+                        <p className="text-[10px] text-gray-400 mt-0.5 italic">
+                          Nous espérons vous revoir bientôt
+                        </p>
+                      </div>
                     </div>
                   </div>
                 </div>

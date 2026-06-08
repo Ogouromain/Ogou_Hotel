@@ -43,7 +43,9 @@ import {
   Lock,
   ChevronDown,
   ChevronUp,
+  ChevronRight,
   GraduationCap,
+  DoorOpen,
 } from 'lucide-react'
 
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
@@ -431,6 +433,9 @@ export function OwnerDashboard({ profile, onLogout, isNewRegistration }: OwnerDa
   const [usage, setUsage] = useState({ rooms: 0, receptionists: 0, managers: 0, reservations: 0, customers: 0 })
   const [canAdd, setCanAdd] = useState({ rooms: false, receptionists: false, managers: false })
   const [roomsList, setRoomsList] = useState<RoomInfo[]>([])
+  const [todayCheckIns, setTodayCheckIns] = useState<Record<string, unknown>[]>([])
+  const [todayCheckOuts, setTodayCheckOuts] = useState<Record<string, unknown>[]>([])
+  const [todayDate, setTodayDate] = useState<string>('')
   const [loading, setLoading] = useState(true)
   const [showSuccessBanner, setShowSuccessBanner] = useState(isNewRegistration ?? false)
 
@@ -463,10 +468,11 @@ export function OwnerDashboard({ profile, onLogout, isNewRegistration }: OwnerDa
   const fetchAllData = useCallback(async () => {
     setLoading(true)
     try {
-      const [hotelRes, subRes, roomsRes] = await Promise.all([
+      const [hotelRes, subRes, roomsRes, receptionRes] = await Promise.all([
         fetch('/api/owner/hotel'),
         fetch('/api/owner/subscription'),
         fetch('/api/owner/rooms'),
+        fetch('/api/staff/reception'),
       ])
 
       if (hotelRes.ok) {
@@ -487,6 +493,13 @@ export function OwnerDashboard({ profile, onLogout, isNewRegistration }: OwnerDa
       if (roomsRes.ok) {
         const data = await roomsRes.json()
         if (data.rooms) setRoomsList(data.rooms)
+      }
+
+      if (receptionRes.ok) {
+        const data = await receptionRes.json()
+        if (data.checkIns) setTodayCheckIns(data.checkIns)
+        if (data.checkOuts) setTodayCheckOuts(data.checkOuts)
+        if (data.today) setTodayDate(data.today)
       }
     } catch {
       console.error('Failed to fetch owner data')
@@ -810,6 +823,10 @@ export function OwnerDashboard({ profile, onLogout, isNewRegistration }: OwnerDa
               planInfo={planInfo}
               usage={usage}
               loading={loading}
+              todayCheckIns={todayCheckIns}
+              todayCheckOuts={todayCheckOuts}
+              todayDate={todayDate}
+              roomsList={roomsList}
               onNavigateToRooms={() => setActiveTab('rooms')}
               onNavigateToTeam={() => setActiveTab('team')}
               onNavigateToReservations={() => setActiveTab('reservations')}
@@ -991,6 +1008,10 @@ function OverviewTab({
   planInfo,
   usage,
   loading,
+  todayCheckIns,
+  todayCheckOuts,
+  todayDate,
+  roomsList,
   onNavigateToRooms,
   onNavigateToTeam,
   onNavigateToReservations,
@@ -1002,6 +1023,10 @@ function OverviewTab({
   planInfo: PlanInfo | null
   usage: { rooms: number; receptionists: number; managers: number; reservations: number; customers: number }
   loading: boolean
+  todayCheckIns: Record<string, unknown>[]
+  todayCheckOuts: Record<string, unknown>[]
+  todayDate: string
+  roomsList: RoomInfo[]
   onNavigateToRooms: () => void
   onNavigateToTeam: () => void
   onNavigateToReservations?: () => void
@@ -1119,6 +1144,180 @@ function OverviewTab({
           </Card>
         ))}
       </div>
+
+      {/* Opérations du jour */}
+      <Card className="border-amber-200/60">
+        <CardHeader className="pb-3">
+          <div className="flex items-center justify-between">
+            <CardTitle className="flex items-center gap-2 text-base">
+              <DoorOpen className="h-5 w-5 text-amber-600" />
+              Opérations du jour
+            </CardTitle>
+            {todayDate && (
+              <Badge variant="outline" className="text-xs text-amber-700 border-amber-200">
+                {formatDateFR(todayDate)}
+              </Badge>
+            )}
+          </div>
+          <CardDescription className="text-xs text-muted-foreground flex items-center gap-1.5 mt-1">
+            <Eye className="h-3.5 w-3.5" />
+            Les opérations quotidiennes sont gérées par le réceptionniste
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          {/* Summary cards */}
+          <div className="grid grid-cols-2 gap-4 mb-4">
+            <div className="rounded-lg border border-emerald-200 bg-emerald-50/50 p-4">
+              <div className="flex items-center gap-3">
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-emerald-100 text-emerald-600">
+                  <DoorOpen className="h-5 w-5" />
+                </div>
+                <div>
+                  <p className="text-xs font-medium text-emerald-700">Arrivées aujourd&apos;hui</p>
+                  <p className="text-2xl font-bold text-emerald-800">{loading ? '—' : todayCheckIns.length}</p>
+                </div>
+              </div>
+            </div>
+            <div className="rounded-lg border border-amber-200 bg-amber-50/50 p-4">
+              <div className="flex items-center gap-3">
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-amber-100 text-amber-600">
+                  <DoorOpen className="h-5 w-5" />
+                </div>
+                <div>
+                  <p className="text-xs font-medium text-amber-700">Départs aujourd&apos;hui</p>
+                  <p className="text-2xl font-bold text-amber-800">{loading ? '—' : todayCheckOuts.length}</p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Arrivals list */}
+          {todayCheckIns.length > 0 && (
+            <div className="mb-4">
+              <p className="text-sm font-semibold text-gray-700 mb-2 flex items-center gap-1.5">
+                <DoorOpen className="h-4 w-4 text-emerald-500" />
+                Arrivées prévues
+              </p>
+              <div className="max-h-48 overflow-y-auto space-y-1.5 pr-1 scrollbar-thin">
+                {todayCheckIns.map((res) => {
+                  const cust = res.customers as Record<string, string> | null
+                  const rm = res.rooms as Record<string, string> | null
+                  const name = cust ? `${cust.first_name} ${cust.last_name}` : 'Client'
+                  const roomNum = rm?.room_number || '—'
+                  const status = (res.status as string) || ''
+                  const checkInDate = (res.check_in_date as string) || ''
+                  return (
+                    <div key={res.id as string} className="flex items-center justify-between rounded-md border border-gray-100 bg-white px-3 py-2 text-sm">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <span className="font-medium text-gray-800 truncate">{name}</span>
+                        <span className="text-xs text-muted-foreground shrink-0">Ch. {roomNum}</span>
+                      </div>
+                      <div className="flex items-center gap-2 shrink-0">
+                        {checkInDate && <span className="text-xs text-muted-foreground">{checkInDate}</span>}
+                        {status === 'confirmed' ? (
+                          <Badge className="bg-emerald-100 text-emerald-700 border-emerald-200 hover:bg-emerald-100 text-[10px]">Confirmée</Badge>
+                        ) : status === 'pending' ? (
+                          <Badge className="bg-amber-100 text-amber-700 border-amber-200 hover:bg-amber-100 text-[10px]">En attente</Badge>
+                        ) : (
+                          <Badge className="bg-sky-100 text-sky-700 border-sky-200 hover:bg-sky-100 text-[10px]">Enregistré</Badge>
+                        )}
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* Departures list */}
+          {todayCheckOuts.length > 0 && (
+            <div className="mb-4">
+              <p className="text-sm font-semibold text-gray-700 mb-2 flex items-center gap-1.5">
+                <DoorOpen className="h-4 w-4 text-amber-500" />
+                Départs prévus
+              </p>
+              <div className="max-h-48 overflow-y-auto space-y-1.5 pr-1 scrollbar-thin">
+                {todayCheckOuts.map((res) => {
+                  const cust = res.customers as Record<string, string> | null
+                  const rm = res.rooms as Record<string, string> | null
+                  const name = cust ? `${cust.first_name} ${cust.last_name}` : 'Client'
+                  const roomNum = rm?.room_number || '—'
+                  const checkOutDate = (res.check_out_date as string) || ''
+                  return (
+                    <div key={res.id as string} className="flex items-center justify-between rounded-md border border-gray-100 bg-white px-3 py-2 text-sm">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <span className="font-medium text-gray-800 truncate">{name}</span>
+                        <span className="text-xs text-muted-foreground shrink-0">Ch. {roomNum}</span>
+                      </div>
+                      <div className="flex items-center gap-2 shrink-0">
+                        {checkOutDate && <span className="text-xs text-muted-foreground">{checkOutDate}</span>}
+                        <Badge className="bg-sky-100 text-sky-700 border-sky-200 hover:bg-sky-100 text-[10px]">En chambre</Badge>
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* Empty state */}
+          {!loading && todayCheckIns.length === 0 && todayCheckOuts.length === 0 && (
+            <div className="text-center py-6 text-muted-foreground">
+              <DoorOpen className="h-8 w-8 mx-auto mb-2 text-gray-300" />
+              <p className="text-sm">Aucune opération prévue aujourd&apos;hui</p>
+            </div>
+          )}
+
+          <Separator className="my-4" />
+
+          {/* Room status distribution */}
+          <div>
+            <p className="text-sm font-semibold text-gray-700 mb-2 flex items-center gap-1.5">
+              <Bed className="h-4 w-4 text-amber-500" />
+              État des chambres
+            </p>
+            {roomsList.length > 0 ? (
+              <div className="flex flex-wrap items-center gap-4">
+                {(() => {
+                  const statusCounts: Record<string, number> = {}
+                  roomsList.forEach((r) => {
+                    statusCounts[r.status] = (statusCounts[r.status] || 0) + 1
+                  })
+                  const statusConfig: Record<string, { label: string; dotColor: string; textColor: string }> = {
+                    available: { label: 'Disponibles', dotColor: 'bg-emerald-500', textColor: 'text-emerald-700' },
+                    occupied: { label: 'Occupées', dotColor: 'bg-sky-500', textColor: 'text-sky-700' },
+                    cleaning: { label: 'Nettoyage', dotColor: 'bg-amber-500', textColor: 'text-amber-700' },
+                    maintenance: { label: 'Maintenance', dotColor: 'bg-red-500', textColor: 'text-red-700' },
+                  }
+                  return Object.entries(statusConfig).map(([key, cfg]) => (
+                    <div key={key} className="flex items-center gap-1.5">
+                      <span className={`inline-block h-2.5 w-2.5 rounded-full ${cfg.dotColor}`} />
+                      <span className={`text-sm font-medium ${cfg.textColor}`}>{statusCounts[key] || 0}</span>
+                      <span className="text-xs text-muted-foreground">{cfg.label}</span>
+                    </div>
+                  ))
+                })()}
+              </div>
+            ) : (
+              <p className="text-xs text-muted-foreground">Aucune chambre configurée</p>
+            )}
+          </div>
+
+          {/* Link to reservations tab */}
+          {onNavigateToReservations && (
+            <div className="mt-4 pt-3 border-t border-gray-100">
+              <button
+                onClick={onNavigateToReservations}
+                className="text-sm font-medium text-amber-600 hover:text-amber-800 transition-colors flex items-center gap-1.5"
+              >
+                <Calendar className="h-4 w-4" />
+                Voir toutes les réservations
+                <ChevronRight className="h-3.5 w-3.5" />
+              </button>
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
       {/* Subscription Limits */}
       {planInfo && (
