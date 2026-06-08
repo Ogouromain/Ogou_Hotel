@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { toast } from 'sonner'
 import {
   Hotel,
@@ -21,14 +21,45 @@ import {
   Wine,
   MessageSquare,
   Mail,
+  Calendar,
+  Users,
+  FileText,
+  Bell,
+  BarChart3,
+  Shield,
+  Plus,
+  Search,
 } from 'lucide-react'
 
-import { Card, CardContent } from '@/components/ui/card'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Separator } from '@/components/ui/separator'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { Input } from '@/components/ui/input'
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+} from '@/components/ui/sheet'
+import { ScrollArea } from '@/components/ui/scroll-area'
+
+import { ReservationsTab } from '@/components/reservations-tab'
+import { CustomersTab } from '@/components/customers-tab'
+import dynamic from 'next/dynamic'
+
+const InvoicesTab = dynamic(
+  () => import('@/components/invoices-tab').then(mod => ({ default: mod.InvoicesTab })),
+  { ssr: false, loading: () => <TabLoadingSkeleton /> }
+)
+
+const NotificationPanel = dynamic(
+  () => import('@/components/notification-panel').then(mod => ({ default: mod.NotificationPanel })),
+  { ssr: false, loading: () => <TabLoadingSkeleton /> }
+)
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -114,6 +145,35 @@ interface ReservationInfo {
   status: string
   customers: CustomerInfo | CustomerInfo[] | null
   rooms: RoomBrief | RoomBrief[] | null
+}
+
+// ─── Receptionist Tab Type ──────────────────────────────────────────────────
+
+type ReceptionistTabId = 'overview' | 'rooms' | 'reservations' | 'customers' | 'invoices' | 'notifications'
+
+const RECEPTIONIST_NAV_ITEMS: { id: ReceptionistTabId; label: string; icon: React.ReactNode }[] = [
+  { id: 'overview', label: 'Accueil', icon: <BarChart3 className="h-4 w-4" /> },
+  { id: 'rooms', label: 'Chambres', icon: <Bed className="h-4 w-4" /> },
+  { id: 'reservations', label: 'Réservations', icon: <Calendar className="h-4 w-4" /> },
+  { id: 'customers', label: 'Clients', icon: <Users className="h-4 w-4" /> },
+  { id: 'invoices', label: 'Factures', icon: <FileText className="h-4 w-4" /> },
+  { id: 'notifications', label: 'Notifications', icon: <Bell className="h-4 w-4" /> },
+]
+
+function TabLoadingSkeleton() {
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <Skeleton className="h-8 w-48" />
+        <Skeleton className="h-8 w-24" />
+      </div>
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+        {Array.from({ length: 4 }).map((_, i) => (
+          <Card key={i}><CardContent className="p-6"><Skeleton className="h-20 w-full" /></CardContent></Card>
+        ))}
+      </div>
+    </div>
+  )
 }
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -665,26 +725,34 @@ function RestaurantStaffView({ profile, onLogout }: StaffDashboardProps) {
   )
 }
 
-// ─── Receptionist View ───────────────────────────────────────────────────────
+// ─── Receptionist View (Full Dashboard) ────────────────────────────────────────
 
 function ReceptionistView({ profile, onLogout }: StaffDashboardProps) {
+  const [activeTab, setActiveTab] = useState<ReceptionistTabId>('overview')
   const [checkIns, setCheckIns] = useState<ReservationInfo[]>([])
   const [checkOuts, setCheckOuts] = useState<ReservationInfo[]>([])
   const [today, setToday] = useState('')
+  const [rooms, setRooms] = useState<RoomInfo[]>([])
   const [loading, setLoading] = useState(true)
   const [actionLoading, setActionLoading] = useState<string | null>(null)
+  const [sidebarOpen, setSidebarOpen] = useState(false)
 
-  const fetchData = useCallback(async () => {
+  const fetchAllData = useCallback(async () => {
     setLoading(true)
     try {
-      const res = await fetch('/api/staff/reception')
-      if (res.ok) {
-        const data = await res.json()
+      const [receptionRes, roomsRes] = await Promise.all([
+        fetch('/api/staff/reception'),
+        fetch('/api/owner/rooms'),
+      ])
+      if (receptionRes.ok) {
+        const data = await receptionRes.json()
         setCheckIns(data.checkIns || [])
         setCheckOuts(data.checkOuts || [])
         setToday(data.today || '')
-      } else {
-        toast.error('Erreur lors du chargement des réservations')
+      }
+      if (roomsRes.ok) {
+        const data = await roomsRes.json()
+        setRooms(data.rooms || [])
       }
     } catch {
       toast.error('Erreur de connexion')
@@ -694,28 +762,25 @@ function ReceptionistView({ profile, onLogout }: StaffDashboardProps) {
   }, [])
 
   useEffect(() => {
-    fetchData()
-  }, [fetchData])
+    fetchAllData()
+  }, [fetchAllData])
 
   const handleCheckIn = async (reservationId: string, roomId: string) => {
     setActionLoading(reservationId)
     try {
-      // Check-in the reservation
       const res = await fetch(`/api/owner/reservations/${reservationId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action: 'check_in' }),
       })
-
       if (res.ok) {
-        // Update room status to occupied
         await fetch(`/api/owner/reservations/room-status/${roomId}`, {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ status: 'occupied' }),
         })
         toast.success('Check-in effectué avec succès')
-        fetchData()
+        fetchAllData()
       } else {
         const data = await res.json()
         toast.error(data.error || 'Erreur lors du check-in')
@@ -730,22 +795,19 @@ function ReceptionistView({ profile, onLogout }: StaffDashboardProps) {
   const handleCheckOut = async (reservationId: string, roomId: string) => {
     setActionLoading(reservationId)
     try {
-      // Check-out the reservation
       const res = await fetch(`/api/owner/reservations/${reservationId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action: 'check_out' }),
       })
-
       if (res.ok) {
-        // Update room status to cleaning
         await fetch(`/api/owner/reservations/room-status/${roomId}`, {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ status: 'cleaning' }),
         })
         toast.success('Check-out effectué — Ménage requis')
-        fetchData()
+        fetchAllData()
       } else {
         const data = await res.json()
         toast.error(data.error || 'Erreur lors du check-out')
@@ -808,10 +870,7 @@ function ReceptionistView({ profile, onLogout }: StaffDashboardProps) {
               )}
             </div>
           </div>
-
           <Separator className="mb-3" />
-
-          {/* Action Button */}
           {type === 'check-in' && !isCheckedIn && (
             <Button
               className="w-full h-12 text-base font-medium rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white shadow-md shadow-emerald-600/20"
@@ -857,123 +916,462 @@ function ReceptionistView({ profile, onLogout }: StaffDashboardProps) {
     )
   }
 
-  return (
-    <div className="min-h-screen flex flex-col bg-gradient-to-b from-amber-50 to-orange-50">
-      {/* Header */}
-      <div className="sticky top-0 z-10 bg-white border-b border-amber-200/50 px-4 py-3">
-        <div className="flex items-center justify-between">
+  // Room stats for overview
+  const roomStats = {
+    total: rooms.length,
+    available: rooms.filter(r => r.status === 'available').length,
+    occupied: rooms.filter(r => r.status === 'occupied').length,
+    cleaning: rooms.filter(r => r.status === 'cleaning').length,
+    maintenance: rooms.filter(r => r.status === 'maintenance').length,
+  }
+
+  const getRoomStatusBadge = (status: string) => {
+    switch (status) {
+      case 'available': return <Badge className="bg-emerald-100 text-emerald-700 border-emerald-200 hover:bg-emerald-100 text-xs">Disponible</Badge>
+      case 'occupied': return <Badge className="bg-sky-100 text-sky-700 border-sky-200 hover:bg-sky-100 text-xs">Occupée</Badge>
+      case 'cleaning': return <Badge className="bg-amber-100 text-amber-700 border-amber-200 hover:bg-amber-100 text-xs">Nettoyage</Badge>
+      case 'maintenance': return <Badge className="bg-red-100 text-red-700 border-red-200 hover:bg-red-100 text-xs">Maintenance</Badge>
+      default: return <Badge variant="secondary" className="text-xs">{status}</Badge>
+    }
+  }
+
+  // ─── Sidebar content (shared between desktop and mobile) ────────────────
+  const sidebarContent = (
+    <div className="flex h-full flex-col bg-gradient-to-b from-amber-50 to-orange-50">
+      <div className="flex items-center gap-3 px-6 py-6 border-b border-amber-200/50">
+        <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-amber-500 to-orange-600 shadow-lg shadow-amber-500/30">
+          <Hotel className="h-5 w-5 text-white" />
+        </div>
+        <div className="flex-1 min-w-0">
+          <h1 className="text-lg font-bold text-amber-900">OGOU_Hôtel</h1>
           <div className="flex items-center gap-2">
-            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-amber-500 to-orange-600 shadow-lg shadow-amber-500/30">
-              <Hotel className="h-5 w-5 text-white" />
-            </div>
-            <div>
-              <h1 className="text-lg font-bold text-amber-900">OGOU_Hôtel</h1>
-              <p className="text-[10px] uppercase tracking-wider text-amber-600 font-semibold">Réception</p>
-            </div>
+            <p className="text-[10px] uppercase tracking-wider text-amber-600 font-semibold">Réceptionniste</p>
+            <div className="flex h-2 w-2 rounded-full bg-emerald-500" />
           </div>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={fetchData}
-            disabled={loading}
-            className="border-amber-200 text-amber-700 hover:bg-amber-50"
-          >
-            <RefreshCw className={`h-4 w-4 mr-1.5 ${loading ? 'animate-spin' : ''}`} />
-            Actualiser
+        </div>
+      </div>
+      <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
+        {RECEPTIONIST_NAV_ITEMS.map((item) => {
+          const isActive = activeTab === item.id
+          return (
+            <button
+              key={item.id}
+              onClick={() => { setActiveTab(item.id); setSidebarOpen(false) }}
+              className={`w-full flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all ${
+                isActive
+                  ? 'bg-amber-100 text-amber-900 shadow-sm'
+                  : 'text-amber-800/70 hover:bg-amber-100/50 hover:text-amber-900'
+              }`}
+            >
+              {item.icon}
+              <span className="truncate">{item.label}</span>
+            </button>
+          )
+        })}
+      </nav>
+      <div className="px-4 py-2 border-t border-amber-200/50">
+        <a
+          href="https://wa.me/2250576103277"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="flex items-center gap-2 rounded-lg bg-emerald-50 border border-emerald-200 px-3 py-2.5 text-sm font-medium text-emerald-700 hover:bg-emerald-100 transition-colors w-full"
+        >
+          <MessageSquare className="h-4 w-4 text-emerald-600 shrink-0" />
+          <span className="truncate">Support WhatsApp</span>
+        </a>
+        <a
+          href="mailto:omouitsi@gmail.com"
+          className="flex items-center gap-2 rounded-lg bg-amber-50 border border-amber-200 px-3 py-2.5 text-sm font-medium text-amber-700 hover:bg-amber-100 transition-colors w-full mt-2"
+        >
+          <Mail className="h-4 w-4 text-amber-600 shrink-0" />
+          <span className="truncate">Email</span>
+        </a>
+      </div>
+      <div className="border-t border-amber-200/50 px-4 py-4">
+        <div className="flex items-center gap-3 mb-3">
+          <div className="flex h-9 w-9 items-center justify-center rounded-full bg-amber-200 text-amber-800 text-xs font-bold shrink-0">
+            {profile.first_name.charAt(0)}{profile.last_name.charAt(0)}
+          </div>
+          <div className="min-w-0">
+            <p className="text-sm font-medium text-amber-900 truncate">{profile.first_name} {profile.last_name}</p>
+            <p className="text-xs text-amber-600 flex items-center gap-1">
+              <Shield className="h-3 w-3" />
+              Réceptionniste
+            </p>
+          </div>
+        </div>
+        <Button
+          variant="outline"
+          size="sm"
+          className="w-full border-amber-200 text-amber-700 hover:bg-amber-100 hover:text-amber-900"
+          onClick={onLogout}
+        >
+          <LogOut className="h-4 w-4 mr-2" />
+          Déconnexion
+        </Button>
+      </div>
+    </div>
+  )
+
+  return (
+    <div className="flex min-h-screen bg-gray-50/50">
+      {/* ─── Desktop Sidebar ─────────────────────────────────────────── */}
+      <aside className="hidden lg:flex w-64 flex-col border-r border-amber-200/50 shrink-0">
+        {sidebarContent}
+      </aside>
+
+      {/* ─── Main Content ────────────────────────────────────────────── */}
+      <main className="flex-1 min-w-0">
+        {/* Mobile Header */}
+        <div className="lg:hidden flex items-center justify-between px-4 py-3 border-b bg-white">
+          <div className="flex items-center gap-2">
+            <Sheet open={sidebarOpen} onOpenChange={setSidebarOpen}>
+              <SheetTrigger asChild>
+                <Button variant="ghost" size="icon" className="h-8 w-8">
+                  <Hotel className="h-4 w-4 text-amber-600" />
+                </Button>
+              </SheetTrigger>
+              <SheetContent side="left" className="w-64 p-0">
+                <SheetHeader className="sr-only">
+                  <SheetTitle>Navigation</SheetTitle>
+                </SheetHeader>
+                {sidebarContent}
+              </SheetContent>
+            </Sheet>
+            <span className="font-bold text-amber-900">OGOU_Hôtel</span>
+          </div>
+          <Button variant="ghost" size="sm" onClick={onLogout}>
+            <LogOut className="h-4 w-4" />
           </Button>
         </div>
-        <p className="text-sm text-amber-800/80 mt-1.5">
-          Bonjour, {profile.first_name} 👋
-        </p>
-        {today && (
-          <p className="text-xs text-muted-foreground mt-0.5">
-            {formatDateFR(today)}
-          </p>
-        )}
-      </div>
 
-      {/* Content */}
-      <div className="flex-1 overflow-y-auto px-4 pb-4">
-        {loading ? (
-          <div className="space-y-6 mt-4">
-            <div className="space-y-3">
-              <Skeleton className="h-6 w-32" />
-              {Array.from({ length: 2 }).map((_, i) => (
-                <Card key={i} className="border-amber-200/40">
+        {/* Mobile Navigation Pills */}
+        <div className="lg:hidden flex overflow-x-auto gap-1 px-4 py-2 border-b bg-white">
+          {RECEPTIONIST_NAV_ITEMS.map((item) => (
+            <button
+              key={item.id}
+              onClick={() => setActiveTab(item.id)}
+              className={`flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium whitespace-nowrap transition-colors ${
+                activeTab === item.id
+                  ? 'bg-amber-100 text-amber-900'
+                  : 'text-gray-500 hover:bg-gray-100'
+              }`}
+            >
+              {item.icon}
+              {item.label}
+            </button>
+          ))}
+        </div>
+
+        <div className="p-4 sm:p-6 lg:p-8 max-w-6xl mx-auto">
+          {/* ─── Overview Tab ──────────────────────────────────────────── */}
+          {activeTab === 'overview' && (
+            <div className="space-y-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h2 className="text-2xl font-bold text-gray-900">Bonjour, {profile.first_name} 👋</h2>
+                  {today && <p className="text-sm text-muted-foreground mt-1">{formatDateFR(today)}</p>}
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={fetchAllData}
+                  disabled={loading}
+                  className="border-amber-200 text-amber-700 hover:bg-amber-50"
+                >
+                  <RefreshCw className={`h-4 w-4 mr-1.5 ${loading ? 'animate-spin' : ''}`} />
+                  Actualiser
+                </Button>
+              </div>
+
+              {/* Stats Grid */}
+              <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                <Card className="border-emerald-200/50 bg-gradient-to-br from-emerald-50 to-emerald-100/50 cursor-pointer hover:shadow-md transition-shadow" onClick={() => setActiveTab('reservations')}>
                   <CardContent className="p-4">
-                    <div className="space-y-3">
-                      <Skeleton className="h-5 w-40" />
-                      <Skeleton className="h-4 w-32" />
-                      <Skeleton className="h-12 w-full" />
+                    <div className="flex items-center justify-between">
+                      <DoorOpen className="h-8 w-8 text-emerald-600" />
+                      <span className="text-3xl font-bold text-emerald-700">{checkIns.length}</span>
                     </div>
+                    <p className="text-sm font-medium text-emerald-800 mt-2">Arrivées aujourd&apos;hui</p>
                   </CardContent>
                 </Card>
-              ))}
-            </div>
-          </div>
-        ) : (
-          <div className="space-y-6 mt-4">
-            {/* Check-ins Section */}
-            <div>
-              <div className="flex items-center gap-2 mb-3">
-                <div className="flex h-7 w-7 items-center justify-center rounded-full bg-emerald-100">
-                  <DoorOpen className="h-4 w-4 text-emerald-600" />
+                <Card className="border-amber-200/50 bg-gradient-to-br from-amber-50 to-amber-100/50 cursor-pointer hover:shadow-md transition-shadow" onClick={() => setActiveTab('reservations')}>
+                  <CardContent className="p-4">
+                    <div className="flex items-center justify-between">
+                      <DoorOpen className="h-8 w-8 text-amber-600" />
+                      <span className="text-3xl font-bold text-amber-700">{checkOuts.length}</span>
+                    </div>
+                    <p className="text-sm font-medium text-amber-800 mt-2">Départs aujourd&apos;hui</p>
+                  </CardContent>
+                </Card>
+                <Card className="border-sky-200/50 bg-gradient-to-br from-sky-50 to-sky-100/50 cursor-pointer hover:shadow-md transition-shadow" onClick={() => setActiveTab('rooms')}>
+                  <CardContent className="p-4">
+                    <div className="flex items-center justify-between">
+                      <Bed className="h-8 w-8 text-sky-600" />
+                      <span className="text-3xl font-bold text-sky-700">{roomStats.occupied}</span>
+                    </div>
+                    <p className="text-sm font-medium text-sky-800 mt-2">Chambres occupées</p>
+                  </CardContent>
+                </Card>
+                <Card className="border-green-200/50 bg-gradient-to-br from-green-50 to-green-100/50 cursor-pointer hover:shadow-md transition-shadow" onClick={() => setActiveTab('rooms')}>
+                  <CardContent className="p-4">
+                    <div className="flex items-center justify-between">
+                      <CheckCircle2 className="h-8 w-8 text-green-600" />
+                      <span className="text-3xl font-bold text-green-700">{roomStats.available}</span>
+                    </div>
+                    <p className="text-sm font-medium text-green-800 mt-2">Chambres disponibles</p>
+                  </CardContent>
+                </Card>
+              </div>
+
+              {/* Room Status Summary */}
+              <Card className="border-amber-200/40">
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-base flex items-center gap-2">
+                    <Bed className="h-4 w-4 text-amber-600" />
+                    État des chambres
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="flex flex-wrap gap-3">
+                    <div className="flex items-center gap-1.5">
+                      <div className="h-3 w-3 rounded-full bg-emerald-500" />
+                      <span className="text-sm text-muted-foreground">{roomStats.available} disponibles</span>
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      <div className="h-3 w-3 rounded-full bg-sky-500" />
+                      <span className="text-sm text-muted-foreground">{roomStats.occupied} occupées</span>
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      <div className="h-3 w-3 rounded-full bg-amber-500" />
+                      <span className="text-sm text-muted-foreground">{roomStats.cleaning} nettoyage</span>
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      <div className="h-3 w-3 rounded-full bg-red-500" />
+                      <span className="text-sm text-muted-foreground">{roomStats.maintenance} maintenance</span>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Today's Check-ins */}
+              <div>
+                <div className="flex items-center gap-2 mb-3">
+                  <div className="flex h-7 w-7 items-center justify-center rounded-full bg-emerald-100">
+                    <DoorOpen className="h-4 w-4 text-emerald-600" />
+                  </div>
+                  <h3 className="text-base font-bold text-gray-900">Check-ins du jour</h3>
+                  {checkIns.length > 0 && (
+                    <Badge className="bg-emerald-100 text-emerald-700 border-emerald-200 hover:bg-emerald-100 text-xs">
+                      {checkIns.length}
+                    </Badge>
+                  )}
                 </div>
-                <h2 className="text-base font-bold text-gray-900">
-                  Check-ins du jour
-                </h2>
-                {checkIns.length > 0 && (
-                  <Badge className="bg-emerald-100 text-emerald-700 border-emerald-200 hover:bg-emerald-100 text-xs">
-                    {checkIns.length}
-                  </Badge>
+                {loading ? (
+                  <div className="space-y-3">
+                    {Array.from({ length: 2 }).map((_, i) => (
+                      <Card key={i} className="border-amber-200/40">
+                        <CardContent className="p-4"><Skeleton className="h-20 w-full" /></CardContent>
+                      </Card>
+                    ))}
+                  </div>
+                ) : checkIns.length === 0 ? (
+                  <Card className="border-amber-200/40">
+                    <CardContent className="p-6 text-center">
+                      <p className="text-sm text-muted-foreground">Aucun check-in prévu aujourd&apos;hui</p>
+                    </CardContent>
+                  </Card>
+                ) : (
+                  <div className="space-y-3">
+                    {checkIns.map((res) => renderReservationCard(res, 'check-in'))}
+                  </div>
                 )}
               </div>
-              {checkIns.length === 0 ? (
-                <Card className="border-amber-200/40">
-                  <CardContent className="p-6 text-center">
-                    <p className="text-sm text-muted-foreground">Aucun check-in prévu aujourd&apos;hui</p>
-                  </CardContent>
-                </Card>
+
+              {/* Today's Check-outs */}
+              <div>
+                <div className="flex items-center gap-2 mb-3">
+                  <div className="flex h-7 w-7 items-center justify-center rounded-full bg-amber-100">
+                    <DoorOpen className="h-4 w-4 text-amber-600" />
+                  </div>
+                  <h3 className="text-base font-bold text-gray-900">Check-outs du jour</h3>
+                  {checkOuts.length > 0 && (
+                    <Badge className="bg-amber-100 text-amber-700 border-amber-200 hover:bg-amber-100 text-xs">
+                      {checkOuts.length}
+                    </Badge>
+                  )}
+                </div>
+                {loading ? (
+                  <div className="space-y-3">
+                    {Array.from({ length: 2 }).map((_, i) => (
+                      <Card key={i} className="border-amber-200/40">
+                        <CardContent className="p-4"><Skeleton className="h-20 w-full" /></CardContent>
+                      </Card>
+                    ))}
+                  </div>
+                ) : checkOuts.length === 0 ? (
+                  <Card className="border-amber-200/40">
+                    <CardContent className="p-6 text-center">
+                      <p className="text-sm text-muted-foreground">Aucun check-out prévu aujourd&apos;hui</p>
+                    </CardContent>
+                  </Card>
+                ) : (
+                  <div className="space-y-3">
+                    {checkOuts.map((res) => renderReservationCard(res, 'check-out'))}
+                  </div>
+                )}
+              </div>
+
+              {/* Quick Actions */}
+              <div>
+                <h3 className="text-base font-bold text-gray-900 mb-3">Actions rapides</h3>
+                <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+                  <Card
+                    className="border-amber-200/40 cursor-pointer hover:shadow-md transition-shadow"
+                    onClick={() => setActiveTab('reservations')}
+                  >
+                    <CardContent className="p-4 flex flex-col items-center text-center gap-2">
+                      <Calendar className="h-6 w-6 text-amber-600" />
+                      <span className="text-sm font-medium text-amber-900">Nouvelle réservation</span>
+                    </CardContent>
+                  </Card>
+                  <Card
+                    className="border-emerald-200/40 cursor-pointer hover:shadow-md transition-shadow"
+                    onClick={() => setActiveTab('customers')}
+                  >
+                    <CardContent className="p-4 flex flex-col items-center text-center gap-2">
+                      <User className="h-6 w-6 text-emerald-600" />
+                      <span className="text-sm font-medium text-emerald-900">Ajouter client</span>
+                    </CardContent>
+                  </Card>
+                  <Card
+                    className="border-sky-200/40 cursor-pointer hover:shadow-md transition-shadow"
+                    onClick={() => setActiveTab('rooms')}
+                  >
+                    <CardContent className="p-4 flex flex-col items-center text-center gap-2">
+                      <Bed className="h-6 w-6 text-sky-600" />
+                      <span className="text-sm font-medium text-sky-900">Voir chambres</span>
+                    </CardContent>
+                  </Card>
+                  <Card
+                    className="border-orange-200/40 cursor-pointer hover:shadow-md transition-shadow"
+                    onClick={() => setActiveTab('invoices')}
+                  >
+                    <CardContent className="p-4 flex flex-col items-center text-center gap-2">
+                      <FileText className="h-6 w-6 text-orange-600" />
+                      <span className="text-sm font-medium text-orange-900">Factures</span>
+                    </CardContent>
+                  </Card>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* ─── Rooms Tab ─────────────────────────────────────────────── */}
+          {activeTab === 'rooms' && (
+            <div className="space-y-6">
+              <div className="flex items-center justify-between">
+                <h2 className="text-2xl font-bold text-gray-900">Chambres</h2>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={fetchAllData}
+                  disabled={loading}
+                  className="border-amber-200 text-amber-700 hover:bg-amber-50"
+                >
+                  <RefreshCw className={`h-4 w-4 mr-1.5 ${loading ? 'animate-spin' : ''}`} />
+                  Actualiser
+                </Button>
+              </div>
+
+              {/* Room Status Summary */}
+              <div className="flex flex-wrap gap-3">
+                <div className="flex items-center gap-1.5 rounded-full bg-emerald-100 px-3 py-1.5 text-xs font-medium text-emerald-800 whitespace-nowrap">
+                  <CheckCircle2 className="h-3.5 w-3.5" />
+                  {roomStats.available} disponibles
+                </div>
+                <div className="flex items-center gap-1.5 rounded-full bg-sky-100 px-3 py-1.5 text-xs font-medium text-sky-800 whitespace-nowrap">
+                  <Bed className="h-3.5 w-3.5" />
+                  {roomStats.occupied} occupées
+                </div>
+                <div className="flex items-center gap-1.5 rounded-full bg-amber-100 px-3 py-1.5 text-xs font-medium text-amber-800 whitespace-nowrap">
+                  <SprayCan className="h-3.5 w-3.5" />
+                  {roomStats.cleaning} nettoyage
+                </div>
+                <div className="flex items-center gap-1.5 rounded-full bg-red-100 px-3 py-1.5 text-xs font-medium text-red-800 whitespace-nowrap">
+                  <Wrench className="h-3.5 w-3.5" />
+                  {roomStats.maintenance} maintenance
+                </div>
+              </div>
+
+              {loading ? (
+                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+                  {Array.from({ length: 8 }).map((_, i) => (
+                    <Card key={i}><CardContent className="p-4"><Skeleton className="h-24 w-full" /></CardContent></Card>
+                  ))}
+                </div>
+              ) : rooms.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-16 text-center">
+                  <div className="flex h-16 w-16 items-center justify-center rounded-full bg-amber-100 text-amber-500 mb-4">
+                    <Bed className="h-8 w-8" />
+                  </div>
+                  <h3 className="text-lg font-semibold text-gray-800">Aucune chambre</h3>
+                  <p className="text-sm text-muted-foreground mt-1">Les chambres seront ajoutées par le propriétaire</p>
+                </div>
               ) : (
-                <div className="space-y-3">
-                  {checkIns.map((res) => renderReservationCard(res, 'check-in'))}
+                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+                  {rooms.map((room) => (
+                    <Card key={room.id} className={`border-2 transition-shadow ${
+                      room.status === 'available' ? 'border-emerald-200 bg-emerald-50/30' :
+                      room.status === 'occupied' ? 'border-sky-200 bg-sky-50/30' :
+                      room.status === 'cleaning' ? 'border-amber-200 bg-amber-50/30' :
+                      'border-red-200 bg-red-50/30'
+                    }`}>
+                      <CardContent className="p-4">
+                        <div className="flex items-center justify-between mb-2">
+                          <span className="text-xl font-bold text-gray-900">{room.room_number}</span>
+                          {getRoomStatusBadge(room.status)}
+                        </div>
+                        <p className="text-sm text-muted-foreground">{room.room_type}</p>
+                        <p className="text-sm font-medium text-amber-800 mt-1">{formatFCFA(room.price_per_night)}/nuit</p>
+                      </CardContent>
+                    </Card>
+                  ))}
                 </div>
               )}
             </div>
+          )}
 
-            {/* Check-outs Section */}
-            <div>
-              <div className="flex items-center gap-2 mb-3">
-                <div className="flex h-7 w-7 items-center justify-center rounded-full bg-amber-100">
-                  <DoorOpen className="h-4 w-4 text-amber-600" />
-                </div>
-                <h2 className="text-base font-bold text-gray-900">
-                  Check-outs du jour
-                </h2>
-                {checkOuts.length > 0 && (
-                  <Badge className="bg-amber-100 text-amber-700 border-amber-200 hover:bg-amber-100 text-xs">
-                    {checkOuts.length}
-                  </Badge>
-                )}
-              </div>
-              {checkOuts.length === 0 ? (
-                <Card className="border-amber-200/40">
-                  <CardContent className="p-6 text-center">
-                    <p className="text-sm text-muted-foreground">Aucun check-out prévu aujourd&apos;hui</p>
-                  </CardContent>
-                </Card>
-              ) : (
-                <div className="space-y-3">
-                  {checkOuts.map((res) => renderReservationCard(res, 'check-out'))}
-                </div>
-              )}
-            </div>
-          </div>
-        )}
-      </div>
+          {/* ─── Reservations Tab ──────────────────────────────────────── */}
+          {activeTab === 'reservations' && (
+            <ReservationsTab
+              rooms={rooms.map((r) => ({
+                id: r.id,
+                room_number: r.room_number,
+                room_type: r.room_type,
+                status: r.status,
+                price_per_night: r.price_per_night,
+              }))}
+              onRefresh={fetchAllData}
+            />
+          )}
 
-      {/* Footer */}
-      <StaffFooter onLogout={onLogout} />
+          {/* ─── Customers Tab ─────────────────────────────────────────── */}
+          {activeTab === 'customers' && (
+            <CustomersTab onRefresh={fetchAllData} />
+          )}
+
+          {/* ─── Invoices Tab ──────────────────────────────────────────── */}
+          {activeTab === 'invoices' && (
+            <InvoicesTab onRefresh={fetchAllData} />
+          )}
+
+          {/* ─── Notifications Tab ─────────────────────────────────────── */}
+          {activeTab === 'notifications' && (
+            <NotificationPanel onRefresh={fetchAllData} />
+          )}
+        </div>
+      </main>
     </div>
   )
 }
