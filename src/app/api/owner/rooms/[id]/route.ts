@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 
+const ALLOWED_ROLES = ['owner', 'manager']
+
 /**
  * PATCH /api/owner/rooms/[id]
  * Update a room (status, price, type, number).
@@ -16,6 +18,11 @@ export async function PATCH(
 
     if (!user) {
       return NextResponse.json({ error: 'Non authentifié' }, { status: 401 })
+    }
+
+    const role = user.app_metadata?.role
+    if (!ALLOWED_ROLES.includes(role)) {
+      return NextResponse.json({ error: 'Seul le propriétaire ou le manager peut modifier les chambres' }, { status: 403 })
     }
 
     const hotelId = user.app_metadata?.hotel_id
@@ -112,6 +119,11 @@ export async function DELETE(
 
     if (!user) {
       return NextResponse.json({ error: 'Non authentifié' }, { status: 401 })
+    }
+
+    const role = user.app_metadata?.role
+    if (!ALLOWED_ROLES.includes(role)) {
+      return NextResponse.json({ error: 'Seul le propriétaire ou le manager peut supprimer les chambres' }, { status: 403 })
     }
 
     const hotelId = user.app_metadata?.hotel_id

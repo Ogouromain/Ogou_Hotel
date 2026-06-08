@@ -8,6 +8,9 @@ import { createAdminClient } from '@/lib/supabase/admin'
  * Returns the hotel and subscription info for the currently authenticated owner.
  * Only accessible by authenticated users with the 'owner' role.
  */
+const ALLOWED_ROLES_GET = ['owner', 'manager', 'receptionist']
+const ALLOWED_ROLES_PATCH = ['owner', 'manager']
+
 export async function GET() {
   try {
     // 1. Authenticate the user
@@ -19,6 +22,10 @@ export async function GET() {
     }
 
     const role = user.app_metadata?.role
+    if (!ALLOWED_ROLES_GET.includes(role)) {
+      return NextResponse.json({ error: 'Accès refusé' }, { status: 403 })
+    }
+
     const hotelId = user.app_metadata?.hotel_id
 
     if (!hotelId) {
@@ -115,6 +122,11 @@ export async function PATCH(request: NextRequest) {
 
     if (!user) {
       return NextResponse.json({ error: 'Non authentifié' }, { status: 401 })
+    }
+
+    const role = user.app_metadata?.role
+    if (!ALLOWED_ROLES_PATCH.includes(role)) {
+      return NextResponse.json({ error: 'Seul le propriétaire ou le manager peut modifier les informations de l\'hôtel' }, { status: 403 })
     }
 
     const hotelId = user.app_metadata?.hotel_id

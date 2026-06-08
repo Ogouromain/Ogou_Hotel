@@ -8,6 +8,8 @@ import { createAdminClient } from '@/lib/supabase/admin'
  * Fetches all notifications for the authenticated user's hotel,
  * ordered by created_at DESC.
  */
+const ALLOWED_ROLES = ['owner', 'manager', 'receptionist']
+
 export async function GET() {
   try {
     const supabase = await createClient()
@@ -15,6 +17,11 @@ export async function GET() {
 
     if (authError || !user) {
       return NextResponse.json({ error: 'Non authentifié' }, { status: 401 })
+    }
+
+    const role = user.app_metadata?.role
+    if (!ALLOWED_ROLES.includes(role)) {
+      return NextResponse.json({ error: 'Accès refusé' }, { status: 403 })
     }
 
     const hotelId = user.app_metadata?.hotel_id
@@ -60,6 +67,11 @@ export async function PATCH(request: NextRequest) {
 
     if (authError || !user) {
       return NextResponse.json({ error: 'Non authentifié' }, { status: 401 })
+    }
+
+    const role = user.app_metadata?.role
+    if (!ALLOWED_ROLES.includes(role)) {
+      return NextResponse.json({ error: 'Accès refusé' }, { status: 403 })
     }
 
     const hotelId = user.app_metadata?.hotel_id

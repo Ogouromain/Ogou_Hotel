@@ -23,11 +23,12 @@ const ROLE_ROUTE_ACCESS: Record<string, string[]> = {
   // Super-admin routes: only super_admin can access
   '/api/super-admin': ['super_admin'],
 
-  // Owner routes: owner and manager can access
-  '/api/owner': ['owner', 'manager'],
+  // Owner routes: owner, manager, and receptionist can access
+  // (individual route handlers enforce granular role checks via ALLOWED_ROLES)
+  '/api/owner': ['owner', 'manager', 'receptionist'],
 
   // Staff routes: all hotel staff can access
-  '/api/staff': ['owner', 'manager', 'receptionist'],
+  '/api/staff': ['owner', 'manager', 'receptionist', 'housekeeper', 'restaurant_staff'],
 
   // Setup routes: handled separately via x-setup-key header
   '/api/setup': [],

@@ -2,6 +2,10 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 
+// Receptionist can view rooms but not create/modify them
+const ALLOWED_ROLES_GET = ['owner', 'manager', 'receptionist']
+const ALLOWED_ROLES_POST = ['owner', 'manager']
+
 /**
  * GET /api/owner/rooms
  * List all rooms for the authenticated owner's hotel.
@@ -13,6 +17,11 @@ export async function GET() {
 
     if (!user) {
       return NextResponse.json({ error: 'Non authentifié' }, { status: 401 })
+    }
+
+    const role = user.app_metadata?.role
+    if (!ALLOWED_ROLES_GET.includes(role)) {
+      return NextResponse.json({ error: 'Accès refusé' }, { status: 403 })
     }
 
     const hotelId = user.app_metadata?.hotel_id
@@ -49,6 +58,11 @@ export async function POST(request: NextRequest) {
 
     if (!user) {
       return NextResponse.json({ error: 'Non authentifié' }, { status: 401 })
+    }
+
+    const role = user.app_metadata?.role
+    if (!ALLOWED_ROLES_POST.includes(role)) {
+      return NextResponse.json({ error: 'Seul le propriétaire ou le manager peut ajouter des chambres' }, { status: 403 })
     }
 
     const hotelId = user.app_metadata?.hotel_id

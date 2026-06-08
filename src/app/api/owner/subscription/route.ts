@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 
+const ALLOWED_ROLES = ['owner', 'manager']
+
 /**
  * GET /api/owner/subscription
  *
@@ -16,6 +18,11 @@ export async function GET() {
 
     if (!user) {
       return NextResponse.json({ error: 'Non authentifié' }, { status: 401 })
+    }
+
+    const role = user.app_metadata?.role
+    if (!ALLOWED_ROLES.includes(role)) {
+      return NextResponse.json({ error: 'Accès refusé' }, { status: 403 })
     }
 
     const hotelId = user.app_metadata?.hotel_id

@@ -3,6 +3,8 @@ import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import crypto from 'crypto'
 
+const ALLOWED_ROLES = ['owner', 'manager']
+
 /**
  * GET /api/owner/employees
  * List all employees (profiles) for the owner's hotel.
@@ -14,6 +16,11 @@ export async function GET() {
 
     if (!user) {
       return NextResponse.json({ error: 'Non authentifié' }, { status: 401 })
+    }
+
+    const role = user.app_metadata?.role
+    if (!ALLOWED_ROLES.includes(role)) {
+      return NextResponse.json({ error: 'Accès refusé. Seul le propriétaire ou le manager peut voir les employés.' }, { status: 403 })
     }
 
     const hotelId = user.app_metadata?.hotel_id
@@ -51,6 +58,11 @@ export async function POST(request: NextRequest) {
 
     if (!user) {
       return NextResponse.json({ error: 'Non authentifié' }, { status: 401 })
+    }
+
+    const role = user.app_metadata?.role
+    if (!ALLOWED_ROLES.includes(role)) {
+      return NextResponse.json({ error: 'Accès refusé. Seul le propriétaire ou le manager peut ajouter des employés.' }, { status: 403 })
     }
 
     const hotelId = user.app_metadata?.hotel_id
