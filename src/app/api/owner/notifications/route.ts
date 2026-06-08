@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 
 /**
@@ -7,60 +8,23 @@ import { createAdminClient } from '@/lib/supabase/admin'
  * Fetches all notifications for the authenticated user's hotel,
  * ordered by created_at DESC.
  */
-export async function GET(request: NextRequest) {
+export async function GET() {
   try {
-    // 1. Create admin client and verify Supabase is configured
-    const supabase = createAdminClient()
-    if (!supabase) {
-      return NextResponse.json(
-        { error: 'Supabase non configuré' },
-        { status: 503 }
-      )
-    }
-
-    // 2. Authenticate via Authorization header
-    const authHeader = request.headers.get('authorization')
-    if (!authHeader?.startsWith('Bearer ')) {
-      return NextResponse.json(
-        { error: 'Non authentifié' },
-        { status: 401 }
-      )
-    }
-
-    const token = authHeader.replace('Bearer ', '')
-    const { data: { user }, error: authError } = await supabase.auth.getUser(token)
+    const supabase = await createClient()
+    const { data: { user }, error: authError } = await supabase.auth.getUser()
 
     if (authError || !user) {
-      return NextResponse.json(
-        { error: 'Non authentifié' },
-        { status: 401 }
-      )
+      return NextResponse.json({ error: 'Non authentifié' }, { status: 401 })
     }
 
-    // 3. Get the user's profile to extract hotel_id
-    const { data: profile, error: profileError } = await supabase
-      .from('profiles')
-      .select('hotel_id')
-      .eq('id', user.id)
-      .single()
-
-    if (profileError || !profile) {
-      return NextResponse.json(
-        { error: 'Profil introuvable' },
-        { status: 404 }
-      )
-    }
-
-    const hotelId = profile.hotel_id
+    const hotelId = user.app_metadata?.hotel_id
     if (!hotelId) {
-      return NextResponse.json(
-        { error: 'Aucun hôtel associé à ce compte' },
-        { status: 404 }
-      )
+      return NextResponse.json({ error: 'Aucun hôtel associé' }, { status: 403 })
     }
 
-    // 4. Fetch notifications for the hotel, newest first
-    const { data: notifications, error: fetchError } = await supabase
+    const adminClient = createAdminClient()
+
+    const { data: notifications, error: fetchError } = await adminClient
       .from('notifications')
       .select('*')
       .eq('hotel_id', hotelId)
@@ -77,10 +41,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ notifications: notifications ?? [] })
   } catch (error) {
     console.error('Owner notifications GET error:', error)
-    return NextResponse.json(
-      { error: 'Erreur serveur' },
-      { status: 500 }
-    )
+    return NextResponse.json({ error: 'Erreur serveur' }, { status: 500 })
   }
 }
 
@@ -94,63 +55,24 @@ export async function GET(request: NextRequest) {
  */
 export async function PATCH(request: NextRequest) {
   try {
-    // 1. Create admin client and verify Supabase is configured
-    const supabase = createAdminClient()
-    if (!supabase) {
-      return NextResponse.json(
-        { error: 'Supabase non configuré' },
-        { status: 503 }
-      )
-    }
-
-    // 2. Authenticate via Authorization header
-    const authHeader = request.headers.get('authorization')
-    if (!authHeader?.startsWith('Bearer ')) {
-      return NextResponse.json(
-        { error: 'Non authentifié' },
-        { status: 401 }
-      )
-    }
-
-    const token = authHeader.replace('Bearer ', '')
-    const { data: { user }, error: authError } = await supabase.auth.getUser(token)
+    const supabase = await createClient()
+    const { data: { user }, error: authError } = await supabase.auth.getUser()
 
     if (authError || !user) {
-      return NextResponse.json(
-        { error: 'Non authentifié' },
-        { status: 401 }
-      )
+      return NextResponse.json({ error: 'Non authentifié' }, { status: 401 })
     }
 
-    // 3. Get the user's profile to extract hotel_id
-    const { data: profile, error: profileError } = await supabase
-      .from('profiles')
-      .select('hotel_id')
-      .eq('id', user.id)
-      .single()
-
-    if (profileError || !profile) {
-      return NextResponse.json(
-        { error: 'Profil introuvable' },
-        { status: 404 }
-      )
-    }
-
-    const hotelId = profile.hotel_id
+    const hotelId = user.app_metadata?.hotel_id
     if (!hotelId) {
-      return NextResponse.json(
-        { error: 'Aucun hôtel associé à ce compte' },
-        { status: 404 }
-      )
+      return NextResponse.json({ error: 'Aucun hôtel associé' }, { status: 403 })
     }
 
-    // 4. Parse request body
     const body = await request.json()
     const { id, markAll } = body
+    const adminClient = createAdminClient()
 
     if (markAll) {
-      // Mark all notifications for the hotel as read
-      const { error: updateError } = await supabase
+      const { error: updateError } = await adminClient
         .from('notifications')
         .update({ is_read: true })
         .eq('hotel_id', hotelId)
@@ -164,9 +86,7 @@ export async function PATCH(request: NextRequest) {
         )
       }
     } else if (id) {
-      // Mark a specific notification as read
-      // Verify the notification belongs to this hotel
-      const { error: updateError } = await supabase
+      const { error: updateError } = await adminClient
         .from('notifications')
         .update({ is_read: true })
         .eq('id', id)
@@ -189,9 +109,6 @@ export async function PATCH(request: NextRequest) {
     return NextResponse.json({ success: true })
   } catch (error) {
     console.error('Owner notifications PATCH error:', error)
-    return NextResponse.json(
-      { error: 'Erreur serveur' },
-      { status: 500 }
-    )
+    return NextResponse.json({ error: 'Erreur serveur' }, { status: 500 })
   }
 }

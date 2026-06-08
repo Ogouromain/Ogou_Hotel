@@ -286,20 +286,30 @@ export function NotificationPanel({ onRefresh, planName }: NotificationPanelProp
     try {
       const res = await fetch('/api/owner/notifications/send-sms', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('sb-access-token') || ''}`,
+        },
         body: JSON.stringify({
-          phone: `+225${smsPhone.replace(/\s/g, '')}`,
+          to: `+225${smsPhone.replace(/\s/g, '')}`,
           message: smsMessage,
           channel: whatsappEnabled ? 'whatsapp' : 'sms',
         }),
       })
 
       if (res.ok) {
-        toast.success(
-          whatsappEnabled
-            ? 'WhatsApp envoyé avec succès'
-            : 'SMS envoyé avec succès'
-        )
+        const data = await res.json()
+
+        // If WhatsApp, open the deep link so the user can send the message
+        if (whatsappEnabled && data.whatsapp_link) {
+          window.open(data.whatsapp_link, '_blank')
+          toast.success('WhatsApp ouvert — envoyez le message dans l\'application')
+        } else {
+          toast.success('SMS enregistré avec succès')
+        }
+
+        // Refresh notifications to show the new record
+        fetchNotifications()
         setSmsPhone('')
         setSmsMessage('')
       } else {
@@ -311,7 +321,7 @@ export function NotificationPanel({ onRefresh, planName }: NotificationPanelProp
     } finally {
       setSending(false)
     }
-  }, [smsPhone, smsMessage, whatsappEnabled])
+  }, [smsPhone, smsMessage, whatsappEnabled, fetchNotifications])
 
   // ── Template selection ─────────────────────────────────────────────────
   const handleSelectTemplate = useCallback((template: typeof SMS_TEMPLATES[number]) => {
@@ -579,7 +589,7 @@ export function NotificationPanel({ onRefresh, planName }: NotificationPanelProp
                   L&apos;envoi de SMS et WhatsApp est disponible à partir du plan Standard. Contactez-nous pour mettre à niveau votre abonnement.
                 </p>
                 <a
-                  href="https://wa.me/2250576103277?text=Bonjour%2C%20je%20souhaite%20mettre%20%C3%A0%20niveau%20mon%20abonnement%20H%C3%B4telCI"
+                  href="https://wa.me/2250576103277?text=Bonjour%2C%20je%20souhaite%20mettre%20%C3%A0%20niveau%20mon%20abonnement%20OGOU_H%C3%B4tel"
                   target="_blank"
                   rel="noopener noreferrer"
                   className="inline-flex items-center gap-1 mt-2 text-xs font-medium text-amber-700 hover:text-amber-900 underline underline-offset-2"
