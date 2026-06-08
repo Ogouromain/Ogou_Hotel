@@ -736,6 +736,8 @@ function ReceptionistView({ profile, onLogout }: StaffDashboardProps) {
   const [loading, setLoading] = useState(true)
   const [actionLoading, setActionLoading] = useState<string | null>(null)
   const [sidebarOpen, setSidebarOpen] = useState(false)
+  const [roomStatusFilter, setRoomStatusFilter] = useState<string>('all')
+  const [roomActionLoading, setRoomActionLoading] = useState<string | null>(null)
 
   const fetchAllData = useCallback(async () => {
     setLoading(true)
@@ -765,20 +767,16 @@ function ReceptionistView({ profile, onLogout }: StaffDashboardProps) {
     fetchAllData()
   }, [fetchAllData])
 
-  const handleCheckIn = async (reservationId: string, roomId: string) => {
+  const handleCheckIn = async (reservationId: string, _roomId: string) => {
     setActionLoading(reservationId)
     try {
+      // The reservation API already updates room status to 'occupied' internally
       const res = await fetch(`/api/owner/reservations/${reservationId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action: 'check_in' }),
       })
       if (res.ok) {
-        await fetch(`/api/owner/reservations/room-status/${roomId}`, {
-          method: 'PATCH',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ status: 'occupied' }),
-        })
         toast.success('Check-in effectué avec succès')
         fetchAllData()
       } else {
@@ -792,20 +790,16 @@ function ReceptionistView({ profile, onLogout }: StaffDashboardProps) {
     }
   }
 
-  const handleCheckOut = async (reservationId: string, roomId: string) => {
+  const handleCheckOut = async (reservationId: string, _roomId: string) => {
     setActionLoading(reservationId)
     try {
+      // The reservation API already updates room status to 'cleaning' internally
       const res = await fetch(`/api/owner/reservations/${reservationId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action: 'check_out' }),
       })
       if (res.ok) {
-        await fetch(`/api/owner/reservations/room-status/${roomId}`, {
-          method: 'PATCH',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ status: 'cleaning' }),
-        })
         toast.success('Check-out effectué — Ménage requis')
         fetchAllData()
       } else {
@@ -816,6 +810,34 @@ function ReceptionistView({ profile, onLogout }: StaffDashboardProps) {
       toast.error('Erreur de connexion')
     } finally {
       setActionLoading(null)
+    }
+  }
+
+  // Handle room status change (e.g., cleaning → available, available → maintenance)
+  const handleRoomStatusChange = async (roomId: string, newStatus: string) => {
+    setRoomActionLoading(roomId)
+    try {
+      const res = await fetch(`/api/owner/reservations/room-status/${roomId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: newStatus }),
+      })
+      if (res.ok) {
+        const statusLabels: Record<string, string> = {
+          available: 'Disponible',
+          cleaning: 'Nettoyage',
+          maintenance: 'Maintenance',
+        }
+        toast.success(`Statut changé en "${statusLabels[newStatus] || newStatus}"`)
+        fetchAllData()
+      } else {
+        const data = await res.json()
+        toast.error(data.error || 'Erreur lors du changement de statut')
+      }
+    } catch {
+      toast.error('Erreur de connexion')
+    } finally {
+      setRoomActionLoading(null)
     }
   }
 
@@ -1284,59 +1306,158 @@ function ReceptionistView({ profile, onLogout }: StaffDashboardProps) {
                 </Button>
               </div>
 
-              {/* Room Status Summary */}
-              <div className="flex flex-wrap gap-3">
-                <div className="flex items-center gap-1.5 rounded-full bg-emerald-100 px-3 py-1.5 text-xs font-medium text-emerald-800 whitespace-nowrap">
+              {/* Room Status Summary — clickable filter pills */}
+              <div className="flex flex-wrap gap-2">
+                <button
+                  onClick={() => setRoomStatusFilter('all')}
+                  className={`flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium whitespace-nowrap transition-all ${
+                    roomStatusFilter === 'all'
+                      ? 'bg-gray-800 text-white shadow-sm'
+                      : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                  }`}
+                >
+                  <Bed className="h-3.5 w-3.5" />
+                  Toutes ({rooms.length})
+                </button>
+                <button
+                  onClick={() => setRoomStatusFilter('available')}
+                  className={`flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium whitespace-nowrap transition-all ${
+                    roomStatusFilter === 'available'
+                      ? 'bg-emerald-600 text-white shadow-sm'
+                      : 'bg-emerald-100 text-emerald-800 hover:bg-emerald-200'
+                  }`}
+                >
                   <CheckCircle2 className="h-3.5 w-3.5" />
                   {roomStats.available} disponibles
-                </div>
-                <div className="flex items-center gap-1.5 rounded-full bg-sky-100 px-3 py-1.5 text-xs font-medium text-sky-800 whitespace-nowrap">
+                </button>
+                <button
+                  onClick={() => setRoomStatusFilter('occupied')}
+                  className={`flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium whitespace-nowrap transition-all ${
+                    roomStatusFilter === 'occupied'
+                      ? 'bg-sky-600 text-white shadow-sm'
+                      : 'bg-sky-100 text-sky-800 hover:bg-sky-200'
+                  }`}
+                >
                   <Bed className="h-3.5 w-3.5" />
                   {roomStats.occupied} occupées
-                </div>
-                <div className="flex items-center gap-1.5 rounded-full bg-amber-100 px-3 py-1.5 text-xs font-medium text-amber-800 whitespace-nowrap">
+                </button>
+                <button
+                  onClick={() => setRoomStatusFilter('cleaning')}
+                  className={`flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium whitespace-nowrap transition-all ${
+                    roomStatusFilter === 'cleaning'
+                      ? 'bg-amber-600 text-white shadow-sm'
+                      : 'bg-amber-100 text-amber-800 hover:bg-amber-200'
+                  }`}
+                >
                   <SprayCan className="h-3.5 w-3.5" />
                   {roomStats.cleaning} nettoyage
-                </div>
-                <div className="flex items-center gap-1.5 rounded-full bg-red-100 px-3 py-1.5 text-xs font-medium text-red-800 whitespace-nowrap">
+                </button>
+                <button
+                  onClick={() => setRoomStatusFilter('maintenance')}
+                  className={`flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium whitespace-nowrap transition-all ${
+                    roomStatusFilter === 'maintenance'
+                      ? 'bg-red-600 text-white shadow-sm'
+                      : 'bg-red-100 text-red-800 hover:bg-red-200'
+                  }`}
+                >
                   <Wrench className="h-3.5 w-3.5" />
                   {roomStats.maintenance} maintenance
-                </div>
+                </button>
               </div>
 
               {loading ? (
                 <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
                   {Array.from({ length: 8 }).map((_, i) => (
-                    <Card key={i}><CardContent className="p-4"><Skeleton className="h-24 w-full" /></CardContent></Card>
+                    <Card key={i}><CardContent className="p-4"><Skeleton className="h-32 w-full" /></CardContent></Card>
                   ))}
                 </div>
-              ) : rooms.length === 0 ? (
+              ) : rooms.filter(r => roomStatusFilter === 'all' || r.status === roomStatusFilter).length === 0 ? (
                 <div className="flex flex-col items-center justify-center py-16 text-center">
                   <div className="flex h-16 w-16 items-center justify-center rounded-full bg-amber-100 text-amber-500 mb-4">
                     <Bed className="h-8 w-8" />
                   </div>
-                  <h3 className="text-lg font-semibold text-gray-800">Aucune chambre</h3>
-                  <p className="text-sm text-muted-foreground mt-1">Les chambres seront ajoutées par le propriétaire</p>
+                  <h3 className="text-lg font-semibold text-gray-800">
+                    {roomStatusFilter === 'all' ? 'Aucune chambre' : 'Aucune chambre dans ce statut'}
+                  </h3>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    {roomStatusFilter === 'all' ? 'Les chambres seront ajoutées par le propriétaire' : 'Modifiez le filtre pour voir d\'autres chambres'}
+                  </p>
                 </div>
               ) : (
                 <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
-                  {rooms.map((room) => (
-                    <Card key={room.id} className={`border-2 transition-shadow ${
-                      room.status === 'available' ? 'border-emerald-200 bg-emerald-50/30' :
-                      room.status === 'occupied' ? 'border-sky-200 bg-sky-50/30' :
-                      room.status === 'cleaning' ? 'border-amber-200 bg-amber-50/30' :
-                      'border-red-200 bg-red-50/30'
-                    }`}>
-                      <CardContent className="p-4">
-                        <div className="flex items-center justify-between mb-2">
-                          <span className="text-xl font-bold text-gray-900">{room.room_number}</span>
-                          {getRoomStatusBadge(room.status)}
-                        </div>
-                        <p className="text-sm text-muted-foreground">{room.room_type}</p>
-                        <p className="text-sm font-medium text-amber-800 mt-1">{formatFCFA(room.price_per_night)}/nuit</p>
-                      </CardContent>
-                    </Card>
-                  ))}
+                  {rooms
+                    .filter(r => roomStatusFilter === 'all' || r.status === roomStatusFilter)
+                    .map((room) => {
+                      const isActionLoading = roomActionLoading === room.id
+                      // Determine available status transitions for this room
+                      const statusActions: { status: string; label: string; icon: React.ReactNode; colorClass: string }[] = []
+                      if (room.status === 'available') {
+                        statusActions.push(
+                          { status: 'cleaning', label: 'Mettre en nettoyage', icon: <SprayCan className="h-3.5 w-3.5" />, colorClass: 'bg-amber-100 text-amber-700 hover:bg-amber-200 border-amber-200' },
+                          { status: 'maintenance', label: 'Mettre en maintenance', icon: <Wrench className="h-3.5 w-3.5" />, colorClass: 'bg-red-100 text-red-700 hover:bg-red-200 border-red-200' },
+                        )
+                      } else if (room.status === 'cleaning') {
+                        statusActions.push(
+                          { status: 'available', label: 'Marquer disponible', icon: <CheckCircle2 className="h-3.5 w-3.5" />, colorClass: 'bg-emerald-100 text-emerald-700 hover:bg-emerald-200 border-emerald-200' },
+                          { status: 'maintenance', label: 'Mettre en maintenance', icon: <Wrench className="h-3.5 w-3.5" />, colorClass: 'bg-red-100 text-red-700 hover:bg-red-200 border-red-200' },
+                        )
+                      } else if (room.status === 'maintenance') {
+                        statusActions.push(
+                          { status: 'available', label: 'Marquer disponible', icon: <CheckCircle2 className="h-3.5 w-3.5" />, colorClass: 'bg-emerald-100 text-emerald-700 hover:bg-emerald-200 border-emerald-200' },
+                          { status: 'cleaning', label: 'Mettre en nettoyage', icon: <SprayCan className="h-3.5 w-3.5" />, colorClass: 'bg-amber-100 text-amber-700 hover:bg-amber-200 border-amber-200' },
+                        )
+                      }
+                      // occupied rooms cannot be manually changed — must use check-out
+
+                      return (
+                        <Card key={room.id} className={`border-2 transition-all hover:shadow-md ${
+                          room.status === 'available' ? 'border-emerald-200 bg-emerald-50/30' :
+                          room.status === 'occupied' ? 'border-sky-200 bg-sky-50/30' :
+                          room.status === 'cleaning' ? 'border-amber-200 bg-amber-50/30' :
+                          'border-red-200 bg-red-50/30'
+                        }`}>
+                          <CardContent className="p-4">
+                            <div className="flex items-center justify-between mb-2">
+                              <span className="text-xl font-bold text-gray-900">{room.room_number}</span>
+                              {getRoomStatusBadge(room.status)}
+                            </div>
+                            <p className="text-sm text-muted-foreground">{room.room_type}</p>
+                            <p className="text-sm font-medium text-amber-800 mt-1">{formatFCFA(room.price_per_night)}/nuit</p>
+                            {/* Status change actions */}
+                            {statusActions.length > 0 && (
+                              <div className="flex flex-wrap gap-1.5 mt-3 pt-3 border-t border-gray-100">
+                                {statusActions.map((action) => (
+                                  <button
+                                    key={action.status}
+                                    onClick={() => handleRoomStatusChange(room.id, action.status)}
+                                    disabled={isActionLoading}
+                                    title={action.label}
+                                    className={`flex items-center gap-1 rounded-md border px-2 py-1 text-[10px] font-medium transition-colors disabled:opacity-50 ${action.colorClass}`}
+                                  >
+                                    {isActionLoading ? (
+                                      <Loader2 className="h-3 w-3 animate-spin" />
+                                    ) : (
+                                      action.icon
+                                    )}
+                                    {action.status === 'available' ? 'Disponible' :
+                                     action.status === 'cleaning' ? 'Nettoyage' :
+                                     'Maintenance'}
+                                  </button>
+                                ))}
+                              </div>
+                            )}
+                            {room.status === 'occupied' && (
+                              <div className="flex items-center gap-1.5 mt-3 pt-3 border-t border-gray-100">
+                                <span className="text-[10px] text-sky-600 font-medium flex items-center gap-1">
+                                  <Bed className="h-3 w-3" />
+                                  Chambre occupée — check-out requis
+                                </span>
+                              </div>
+                            )}
+                          </CardContent>
+                        </Card>
+                      )
+                    })}
                 </div>
               )}
             </div>

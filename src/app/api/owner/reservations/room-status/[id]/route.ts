@@ -6,9 +6,12 @@ import { logAudit } from '@/lib/audit'
 const ALLOWED_ROLES = ['owner', 'manager', 'receptionist']
 
 // Valid room status transitions for quick status updates
+// Receptionist can mark rooms as available after cleaning, or set cleaning/maintenance
 const VALID_TRANSITIONS: Record<string, string[]> = {
-  cleaning: ['available'],
-  maintenance: ['available'],
+  available: ['cleaning', 'maintenance'],
+  cleaning: ['available', 'maintenance'],
+  maintenance: ['available', 'cleaning'],
+  occupied: [], // Occupied rooms can only be changed via check-out
 }
 
 /**
@@ -64,9 +67,9 @@ export async function PATCH(
 
     // ─── Validate transition ───────────────────────────────────
     const allowedNewStatuses = VALID_TRANSITIONS[currentStatus]
-    if (!allowedNewStatuses) {
+    if (!allowedNewStatuses || allowedNewStatuses.length === 0) {
       return NextResponse.json(
-        { error: `Aucune transition autorisée depuis le statut "${currentStatus}". Les transitions valides sont : nettoyage → disponible, maintenance → disponible` },
+        { error: `Aucune transition autorisée depuis le statut "${currentStatus}". Les chambres occupées ne peuvent être modifiées que via un check-out.` },
         { status: 400 }
       )
     }

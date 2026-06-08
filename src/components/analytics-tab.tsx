@@ -255,7 +255,7 @@ export function AnalyticsTab({ onRefresh }: AnalyticsTabProps) {
   const prevChangeCountRef = useRef(0)
 
   // ─── Fetch analytics data ─────────────────────────────────────────────
-  const fetchAnalytics = useCallback(async () => {
+  const fetchAnalytics = useCallback(async (retryCount = 0) => {
     setLoading(true)
     setError(null)
     try {
@@ -283,6 +283,11 @@ export function AnalyticsTab({ onRefresh }: AnalyticsTabProps) {
           // Generate placeholder monthly data for the chart
           setMonthlyData(generatePlaceholderMonthlyData())
         }
+      } else if (res.status === 401 && retryCount < 2) {
+        // Session may have expired — wait briefly and retry
+        // The middleware should refresh the session cookie
+        await new Promise(resolve => setTimeout(resolve, 1500))
+        return fetchAnalytics(retryCount + 1)
       } else {
         const errData = await res.json().catch(() => ({}))
         setError(errData.error || 'Erreur lors du chargement des analyses')
@@ -366,6 +371,7 @@ export function AnalyticsTab({ onRefresh }: AnalyticsTabProps) {
 
   // ─── Error state ──────────────────────────────────────────────────────
   if (error && !data) {
+    const isAuthError = error.includes('authentifié') || error.includes('authentifié')
     return (
       <div className="space-y-6">
         <div className="flex items-center justify-between">
@@ -379,8 +385,22 @@ export function AnalyticsTab({ onRefresh }: AnalyticsTabProps) {
         </div>
         <Alert variant="destructive">
           <AlertTriangle className="h-4 w-4" />
-          <AlertDescription>{error}</AlertDescription>
+          <AlertDescription>
+            {isAuthError
+              ? 'Session expirée. Veuillez recharger la page ou vous reconnecter pour accéder aux analyses.'
+              : error}
+          </AlertDescription>
         </Alert>
+        {isAuthError && (
+          <Button
+            variant="outline"
+            onClick={() => window.location.reload()}
+            className="border-amber-200 text-amber-700 hover:bg-amber-50"
+          >
+            <RefreshCw className="h-4 w-4 mr-2" />
+            Recharger la page
+          </Button>
+        )}
       </div>
     )
   }

@@ -375,36 +375,43 @@ function CopyButton({ text }: { text: string }) {
 // ─── Limit Indicator ─────────────────────────────────────────────────────────
 
 function LimitIndicator({ current, max, label }: { current: number; max: number; label: string }) {
-  const percentage = max > 0 ? Math.min((current / max) * 100, 100) : 0
-  const isNearLimit = max > 0 && percentage >= 80
-  const isAtLimit = max > 0 && current >= max
+  const isUnlimited = max === 9999
+  const percentage = !isUnlimited && max > 0 ? Math.min((current / max) * 100, 100) : 0
+  const isNearLimit = !isUnlimited && max > 0 && percentage >= 80
+  const isAtLimit = !isUnlimited && max > 0 && current >= max
   const isNotAvailable = max === 0
 
   return (
     <div className="space-y-1.5">
       <div className="flex items-center justify-between text-sm">
         <span className="text-muted-foreground">{label}</span>
-        <span className={`font-medium ${isNotAvailable ? 'text-gray-400' : isAtLimit ? 'text-red-600' : isNearLimit ? 'text-amber-600' : 'text-emerald-600'}`}>
-          {current} / {max === 9999 ? '∞' : max}
+        <span className={`font-medium ${isNotAvailable ? 'text-gray-400' : isAtLimit ? 'text-red-600' : isNearLimit ? 'text-amber-600' : isUnlimited ? 'text-emerald-600' : 'text-emerald-600'}`}>
+          {isUnlimited ? `${current} / Illimité` : isNotAvailable ? `${current} / 0` : `${current} / ${max}`}
         </span>
       </div>
       <Progress
-        value={max === 9999 || max === 0 ? 0 : percentage}
-        className={`h-2 ${isNotAvailable ? '[&>div]:bg-gray-300' : isAtLimit ? '[&>div]:bg-red-500' : isNearLimit ? '[&>div]:bg-amber-500' : '[&>div]:bg-emerald-500'}`}
+        value={isUnlimited || isNotAvailable ? 0 : percentage}
+        className={`h-2 ${isUnlimited ? '[&>div]:bg-emerald-500' : isNotAvailable ? '[&>div]:bg-gray-300' : isAtLimit ? '[&>div]:bg-red-500' : isNearLimit ? '[&>div]:bg-amber-500' : '[&>div]:bg-emerald-500'}`}
       />
-      {isNotAvailable && (
+      {isUnlimited && (
+        <p className="text-xs text-emerald-600 flex items-center gap-1">
+          <CheckCircle2 className="h-3 w-3" />
+          Capacité illimitée sur ce plan
+        </p>
+      )}
+      {isNotAvailable && !isUnlimited && (
         <p className="text-xs text-gray-500 flex items-center gap-1">
           <AlertTriangle className="h-3 w-3" />
           Non disponible sur ce plan
         </p>
       )}
-      {isAtLimit && !isNotAvailable && (
+      {isAtLimit && !isNotAvailable && !isUnlimited && (
         <p className="text-xs text-red-600 flex items-center gap-1">
           <AlertTriangle className="h-3 w-3" />
           Limite atteinte — Mettez à niveau votre plan
         </p>
       )}
-      {isNearLimit && !isAtLimit && !isNotAvailable && (
+      {isNearLimit && !isAtLimit && !isNotAvailable && !isUnlimited && (
         <p className="text-xs text-amber-600 flex items-center gap-1">
           <AlertTriangle className="h-3 w-3" />
           Approche de la limite
@@ -1509,6 +1516,8 @@ function RoomsTab({
   const [editDialogOpen, setEditDialogOpen] = useState(false)
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [selectedRoom, setSelectedRoom] = useState<RoomInfo | null>(null)
+  const [roomStatusFilter, setRoomStatusFilter] = useState<string>('all')
+  const [quickStatusLoading, setQuickStatusLoading] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
 
   // Form state
@@ -1650,13 +1659,51 @@ function RoomsTab({
     }
   }
 
+  async function handleQuickStatusChange(roomId: string, newStatus: string) {
+    setQuickStatusLoading(roomId)
+    try {
+      const res = await fetch(`/api/owner/rooms/${roomId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: newStatus }),
+      })
+      if (res.ok) {
+        const statusLabels: Record<string, string> = {
+          available: 'Disponible',
+          occupied: 'Occupée',
+          cleaning: 'Nettoyage',
+          maintenance: 'Maintenance',
+        }
+        toast.success(`Statut changé en "${statusLabels[newStatus] || newStatus}"`)
+        fetchRooms()
+        onRefresh()
+      } else {
+        const data = await res.json()
+        toast.error(data.error || 'Erreur lors du changement de statut')
+      }
+    } catch {
+      toast.error('Erreur de connexion')
+    } finally {
+      setQuickStatusLoading(null)
+    }
+  }
+
+  const filteredRooms = roomStatusFilter === 'all' ? rooms : rooms.filter(r => r.status === roomStatusFilter)
+  const roomCounts = {
+    total: rooms.length,
+    available: rooms.filter(r => r.status === 'available').length,
+    occupied: rooms.filter(r => r.status === 'occupied').length,
+    cleaning: rooms.filter(r => r.status === 'cleaning').length,
+    maintenance: rooms.filter(r => r.status === 'maintenance').length,
+  }
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-2xl font-bold tracking-tight">🛏️ Gestion des Chambres</h2>
           <p className="text-muted-foreground">
-            {usage.rooms} chambre{usage.rooms !== 1 ? 's' : ''} sur {planInfo?.limits.max_rooms === 9999 ? '∞' : planInfo?.limits.max_rooms ?? '—'}
+            {usage.rooms} chambre{usage.rooms !== 1 ? 's' : ''} sur {planInfo?.limits.max_rooms === 9999 ? 'Illimité' : planInfo?.limits.max_rooms ?? '—'}
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -1695,6 +1742,65 @@ function RoomsTab({
         </Card>
       )}
 
+      {/* Room Status Filter */}
+      <div className="flex flex-wrap gap-2">
+        <button
+          onClick={() => setRoomStatusFilter('all')}
+          className={`flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium whitespace-nowrap transition-all ${
+            roomStatusFilter === 'all'
+              ? 'bg-gray-800 text-white shadow-sm'
+              : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+          }`}
+        >
+          <Bed className="h-3.5 w-3.5" />
+          Toutes ({roomCounts.total})
+        </button>
+        <button
+          onClick={() => setRoomStatusFilter('available')}
+          className={`flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium whitespace-nowrap transition-all ${
+            roomStatusFilter === 'available'
+              ? 'bg-emerald-600 text-white shadow-sm'
+              : 'bg-emerald-100 text-emerald-800 hover:bg-emerald-200'
+          }`}
+        >
+          <CheckCircle2 className="h-3.5 w-3.5" />
+          {roomCounts.available} Disponibles
+        </button>
+        <button
+          onClick={() => setRoomStatusFilter('occupied')}
+          className={`flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium whitespace-nowrap transition-all ${
+            roomStatusFilter === 'occupied'
+              ? 'bg-sky-600 text-white shadow-sm'
+              : 'bg-sky-100 text-sky-800 hover:bg-sky-200'
+          }`}
+        >
+          <Bed className="h-3.5 w-3.5" />
+          {roomCounts.occupied} Occupées
+        </button>
+        <button
+          onClick={() => setRoomStatusFilter('cleaning')}
+          className={`flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium whitespace-nowrap transition-all ${
+            roomStatusFilter === 'cleaning'
+              ? 'bg-amber-600 text-white shadow-sm'
+              : 'bg-amber-100 text-amber-800 hover:bg-amber-200'
+          }`}
+        >
+          <Sparkles className="h-3.5 w-3.5" />
+          {roomCounts.cleaning} Nettoyage
+        </button>
+        <button
+          onClick={() => setRoomStatusFilter('maintenance')}
+          className={`flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium whitespace-nowrap transition-all ${
+            roomStatusFilter === 'maintenance'
+              ? 'bg-red-600 text-white shadow-sm'
+              : 'bg-red-100 text-red-800 hover:bg-red-200'
+          }`}
+        >
+          <Wrench className="h-3.5 w-3.5" />
+          {roomCounts.maintenance} Maintenance
+        </button>
+      </div>
+
       {/* Rooms Table */}
       <Card>
         <CardContent className="p-0">
@@ -1721,6 +1827,14 @@ function RoomsTab({
                 </Button>
               )}
             </div>
+          ) : filteredRooms.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-12 text-center">
+              <div className="flex h-14 w-14 items-center justify-center rounded-full bg-gray-100 text-gray-400 mb-3">
+                <Bed className="h-7 w-7" />
+              </div>
+              <p className="text-muted-foreground">Aucune chambre dans ce statut</p>
+              <p className="text-xs text-muted-foreground mt-1">Modifiez le filtre pour voir d'autres chambres</p>
+            </div>
           ) : (
             <div className="max-h-[500px] overflow-y-auto [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-track]:bg-gray-100 [&::-webkit-scrollbar-thumb]:bg-gray-300 [&::-webkit-scrollbar-thumb]:rounded-full">
               <Table>
@@ -1730,16 +1844,49 @@ function RoomsTab({
                     <TableHead>Type</TableHead>
                     <TableHead className="hidden sm:table-cell">Prix/Nuit</TableHead>
                     <TableHead>Statut</TableHead>
+                    <TableHead className="hidden md:table-cell">Changer statut</TableHead>
                     <TableHead className="text-right">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {rooms.map((room) => (
-                    <TableRow key={room.id}>
+                  {filteredRooms.map((room) => (
+                    <TableRow key={room.id} className={
+                      room.status === 'available' ? 'bg-emerald-50/30' :
+                      room.status === 'occupied' ? 'bg-sky-50/30' :
+                      room.status === 'cleaning' ? 'bg-amber-50/30' :
+                      room.status === 'maintenance' ? 'bg-red-50/30' : ''
+                    }>
                       <TableCell className="font-mono font-semibold">{room.room_number}</TableCell>
                       <TableCell>{room.room_type}</TableCell>
                       <TableCell className="hidden sm:table-cell">{formatFCFA(room.price_per_night)}</TableCell>
                       <TableCell>{getRoomStatusBadge(room.status)}</TableCell>
+                      <TableCell className="hidden md:table-cell">
+                        <div className="flex items-center gap-1">
+                          {quickStatusLoading === room.id ? (
+                            <Loader2 className="h-3.5 w-3.5 animate-spin text-amber-500" />
+                          ) : (
+                            ROOM_STATUSES.filter(s => s.value !== room.status).map((s) => (
+                              <button
+                                key={s.value}
+                                onClick={() => handleQuickStatusChange(room.id, s.value)}
+                                title={`Passer en ${s.label}`}
+                                className={`inline-flex items-center gap-1 rounded border px-1.5 py-0.5 text-[10px] font-medium transition-colors ${
+                                  s.value === 'available' ? 'border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100' :
+                                  s.value === 'occupied' ? 'border-sky-200 bg-sky-50 text-sky-700 hover:bg-sky-100' :
+                                  s.value === 'cleaning' ? 'border-amber-200 bg-amber-50 text-amber-700 hover:bg-amber-100' :
+                                  'border-red-200 bg-red-50 text-red-700 hover:bg-red-100'
+                                }`}
+                              >
+                                {s.value === 'available' && <CheckCircle2 className="h-2.5 w-2.5" />}
+                                {s.value === 'occupied' && <Bed className="h-2.5 w-2.5" />}
+                                {s.value === 'cleaning' && <Sparkles className="h-2.5 w-2.5" />}
+                                {s.value === 'maintenance' && <Wrench className="h-2.5 w-2.5" />}
+                                {s.label}
+                              </button>
+                            ))
+                          )}
+                        </div>
+                      </TableCell>
                       <TableCell className="text-right">
                         <div className="flex items-center justify-end gap-1">
                           <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openEditDialog(room)}>
