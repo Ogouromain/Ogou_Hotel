@@ -23,6 +23,14 @@ import {
   FileDown,
   RotateCcw,
   Ban,
+  Hotel,
+  Building2,
+  MapPin,
+  Phone,
+  Mail,
+  Quote,
+  CalendarDays,
+  Link2,
 } from 'lucide-react'
 
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
@@ -863,13 +871,7 @@ export function InvoicesTab({ onRefresh }: InvoicesTabProps) {
         <Sheet open={detailOpen} onOpenChange={setDetailOpen}>
           <SheetContent className="w-full sm:max-w-2xl overflow-y-auto [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-track]:bg-gray-100 [&::-webkit-scrollbar-thumb]:bg-gray-300 [&::-webkit-scrollbar-thumb]:rounded-full">
             <SheetHeader className="pb-4">
-              <SheetTitle className="flex items-center gap-2">
-                <Receipt className="h-5 w-5 text-amber-600" />
-                Détail de la facture
-              </SheetTitle>
-              <SheetDescription>
-                Visualisation, impression et export de la facture
-              </SheetDescription>
+              <SheetTitle>Facture N° {selectedInvoice?.invoice_number || ''}</SheetTitle>
             </SheetHeader>
 
             {detailLoading ? (
@@ -879,162 +881,241 @@ export function InvoicesTab({ onRefresh }: InvoicesTabProps) {
                 <Skeleton className="h-40 w-full" />
               </div>
             ) : selectedInvoice ? (
-              <div className="space-y-6 pb-8">
-                {/* Invoice Header */}
-                <div className="flex items-start justify-between">
-                  <div>
-                    <p className="text-xl font-bold text-amber-700">{selectedInvoice.invoice_number}</p>
-                    <p className="text-sm text-muted-foreground">{formatDateFR(selectedInvoice.created_at)}</p>
-                  </div>
-                  {getStatusBadge(selectedInvoice.status)}
-                </div>
+              <div className="space-y-5 pb-8">
+                {/* ── Professional Invoice Paper ────────────────────────── */}
+                <div className="bg-white rounded-xl shadow-lg border border-gray-200/80 p-6 sm:p-8 relative overflow-hidden">
 
-                <Separator />
-
-                {/* Customer & Payment Info */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div className="space-y-1">
-                    <p className="text-xs font-medium text-amber-700 uppercase tracking-wide">Client</p>
-                    {selectedInvoice.customers ? (
-                      <>
-                        <p className="font-medium">{(selectedInvoice.customers as Record<string, unknown>).first_name} {(selectedInvoice.customers as Record<string, unknown>).last_name}</p>
-                        <p className="text-sm text-muted-foreground">{(selectedInvoice.customers as Record<string, unknown>).phone || ''}</p>
-                      </>
-                    ) : (
-                      <p className="text-muted-foreground">N/A</p>
-                    )}
-                  </div>
-                  <div className="space-y-1">
-                    <p className="text-xs font-medium text-amber-700 uppercase tracking-wide">Paiement</p>
-                    <div className="flex items-center gap-2">
-                      {getPaymentMethodBadge(selectedInvoice.payment_method)}
-                      <span className="text-sm">{getPaymentMethodLabel(selectedInvoice.payment_method)}</span>
+                  {/* ── Status Watermark ─────────────────────────────── */}
+                  {(selectedInvoice.status === 'cancelled' || selectedInvoice.status === 'refund') && (
+                    <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-10 pointer-events-none select-none">
+                      <span
+                        className={`text-5xl sm:text-7xl font-black uppercase tracking-widest opacity-20 ${
+                          selectedInvoice.status === 'cancelled' ? 'text-red-500' : 'text-orange-500'
+                        }`}
+                        style={{ transform: 'rotate(-12deg)', display: 'inline-block' }}
+                      >
+                        {selectedInvoice.status === 'cancelled' ? 'Annulée' : 'Remboursée'}
+                      </span>
                     </div>
-                    {selectedInvoice.reservation_id && (
-                      <p className="text-xs text-muted-foreground mt-1">Liée à une réservation</p>
-                    )}
+                  )}
+
+                  {/* ── Invoice Header ───────────────────────────────── */}
+                  <div className="flex items-start justify-between gap-4">
+                    {/* Left: Branding */}
+                    <div className="flex items-start gap-3">
+                      <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-amber-500 to-orange-600 shadow-md shadow-amber-500/20">
+                        <Hotel className="h-6 w-6 text-white" />
+                      </div>
+                      <div>
+                        <h3 className="text-xl font-bold text-gray-900 tracking-tight">OGOU_Hôtel</h3>
+                        <p className="text-xs text-amber-700 font-medium">Hôtellerie &amp; Restauration</p>
+                      </div>
+                    </div>
+                    {/* Right: FACTURE label + info */}
+                    <div className="text-right space-y-1.5">
+                      <p className="text-2xl font-extrabold tracking-wider text-gray-800 uppercase">Facture</p>
+                      <p className="text-sm font-semibold text-gray-600">{selectedInvoice.invoice_number}</p>
+                      <p className="text-xs text-muted-foreground">{formatDateFR(selectedInvoice.created_at)}</p>
+                      <div>{getStatusBadge(selectedInvoice.status)}</div>
+                    </div>
                   </div>
-                </div>
 
-                <Separator />
+                  {/* Amber gradient separator */}
+                  <div className="mt-5 h-[3px] rounded-full bg-gradient-to-r from-amber-400 via-orange-500 to-amber-400" />
 
-                {/* Line Items */}
-                <div>
-                  <p className="text-xs font-medium text-amber-700 uppercase tracking-wide mb-3">Articles</p>
-                  <div className="rounded-lg border overflow-hidden">
-                    <Table>
-                      <TableHeader>
-                        <TableRow className="bg-amber-50/50">
-                          <TableHead className="text-xs">Description</TableHead>
-                          <TableHead className="text-xs text-center w-16">Qté</TableHead>
-                          <TableHead className="text-xs text-right w-28">P.U.</TableHead>
-                          <TableHead className="text-xs text-right w-28">Total</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {(selectedInvoice.invoice_items || []).map((item) => (
-                          <TableRow key={item.id}>
-                            <TableCell className="text-sm">{item.description}</TableCell>
-                            <TableCell className="text-sm text-center">{item.quantity}</TableCell>
-                            <TableCell className="text-sm text-right">{formatFCFA(item.unit_price)}</TableCell>
-                            <TableCell className="text-sm text-right font-medium">{formatFCFA(item.total)}</TableCell>
+                  {/* ── Client & Payment Section ─────────────────────── */}
+                  <div className="mt-6 grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    {/* Client card */}
+                    <div className="rounded-lg border border-gray-200/80 bg-gray-50/50 p-4 space-y-2.5">
+                      <p className="text-[11px] font-bold text-amber-700 uppercase tracking-widest">Facturé à</p>
+                      {selectedInvoice.customers ? (
+                        <div className="space-y-1.5">
+                          <p className="font-semibold text-gray-900">
+                            {(selectedInvoice.customers as Record<string, unknown>).first_name} {(selectedInvoice.customers as Record<string, unknown>).last_name}
+                          </p>
+                          {(selectedInvoice.customers as Record<string, unknown>).phone && (
+                            <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
+                              <Phone className="h-3.5 w-3.5 shrink-0" />
+                              <span>{String((selectedInvoice.customers as Record<string, unknown>).phone)}</span>
+                            </div>
+                          )}
+                          {(selectedInvoice.customers as Record<string, unknown>).email && (
+                            <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
+                              <Mail className="h-3.5 w-3.5 shrink-0" />
+                              <span>{String((selectedInvoice.customers as Record<string, unknown>).email)}</span>
+                            </div>
+                          )}
+                        </div>
+                      ) : (
+                        <p className="text-sm text-muted-foreground">Client non renseigné</p>
+                      )}
+                    </div>
+
+                    {/* Payment card */}
+                    <div className="rounded-lg border border-gray-200/80 bg-gray-50/50 p-4 space-y-2.5">
+                      <p className="text-[11px] font-bold text-amber-700 uppercase tracking-widest">Paiement</p>
+                      <div className="flex items-center gap-2">
+                        {getPaymentMethodBadge(selectedInvoice.payment_method)}
+                        <span className="text-sm font-medium text-gray-700">{getPaymentMethodLabel(selectedInvoice.payment_method)}</span>
+                      </div>
+                      {selectedInvoice.reservation_id && (
+                        <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                          <Link2 className="h-3.5 w-3.5 shrink-0" />
+                          <span>Liée à une réservation</span>
+                        </div>
+                      )}
+                      <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                        <CalendarDays className="h-3.5 w-3.5 shrink-0" />
+                        <span>Émise le {formatDateFR(selectedInvoice.created_at)}</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* ── Line Items Table ────────────────────────────── */}
+                  <div className="mt-6">
+                    <div className="rounded-lg border border-gray-200/80 overflow-hidden">
+                      <Table>
+                        <TableHeader>
+                          <TableRow className="bg-amber-50 hover:bg-amber-50">
+                            <TableHead className="text-[11px] font-bold uppercase tracking-wider text-amber-800">Description</TableHead>
+                            <TableHead className="text-[11px] font-bold uppercase tracking-wider text-amber-800 text-center w-14">Qté</TableHead>
+                            <TableHead className="text-[11px] font-bold uppercase tracking-wider text-amber-800 text-right w-28">Prix Unit.</TableHead>
+                            <TableHead className="text-[11px] font-bold uppercase tracking-wider text-amber-800 text-right w-28">Total</TableHead>
                           </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
+                        </TableHeader>
+                        <TableBody>
+                          {(selectedInvoice.invoice_items || []).map((item, idx) => (
+                            <TableRow
+                              key={item.id}
+                              className={idx % 2 === 1 ? 'bg-gray-50/50 hover:bg-gray-50/50' : ''}
+                            >
+                              <TableCell className="text-sm text-gray-800">{item.description}</TableCell>
+                              <TableCell className="text-sm text-center text-gray-600">{item.quantity}</TableCell>
+                              <TableCell className="text-sm text-right text-gray-600">{formatFCFA(item.unit_price)}</TableCell>
+                              <TableCell className="text-sm text-right font-semibold text-gray-900">{formatFCFA(item.total)}</TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </div>
+                  </div>
+
+                  {/* ── Totals Section ──────────────────────────────── */}
+                  <div className="mt-6 flex justify-end">
+                    <div className="w-full sm:w-72 space-y-2">
+                      <div className="flex justify-between text-sm">
+                        <span className="text-muted-foreground">Sous-total HT</span>
+                        <span className="text-gray-700">{formatFCFA(selectedInvoice.subtotal)}</span>
+                      </div>
+                      {Number(selectedInvoice.tourist_tax) > 0 && (
+                        <div className="flex justify-between text-sm">
+                          <span className="text-muted-foreground">Taxe de séjour</span>
+                          <span className="text-gray-700">{formatFCFA(selectedInvoice.tourist_tax)}</span>
+                        </div>
+                      )}
+                      {Number(selectedInvoice.vat) > 0 && (
+                        <div className="flex justify-between text-sm">
+                          <span className="text-muted-foreground">TVA 18%</span>
+                          <span className="text-gray-700">{formatFCFA(selectedInvoice.vat)}</span>
+                        </div>
+                      )}
+                      <div className="h-[3px] bg-gray-300 rounded-full my-1" />
+                      <div className="flex justify-between items-center rounded-lg bg-amber-50 px-4 py-3">
+                        <span className="text-base font-bold text-amber-700">Total TTC</span>
+                        <span className="text-xl font-extrabold text-amber-700">{formatFCFA(selectedInvoice.total_amount)}</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* ── Notes Section ───────────────────────────────── */}
+                  {selectedInvoice.notes && (
+                    <div className="mt-6 rounded-lg border border-amber-100 bg-amber-50/30 p-4 flex gap-3">
+                      <Quote className="h-5 w-5 shrink-0 text-amber-400 mt-0.5" />
+                      <div>
+                        <p className="text-[11px] font-bold text-amber-700 uppercase tracking-widest mb-1">Notes</p>
+                        <p className="text-sm italic text-gray-600 leading-relaxed">{selectedInvoice.notes}</p>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* ── Footer ─────────────────────────────────────── */}
+                  <div className="mt-8">
+                    <div className="h-px bg-gray-200" />
+                    <div className="mt-4 text-center space-y-1.5">
+                      <div className="flex items-center justify-center gap-1.5 text-sm font-semibold text-gray-700">
+                        <Building2 className="h-3.5 w-3.5 text-amber-600" />
+                        <span>OGOU_Hôtel</span>
+                        <span className="text-gray-300 mx-1">—</span>
+                        <MapPin className="h-3.5 w-3.5 text-amber-600" />
+                        <span>Abidjan, Côte d&apos;Ivoire</span>
+                      </div>
+                      <p className="text-[11px] text-gray-400">
+                        N° CC : CI-ABJ-2024-001 | Compte Bancaire : CI00 XXXX XXXX XXXX
+                      </p>
+                      <p className="text-xs italic text-amber-600 font-medium">
+                        Merci pour votre confiance
+                      </p>
+                    </div>
                   </div>
                 </div>
 
-                {/* Totals */}
-                <div className="bg-amber-50/50 rounded-lg p-4 space-y-2">
-                  <div className="flex justify-between text-sm">
-                    <span className="text-muted-foreground">Sous-total HT</span>
-                    <span>{formatFCFA(selectedInvoice.subtotal)}</span>
-                  </div>
-                  {Number(selectedInvoice.tourist_tax) > 0 && (
-                    <div className="flex justify-between text-sm">
-                      <span className="text-muted-foreground">Taxe de séjour</span>
-                      <span>{formatFCFA(selectedInvoice.tourist_tax)}</span>
-                    </div>
-                  )}
-                  {Number(selectedInvoice.vat) > 0 && (
-                    <div className="flex justify-between text-sm">
-                      <span className="text-muted-foreground">TVA (18%)</span>
-                      <span>{formatFCFA(selectedInvoice.vat)}</span>
-                    </div>
-                  )}
-                  <Separator />
-                  <div className="flex justify-between text-lg font-bold text-amber-700">
-                    <span>Total TTC</span>
-                    <span>{formatFCFA(selectedInvoice.total_amount)}</span>
-                  </div>
-                </div>
-
-                {/* Notes */}
-                {selectedInvoice.notes && (
-                  <div className="bg-gray-50 rounded-lg p-3">
-                    <p className="text-xs font-medium text-muted-foreground mb-1">Notes</p>
-                    <p className="text-sm italic">{selectedInvoice.notes}</p>
-                  </div>
-                )}
-
-                <Separator />
-
-                {/* Action Buttons */}
+                {/* ── Action Buttons (outside paper) ──────────────────── */}
                 <div className="space-y-3">
-                  <p className="text-xs font-medium text-amber-700 uppercase tracking-wide">Actions</p>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  {/* Primary actions */}
+                  <div className="grid grid-cols-2 gap-2">
                     <Button
-                      variant="outline"
-                      className="w-full justify-start"
+                      className="w-full justify-center bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700 text-white shadow-md shadow-amber-500/20"
                       onClick={() => handlePrintA4(selectedInvoice)}
                     >
-                      <Printer className="h-4 w-4 mr-2 text-amber-600" />
+                      <Printer className="h-4 w-4 mr-2" />
                       Imprimer A4
                     </Button>
                     <Button
-                      variant="outline"
-                      className="w-full justify-start"
+                      className="w-full justify-center bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700 text-white shadow-md shadow-amber-500/20"
                       onClick={() => handlePrintThermal(selectedInvoice)}
                     >
-                      <Receipt className="h-4 w-4 mr-2 text-amber-600" />
-                      Ticket thermique 80mm
+                      <Receipt className="h-4 w-4 mr-2" />
+                      Ticket 80mm
                     </Button>
-                    <Button
-                      variant="outline"
-                      className="w-full justify-start"
-                      onClick={() => handleDownloadPDF(selectedInvoice)}
-                    >
-                      <FileDown className="h-4 w-4 mr-2 text-blue-600" />
-                      Télécharger PDF
-                    </Button>
-                    {selectedInvoice.status === 'paid' && (
-                      <>
-                        <Button
-                          variant="outline"
-                          className="w-full justify-start text-orange-600 hover:text-orange-700 hover:bg-orange-50"
-                          onClick={() => {
-                            setStatusChangeTarget('refund')
-                            setStatusDialogOpen(true)
-                          }}
-                        >
-                          <RotateCcw className="h-4 w-4 mr-2" />
-                          Marquer remboursée
-                        </Button>
-                        <Button
-                          variant="outline"
-                          className="w-full justify-start text-red-600 hover:text-red-700 hover:bg-red-50"
-                          onClick={() => {
-                            setStatusChangeTarget('cancelled')
-                            setStatusDialogOpen(true)
-                          }}
-                        >
-                          <Ban className="h-4 w-4 mr-2" />
-                          Annuler la facture
-                        </Button>
-                      </>
-                    )}
                   </div>
+
+                  {/* Secondary action */}
+                  <Button
+                    variant="outline"
+                    className="w-full justify-center border-amber-200 text-amber-700 hover:bg-amber-50"
+                    onClick={() => handleDownloadPDF(selectedInvoice)}
+                  >
+                    <Download className="h-4 w-4 mr-2" />
+                    Télécharger PDF
+                  </Button>
+
+                  {/* Danger zone */}
+                  {selectedInvoice.status === 'paid' && (
+                    <div className="grid grid-cols-2 gap-2 pt-1">
+                      <Button
+                        variant="outline"
+                        className="w-full justify-center text-orange-600 hover:text-orange-700 hover:bg-orange-50 border-orange-200"
+                        onClick={() => {
+                          setStatusChangeTarget('refund')
+                          setStatusDialogOpen(true)
+                        }}
+                      >
+                        <RotateCcw className="h-4 w-4 mr-2" />
+                        Marquer remboursée
+                      </Button>
+                      <Button
+                        variant="outline"
+                        className="w-full justify-center text-red-600 hover:text-red-700 hover:bg-red-50 border-red-200"
+                        onClick={() => {
+                          setStatusChangeTarget('cancelled')
+                          setStatusDialogOpen(true)
+                        }}
+                      >
+                        <Ban className="h-4 w-4 mr-2" />
+                        Annuler la facture
+                      </Button>
+                    </div>
+                  )}
                 </div>
               </div>
             ) : null}
