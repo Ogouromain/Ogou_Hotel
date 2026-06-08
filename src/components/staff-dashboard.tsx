@@ -50,6 +50,7 @@ import { ScrollArea } from '@/components/ui/scroll-area'
 import { ReservationsTab } from '@/components/reservations-tab'
 import { CustomersTab } from '@/components/customers-tab'
 import { WalkInDialog } from '@/components/walk-in-dialog'
+import { ExpiredStayAlert, ExpiredStayBadge } from '@/components/expired-stay-alert'
 import dynamic from 'next/dynamic'
 
 const InvoicesTab = dynamic(
@@ -982,7 +983,8 @@ function ReceptionistView({ profile, onLogout }: StaffDashboardProps) {
               }`}
             >
               {item.icon}
-              <span className="truncate">{item.label}</span>
+              <span className="truncate flex-1">{item.label}</span>
+              {item.id === 'overview' && <ExpiredStayBadge />}
             </button>
           )
         })}
@@ -1077,6 +1079,7 @@ function ReceptionistView({ profile, onLogout }: StaffDashboardProps) {
             >
               {item.icon}
               {item.label}
+              {item.id === 'overview' && <ExpiredStayBadge />}
             </button>
           ))}
         </div>
@@ -1107,6 +1110,15 @@ function ReceptionistView({ profile, onLogout }: StaffDashboardProps) {
                   Actualiser
                 </Button>
               </div>
+
+              {/* Expired Stay Alerts */}
+              <ExpiredStayAlert
+                onCheckOut={async (reservationId) => {
+                  await handleCheckOut(reservationId, '')
+                  fetchAllData()
+                }}
+                onNavigateToReservations={() => setActiveTab('reservations')}
+              />
 
               {/* Stats Grid */}
               <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">

@@ -93,6 +93,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert'
 
 import { ReservationsTab } from '@/components/reservations-tab'
 import { CustomersTab } from '@/components/customers-tab'
+import { ExpiredStayAlert, ExpiredStayBadge } from '@/components/expired-stay-alert'
 
 // ─── Dynamic Imports for Heavy Components (30% bundle reduction) ────────────
 // These components are loaded asynchronously only when their tab is active,
@@ -601,7 +602,8 @@ export function OwnerDashboard({ profile, onLogout, isNewRegistration }: OwnerDa
                 }`}
               >
                 {item.icon}
-                <span className="truncate">{item.label}</span>
+                <span className="truncate flex-1">{item.label}</span>
+                {item.id === 'overview' && <ExpiredStayBadge />}
               </button>
             )
           })}
@@ -717,7 +719,8 @@ export function OwnerDashboard({ profile, onLogout, isNewRegistration }: OwnerDa
                         }`}
                       >
                         {item.icon}
-                        <span className="truncate">{item.label}</span>
+                        <span className="truncate flex-1">{item.label}</span>
+                        {item.id === 'overview' && <ExpiredStayBadge />}
                       </button>
                     ))}
                   </nav>
@@ -755,6 +758,7 @@ export function OwnerDashboard({ profile, onLogout, isNewRegistration }: OwnerDa
             >
               {item.icon}
               {item.label}
+              {item.id === 'overview' && <ExpiredStayBadge />}
             </button>
           ))}
         </div>
@@ -1062,6 +1066,11 @@ function OverviewTab({
 
   return (
     <div className="space-y-6">
+      {/* Expired Stay Alerts */}
+      <ExpiredStayAlert
+        onNavigateToReservations={onNavigateToReservations}
+      />
+
       {/* Hotel & Subscription Cards */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <Card className="border-amber-200/60">

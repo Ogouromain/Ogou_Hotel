@@ -6,8 +6,8 @@ const ALLOWED_ROLES = ['receptionist', 'manager', 'owner']
 
 /**
  * GET /api/staff/reception
- * Today's check-ins and check-outs.
- * Returns: { check_ins: [...], check_outs: [...] } with reservation + customer + room info.
+ * Today's check-ins, check-outs, and expired stays.
+ * Returns: { check_ins: [...], check_outs: [...], expired_stays: [...] } with reservation + customer + room info.
  */
 export async function GET() {
   try {
@@ -59,9 +59,23 @@ export async function GET() {
       return NextResponse.json({ error: checkOutError.message }, { status: 500 })
     }
 
+    // Expired stays: checked_in reservations where check_out_date < today (guest overstayed)
+    const { data: expiredStays, error: expiredError } = await adminClient
+      .from('reservations')
+      .select('*, customers(first_name, last_name, phone, email), rooms(room_number, room_type, price_per_night)')
+      .eq('hotel_id', hotelId)
+      .eq('status', 'checked_in')
+      .lt('check_out_date', todayStr)
+
+    if (expiredError) {
+      console.error('Expired stays fetch error in reception:', expiredError)
+      // Don't fail the whole request, just return empty
+    }
+
     return NextResponse.json({
       checkIns: checkIns || [],
       checkOuts: checkOuts || [],
+      expiredStays: expiredStays || [],
       today: todayStr,
     })
   } catch (error) {

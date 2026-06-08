@@ -8,6 +8,7 @@ import {
   UtensilsCrossed,
   Package,
   MessageSquare,
+  AlertTriangle,
   Send,
   Phone,
   Check,
@@ -41,7 +42,7 @@ import { RealtimeIndicator } from '@/components/realtime-indicator'
 interface Notification {
   id: string
   hotel_id: string
-  type: 'reservation' | 'order' | 'stock' | 'system'
+  type: 'reservation' | 'order' | 'stock' | 'system' | 'expired_stay'
   title: string
   message: string
   metadata: Record<string, unknown> | null
@@ -72,6 +73,11 @@ const SMS_TEMPLATES = [
     id: 'commande',
     label: 'Notification de commande',
     message: 'Votre commande a été enregistrée et est en cours de préparation. Merci ! — OGOU_Hôtel',
+  },
+  {
+    id: 'depart_expire',
+    label: 'Rappel départ expiré',
+    message: 'Bonjour, votre séjour est arrivé à échéance. Merci de vous présenter à la réception pour le check-out. — OGOU_Hôtel',
   },
 ]
 
@@ -116,6 +122,8 @@ function getNotificationIcon(type: Notification['type']) {
       return <UtensilsCrossed className="h-4 w-4 text-orange-600" />
     case 'stock':
       return <Package className="h-4 w-4 text-emerald-600" />
+    case 'expired_stay':
+      return <AlertTriangle className="h-4 w-4 text-red-600" />
     case 'system':
       return <Bell className="h-4 w-4 text-sky-600" />
     default:
@@ -132,6 +140,8 @@ function getIconBg(type: Notification['type']) {
       return 'bg-orange-50'
     case 'stock':
       return 'bg-emerald-50'
+    case 'expired_stay':
+      return 'bg-red-50'
     case 'system':
       return 'bg-sky-50'
     default:
@@ -148,6 +158,8 @@ function typeToTab(type: Notification['type']): string {
       return 'orders'
     case 'stock':
       return 'stock'
+    case 'expired_stay':
+      return 'alerts'
     case 'system':
       return 'system'
     default:
@@ -334,6 +346,7 @@ export function NotificationPanel({ onRefresh, planName }: NotificationPanelProp
     reservations: notifications.filter((n) => n.type === 'reservation').length,
     orders: notifications.filter((n) => n.type === 'order').length,
     stock: notifications.filter((n) => n.type === 'stock').length,
+    alerts: notifications.filter((n) => n.type === 'expired_stay').length,
     system: notifications.filter((n) => n.type === 'system').length,
   }
 
@@ -443,6 +456,10 @@ export function NotificationPanel({ onRefresh, planName }: NotificationPanelProp
                 <Package className="h-3 w-3" />
                 Stock ({tabCounts.stock})
               </TabsTrigger>
+              <TabsTrigger value="alerts" className="text-xs data-[state=active]:bg-red-100 data-[state=active]:text-red-900">
+                <AlertTriangle className="h-3 w-3" />
+                Alertes ({tabCounts.alerts})
+              </TabsTrigger>
               <TabsTrigger value="system" className="text-xs data-[state=active]:bg-sky-100 data-[state=active]:text-sky-900">
                 <Bell className="h-3 w-3" />
                 Système ({tabCounts.system})
@@ -450,7 +467,7 @@ export function NotificationPanel({ onRefresh, planName }: NotificationPanelProp
             </TabsList>
 
             {/* All tabs share the same list rendering, filtered by activeTab */}
-            {['all', 'reservations', 'orders', 'stock', 'system'].map((tab) => (
+            {['all', 'reservations', 'orders', 'stock', 'alerts', 'system'].map((tab) => (
               <TabsContent key={tab} value={tab}>
                 {loading ? (
                   <div className="flex items-center justify-center py-12">
