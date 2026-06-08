@@ -31,6 +31,9 @@ import {
   Quote,
   CalendarDays,
   Link2,
+  Stamp,
+  BedDouble,
+  CircleDollarSign,
 } from 'lucide-react'
 
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
@@ -881,118 +884,191 @@ export function InvoicesTab({ onRefresh }: InvoicesTabProps) {
                 <Skeleton className="h-40 w-full" />
               </div>
             ) : selectedInvoice ? (
-              <div className="space-y-5 pb-8">
+              <div className="space-y-4 pb-8">
                 {/* ── Professional Invoice Paper ────────────────────────── */}
-                <div className="bg-white rounded-xl shadow-lg border border-gray-200/80 p-6 sm:p-8 relative overflow-hidden">
+                <div className="bg-white rounded-xl shadow-lg border border-gray-100 relative overflow-hidden">
 
-                  {/* ── Status Watermark ─────────────────────────────── */}
+                  {/* ── Status Watermark (subtle) ─────────────────────── */}
                   {(selectedInvoice.status === 'cancelled' || selectedInvoice.status === 'refund') && (
                     <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-10 pointer-events-none select-none">
                       <span
-                        className={`text-5xl sm:text-7xl font-black uppercase tracking-widest opacity-20 ${
-                          selectedInvoice.status === 'cancelled' ? 'text-red-500' : 'text-orange-500'
+                        className={`text-6xl sm:text-8xl font-black uppercase tracking-[0.2em] opacity-[0.07] ${
+                          selectedInvoice.status === 'cancelled' ? 'text-red-600' : 'text-orange-600'
                         }`}
-                        style={{ transform: 'rotate(-12deg)', display: 'inline-block' }}
+                        style={{ transform: 'rotate(-18deg)', display: 'inline-block' }}
                       >
-                        {selectedInvoice.status === 'cancelled' ? 'Annulée' : 'Remboursée'}
+                        {selectedInvoice.status === 'cancelled' ? 'ANNULÉE' : 'REMBOURSÉE'}
                       </span>
                     </div>
                   )}
 
                   {/* ── Invoice Header ───────────────────────────────── */}
-                  <div className="flex items-start justify-between gap-4">
-                    {/* Left: Branding */}
-                    <div className="flex items-start gap-3">
-                      <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-amber-500 to-orange-600 shadow-md shadow-amber-500/20">
-                        <Hotel className="h-6 w-6 text-white" />
+                  <div className="px-6 pt-6 sm:px-8 sm:pt-8 pb-5 flex items-start justify-between gap-4">
+                    {/* Left: Branding + Contact */}
+                    <div className="space-y-3">
+                      <div className="flex items-center gap-3">
+                        <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-amber-500 to-orange-600 shadow-lg shadow-amber-500/25">
+                          <Hotel className="h-7 w-7 text-white" />
+                        </div>
+                        <div>
+                          <h3 className="text-xl font-bold text-gray-900 tracking-tight leading-tight">OGOU_Hôtel</h3>
+                          <p className="text-[11px] text-amber-600 font-semibold tracking-wide uppercase">Hôtellerie &amp; Restauration</p>
+                        </div>
                       </div>
-                      <div>
-                        <h3 className="text-xl font-bold text-gray-900 tracking-tight">OGOU_Hôtel</h3>
-                        <p className="text-xs text-amber-700 font-medium">Hôtellerie &amp; Restauration</p>
+                      <div className="space-y-1 pl-[60px]">
+                        <div className="flex items-center gap-1.5 text-[11px] text-gray-400">
+                          <MapPin className="h-3 w-3 shrink-0 text-amber-400" />
+                          <span>Abidjan, Côte d&apos;Ivoire</span>
+                        </div>
+                        <div className="flex items-center gap-1.5 text-[11px] text-gray-400">
+                          <Phone className="h-3 w-3 shrink-0 text-amber-400" />
+                          <span>+225 01 02 03 04 05</span>
+                        </div>
+                        <div className="flex items-center gap-1.5 text-[11px] text-gray-400">
+                          <Mail className="h-3 w-3 shrink-0 text-amber-400" />
+                          <span>contact@ogouhotel.ci</span>
+                        </div>
                       </div>
                     </div>
-                    {/* Right: FACTURE label + info */}
-                    <div className="text-right space-y-1.5">
-                      <p className="text-2xl font-extrabold tracking-wider text-gray-800 uppercase">Facture</p>
-                      <p className="text-sm font-semibold text-gray-600">{selectedInvoice.invoice_number}</p>
-                      <p className="text-xs text-muted-foreground">{formatDateFR(selectedInvoice.created_at)}</p>
-                      <div>{getStatusBadge(selectedInvoice.status)}</div>
+
+                    {/* Right: FACTURE label + Status */}
+                    <div className="text-right space-y-2">
+                      <p className="text-3xl sm:text-4xl font-black tracking-wider text-gray-800/90 uppercase leading-none">FACTURE</p>
+                      <div className="space-y-0.5">
+                        <p className="text-sm font-bold text-gray-600 tracking-wide">{selectedInvoice.invoice_number}</p>
+                        <p className="text-xs text-gray-400">{formatDateFR(selectedInvoice.created_at)}</p>
+                      </div>
+                      <div className="pt-1">
+                        {selectedInvoice.status === 'paid' ? (
+                          <Badge className="bg-emerald-500 text-white border-emerald-500 hover:bg-emerald-500 px-3 py-1 text-sm font-bold shadow-sm shadow-emerald-500/30">
+                            <CheckCircle2 className="h-3.5 w-3.5 mr-1.5" />
+                            Payée
+                          </Badge>
+                        ) : selectedInvoice.status === 'refund' ? (
+                          <Badge className="bg-orange-500 text-white border-orange-500 hover:bg-orange-500 px-3 py-1 text-sm font-bold shadow-sm shadow-orange-500/30">
+                            <RotateCcw className="h-3.5 w-3.5 mr-1.5" />
+                            Remboursée
+                          </Badge>
+                        ) : selectedInvoice.status === 'cancelled' ? (
+                          <Badge className="bg-red-500 text-white border-red-500 hover:bg-red-500 px-3 py-1 text-sm font-bold shadow-sm shadow-red-500/30">
+                            <Ban className="h-3.5 w-3.5 mr-1.5" />
+                            Annulée
+                          </Badge>
+                        ) : (
+                          getStatusBadge(selectedInvoice.status)
+                        )}
+                      </div>
                     </div>
                   </div>
 
                   {/* Amber gradient separator */}
-                  <div className="mt-5 h-[3px] rounded-full bg-gradient-to-r from-amber-400 via-orange-500 to-amber-400" />
+                  <div className="h-1 bg-gradient-to-r from-amber-400 via-orange-500 to-amber-400" />
 
                   {/* ── Client & Payment Section ─────────────────────── */}
-                  <div className="mt-6 grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="px-6 sm:px-8 py-5 grid grid-cols-1 sm:grid-cols-2 gap-4">
                     {/* Client card */}
-                    <div className="rounded-lg border border-gray-200/80 bg-gray-50/50 p-4 space-y-2.5">
-                      <p className="text-[11px] font-bold text-amber-700 uppercase tracking-widest">Facturé à</p>
+                    <div className="rounded-lg border border-gray-200/70 bg-gradient-to-br from-gray-50/80 to-white p-4 space-y-3">
+                      <p className="text-[10px] font-extrabold text-amber-600 uppercase tracking-[0.15em] flex items-center gap-1.5">
+                        <Stamp className="h-3 w-3" />
+                        Facturé à
+                      </p>
                       {selectedInvoice.customers ? (
                         <div className="space-y-1.5">
-                          <p className="font-semibold text-gray-900">
+                          <p className="font-bold text-gray-900 text-[15px]">
                             {(selectedInvoice.customers as Record<string, unknown>).first_name} {(selectedInvoice.customers as Record<string, unknown>).last_name}
                           </p>
                           {(selectedInvoice.customers as Record<string, unknown>).phone && (
-                            <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
-                              <Phone className="h-3.5 w-3.5 shrink-0" />
+                            <div className="flex items-center gap-1.5 text-sm text-gray-500">
+                              <Phone className="h-3.5 w-3.5 shrink-0 text-gray-400" />
                               <span>{String((selectedInvoice.customers as Record<string, unknown>).phone)}</span>
                             </div>
                           )}
                           {(selectedInvoice.customers as Record<string, unknown>).email && (
-                            <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
-                              <Mail className="h-3.5 w-3.5 shrink-0" />
+                            <div className="flex items-center gap-1.5 text-sm text-gray-500">
+                              <Mail className="h-3.5 w-3.5 shrink-0 text-gray-400" />
                               <span>{String((selectedInvoice.customers as Record<string, unknown>).email)}</span>
                             </div>
                           )}
                         </div>
                       ) : (
-                        <p className="text-sm text-muted-foreground">Client non renseigné</p>
+                        <p className="text-sm text-gray-400 italic">Client non renseigné</p>
                       )}
                     </div>
 
                     {/* Payment card */}
-                    <div className="rounded-lg border border-gray-200/80 bg-gray-50/50 p-4 space-y-2.5">
-                      <p className="text-[11px] font-bold text-amber-700 uppercase tracking-widest">Paiement</p>
-                      <div className="flex items-center gap-2">
-                        {getPaymentMethodBadge(selectedInvoice.payment_method)}
-                        <span className="text-sm font-medium text-gray-700">{getPaymentMethodLabel(selectedInvoice.payment_method)}</span>
-                      </div>
-                      {selectedInvoice.reservation_id && (
-                        <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                          <Link2 className="h-3.5 w-3.5 shrink-0" />
-                          <span>Liée à une réservation</span>
+                    <div className="rounded-lg border border-gray-200/70 bg-gradient-to-br from-gray-50/80 to-white p-4 space-y-3">
+                      <p className="text-[10px] font-extrabold text-amber-600 uppercase tracking-[0.15em] flex items-center gap-1.5">
+                        <CircleDollarSign className="h-3 w-3" />
+                        Paiement
+                      </p>
+                      <div className="space-y-1.5">
+                        <div className="flex items-center gap-2">
+                          {getPaymentMethodBadge(selectedInvoice.payment_method)}
+                          <span className="text-sm font-semibold text-gray-700">{getPaymentMethodLabel(selectedInvoice.payment_method)}</span>
                         </div>
-                      )}
-                      <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                        <CalendarDays className="h-3.5 w-3.5 shrink-0" />
-                        <span>Émise le {formatDateFR(selectedInvoice.created_at)}</span>
+                        <div className="flex items-center gap-1.5 text-sm text-gray-500">
+                          <CalendarDays className="h-3.5 w-3.5 shrink-0 text-gray-400" />
+                          <span>Émise le {formatDateFR(selectedInvoice.created_at)}</span>
+                        </div>
                       </div>
+
+                      {/* Reservation details */}
+                      {selectedInvoice.reservation_id && (() => {
+                        const reservation = selectedInvoice.reservations as Record<string, unknown> | null
+                        return (
+                          <div className="mt-2 pt-2 border-t border-gray-200/60 space-y-1.5">
+                            <p className="text-[10px] font-extrabold text-amber-600 uppercase tracking-[0.15em] flex items-center gap-1.5">
+                              <BedDouble className="h-3 w-3" />
+                              Réservation liée
+                            </p>
+                            {reservation?.rooms && (
+                              <div className="flex items-center gap-1.5 text-sm text-gray-600">
+                                <Hotel className="h-3.5 w-3.5 shrink-0 text-gray-400" />
+                                <span>Chambre {(reservation.rooms as Record<string, unknown>).room_number} — {(reservation.rooms as Record<string, unknown>).room_type}</span>
+                              </div>
+                            )}
+                            {reservation?.check_in_date && (
+                              <div className="flex items-center gap-1.5 text-xs text-gray-500">
+                                <CalendarDays className="h-3 w-3 shrink-0 text-gray-400" />
+                                <span>Arrivée {formatDateShort(reservation.check_in_date as string)}</span>
+                                <span className="text-gray-300 mx-0.5">→</span>
+                                <span>Départ {formatDateShort(reservation.check_out_date as string)}</span>
+                              </div>
+                            )}
+                            {!reservation && (
+                              <div className="flex items-center gap-1.5 text-xs text-gray-400">
+                                <Link2 className="h-3 w-3 shrink-0" />
+                                <span>Liée à une réservation</span>
+                              </div>
+                            )}
+                          </div>
+                        )
+                      })()}
                     </div>
                   </div>
 
                   {/* ── Line Items Table ────────────────────────────── */}
-                  <div className="mt-6">
-                    <div className="rounded-lg border border-gray-200/80 overflow-hidden">
+                  <div className="px-6 sm:px-8 pb-5">
+                    <div className="rounded-lg border border-gray-200/80 overflow-hidden shadow-sm">
                       <Table>
                         <TableHeader>
-                          <TableRow className="bg-amber-50 hover:bg-amber-50">
-                            <TableHead className="text-[11px] font-bold uppercase tracking-wider text-amber-800">Description</TableHead>
-                            <TableHead className="text-[11px] font-bold uppercase tracking-wider text-amber-800 text-center w-14">Qté</TableHead>
-                            <TableHead className="text-[11px] font-bold uppercase tracking-wider text-amber-800 text-right w-28">Prix Unit.</TableHead>
-                            <TableHead className="text-[11px] font-bold uppercase tracking-wider text-amber-800 text-right w-28">Total</TableHead>
+                          <TableRow className="bg-gradient-to-r from-amber-50 to-orange-50 hover:from-amber-50 hover:to-orange-50">
+                            <TableHead className="text-[10px] font-extrabold uppercase tracking-[0.12em] text-amber-800 py-3">Désignation</TableHead>
+                            <TableHead className="text-[10px] font-extrabold uppercase tracking-[0.12em] text-amber-800 text-center w-16 py-3">Qté</TableHead>
+                            <TableHead className="text-[10px] font-extrabold uppercase tracking-[0.12em] text-amber-800 text-right w-32 py-3">Prix Unit.</TableHead>
+                            <TableHead className="text-[10px] font-extrabold uppercase tracking-[0.12em] text-amber-800 text-right w-32 py-3">Total</TableHead>
                           </TableRow>
                         </TableHeader>
                         <TableBody>
                           {(selectedInvoice.invoice_items || []).map((item, idx) => (
                             <TableRow
                               key={item.id}
-                              className={idx % 2 === 1 ? 'bg-gray-50/50 hover:bg-gray-50/50' : ''}
+                              className={`border-b border-gray-100 ${idx % 2 === 1 ? 'bg-amber-50/30 hover:bg-amber-50/30' : 'hover:bg-gray-50/50'}`}
                             >
-                              <TableCell className="text-sm text-gray-800">{item.description}</TableCell>
-                              <TableCell className="text-sm text-center text-gray-600">{item.quantity}</TableCell>
-                              <TableCell className="text-sm text-right text-gray-600">{formatFCFA(item.unit_price)}</TableCell>
-                              <TableCell className="text-sm text-right font-semibold text-gray-900">{formatFCFA(item.total)}</TableCell>
+                              <TableCell className="text-sm text-gray-800 font-medium py-3">{item.description}</TableCell>
+                              <TableCell className="text-sm text-center text-gray-500 py-3">{item.quantity}</TableCell>
+                              <TableCell className="text-sm text-right text-gray-500 py-3 tabular-nums">{formatFCFA(item.unit_price)}</TableCell>
+                              <TableCell className="text-sm text-right font-bold text-gray-900 py-3 tabular-nums">{formatFCFA(item.total)}</TableCell>
                             </TableRow>
                           ))}
                         </TableBody>
@@ -1001,58 +1077,68 @@ export function InvoicesTab({ onRefresh }: InvoicesTabProps) {
                   </div>
 
                   {/* ── Totals Section ──────────────────────────────── */}
-                  <div className="mt-6 flex justify-end">
-                    <div className="w-full sm:w-72 space-y-2">
-                      <div className="flex justify-between text-sm">
-                        <span className="text-muted-foreground">Sous-total HT</span>
-                        <span className="text-gray-700">{formatFCFA(selectedInvoice.subtotal)}</span>
-                      </div>
-                      {Number(selectedInvoice.tourist_tax) > 0 && (
-                        <div className="flex justify-between text-sm">
-                          <span className="text-muted-foreground">Taxe de séjour</span>
-                          <span className="text-gray-700">{formatFCFA(selectedInvoice.tourist_tax)}</span>
+                  <div className="px-6 sm:px-8 pb-5">
+                    <div className="flex justify-end">
+                      <div className="w-full sm:w-80 space-y-2">
+                        <div className="flex justify-between text-sm py-1">
+                          <span className="text-gray-500">Sous-total HT</span>
+                          <span className="text-gray-700 font-medium tabular-nums">{formatFCFA(selectedInvoice.subtotal)}</span>
                         </div>
-                      )}
-                      {Number(selectedInvoice.vat) > 0 && (
-                        <div className="flex justify-between text-sm">
-                          <span className="text-muted-foreground">TVA 18%</span>
-                          <span className="text-gray-700">{formatFCFA(selectedInvoice.vat)}</span>
+                        {Number(selectedInvoice.tourist_tax) > 0 && (
+                          <div className="flex justify-between text-sm py-1">
+                            <span className="text-gray-500">Taxe de séjour</span>
+                            <span className="text-gray-700 font-medium tabular-nums">{formatFCFA(selectedInvoice.tourist_tax)}</span>
+                          </div>
+                        )}
+                        {Number(selectedInvoice.vat) > 0 && (
+                          <div className="flex justify-between text-sm py-1">
+                            <span className="text-gray-500">TVA 18%</span>
+                            <span className="text-gray-700 font-medium tabular-nums">{formatFCFA(selectedInvoice.vat)}</span>
+                          </div>
+                        )}
+                        <div className="h-[2px] bg-gray-200 rounded-full my-2" />
+                        <div className="flex justify-between items-center rounded-lg bg-gradient-to-r from-amber-500 to-orange-500 px-5 py-3.5 shadow-md shadow-amber-500/20">
+                          <span className="text-base font-bold text-white tracking-wide">Total TTC</span>
+                          <span className="text-2xl font-black text-white tabular-nums">{formatFCFA(selectedInvoice.total_amount)}</span>
                         </div>
-                      )}
-                      <div className="h-[3px] bg-gray-300 rounded-full my-1" />
-                      <div className="flex justify-between items-center rounded-lg bg-amber-50 px-4 py-3">
-                        <span className="text-base font-bold text-amber-700">Total TTC</span>
-                        <span className="text-xl font-extrabold text-amber-700">{formatFCFA(selectedInvoice.total_amount)}</span>
                       </div>
                     </div>
                   </div>
 
                   {/* ── Notes Section ───────────────────────────────── */}
                   {selectedInvoice.notes && (
-                    <div className="mt-6 rounded-lg border border-amber-100 bg-amber-50/30 p-4 flex gap-3">
-                      <Quote className="h-5 w-5 shrink-0 text-amber-400 mt-0.5" />
-                      <div>
-                        <p className="text-[11px] font-bold text-amber-700 uppercase tracking-widest mb-1">Notes</p>
-                        <p className="text-sm italic text-gray-600 leading-relaxed">{selectedInvoice.notes}</p>
+                    <div className="px-6 sm:px-8 pb-5">
+                      <div className="rounded-lg border border-amber-100 bg-gradient-to-r from-amber-50/40 to-orange-50/30 p-4 flex gap-3">
+                        <Quote className="h-5 w-5 shrink-0 text-amber-300 mt-0.5" />
+                        <div>
+                          <p className="text-[10px] font-extrabold text-amber-600 uppercase tracking-[0.15em] mb-1">Notes</p>
+                          <p className="text-sm italic text-gray-500 leading-relaxed">{selectedInvoice.notes}</p>
+                        </div>
                       </div>
                     </div>
                   )}
 
                   {/* ── Footer ─────────────────────────────────────── */}
-                  <div className="mt-8">
-                    <div className="h-px bg-gray-200" />
-                    <div className="mt-4 text-center space-y-1.5">
-                      <div className="flex items-center justify-center gap-1.5 text-sm font-semibold text-gray-700">
-                        <Building2 className="h-3.5 w-3.5 text-amber-600" />
-                        <span>OGOU_Hôtel</span>
-                        <span className="text-gray-300 mx-1">—</span>
-                        <MapPin className="h-3.5 w-3.5 text-amber-600" />
-                        <span>Abidjan, Côte d&apos;Ivoire</span>
+                  <div className="border-t border-gray-200/60 bg-gray-50/30 px-6 sm:px-8 py-5">
+                    <div className="text-center space-y-2">
+                      <div className="flex items-center justify-center flex-wrap gap-x-2 gap-y-1 text-xs text-gray-400">
+                        <div className="flex items-center gap-1">
+                          <Building2 className="h-3 w-3 text-amber-400" />
+                          <span className="font-semibold text-gray-500">OGOU_Hôtel</span>
+                        </div>
+                        <span className="text-gray-200">|</span>
+                        <div className="flex items-center gap-1">
+                          <MapPin className="h-3 w-3 text-amber-400" />
+                          <span>Abidjan, Côte d&apos;Ivoire</span>
+                        </div>
+                        <span className="text-gray-200">|</span>
+                        <span>N° CC : CI-ABJ-2024-001</span>
                       </div>
-                      <p className="text-[11px] text-gray-400">
-                        N° CC : CI-ABJ-2024-001 | Compte Bancaire : CI00 XXXX XXXX XXXX
+                      <p className="text-[10px] text-gray-300 tracking-wide">
+                        Compte Bancaire : CI00 XXXX XXXX XXXX | BIC : OGOUCCIAB
                       </p>
-                      <p className="text-xs italic text-amber-600 font-medium">
+                      <Separator className="max-w-[120px] mx-auto bg-amber-200/50" />
+                      <p className="text-xs italic text-amber-500 font-semibold tracking-wide">
                         Merci pour votre confiance
                       </p>
                     </div>
@@ -1062,16 +1148,16 @@ export function InvoicesTab({ onRefresh }: InvoicesTabProps) {
                 {/* ── Action Buttons (outside paper) ──────────────────── */}
                 <div className="space-y-3">
                   {/* Primary actions */}
-                  <div className="grid grid-cols-2 gap-2">
+                  <div className="grid grid-cols-2 gap-3">
                     <Button
-                      className="w-full justify-center bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700 text-white shadow-md shadow-amber-500/20"
+                      className="w-full justify-center h-11 bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700 text-white shadow-md shadow-amber-500/20 font-semibold"
                       onClick={() => handlePrintA4(selectedInvoice)}
                     >
                       <Printer className="h-4 w-4 mr-2" />
                       Imprimer A4
                     </Button>
                     <Button
-                      className="w-full justify-center bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700 text-white shadow-md shadow-amber-500/20"
+                      className="w-full justify-center h-11 bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700 text-white shadow-md shadow-amber-500/20 font-semibold"
                       onClick={() => handlePrintThermal(selectedInvoice)}
                     >
                       <Receipt className="h-4 w-4 mr-2" />
@@ -1082,7 +1168,7 @@ export function InvoicesTab({ onRefresh }: InvoicesTabProps) {
                   {/* Secondary action */}
                   <Button
                     variant="outline"
-                    className="w-full justify-center border-amber-200 text-amber-700 hover:bg-amber-50"
+                    className="w-full justify-center h-10 border-amber-200 text-amber-700 hover:bg-amber-50 font-medium"
                     onClick={() => handleDownloadPDF(selectedInvoice)}
                   >
                     <Download className="h-4 w-4 mr-2" />
@@ -1091,30 +1177,34 @@ export function InvoicesTab({ onRefresh }: InvoicesTabProps) {
 
                   {/* Danger zone */}
                   {selectedInvoice.status === 'paid' && (
-                    <div className="grid grid-cols-2 gap-2 pt-1">
-                      <Button
-                        variant="outline"
-                        className="w-full justify-center text-orange-600 hover:text-orange-700 hover:bg-orange-50 border-orange-200"
-                        onClick={() => {
-                          setStatusChangeTarget('refund')
-                          setStatusDialogOpen(true)
-                        }}
-                      >
-                        <RotateCcw className="h-4 w-4 mr-2" />
-                        Marquer remboursée
-                      </Button>
-                      <Button
-                        variant="outline"
-                        className="w-full justify-center text-red-600 hover:text-red-700 hover:bg-red-50 border-red-200"
-                        onClick={() => {
-                          setStatusChangeTarget('cancelled')
-                          setStatusDialogOpen(true)
-                        }}
-                      >
-                        <Ban className="h-4 w-4 mr-2" />
-                        Annuler la facture
-                      </Button>
-                    </div>
+                    <>
+                      <Separator className="bg-red-100" />
+                      <p className="text-[10px] font-semibold text-red-400 uppercase tracking-widest text-center">Zone de danger</p>
+                      <div className="grid grid-cols-2 gap-3">
+                        <Button
+                          variant="outline"
+                          className="w-full justify-center h-10 text-orange-600 hover:text-orange-700 hover:bg-orange-50 border-orange-200 font-medium"
+                          onClick={() => {
+                            setStatusChangeTarget('refund')
+                            setStatusDialogOpen(true)
+                          }}
+                        >
+                          <RotateCcw className="h-4 w-4 mr-2" />
+                          Rembourser
+                        </Button>
+                        <Button
+                          variant="outline"
+                          className="w-full justify-center h-10 text-red-600 hover:text-red-700 hover:bg-red-50 border-red-200 font-medium"
+                          onClick={() => {
+                            setStatusChangeTarget('cancelled')
+                            setStatusDialogOpen(true)
+                          }}
+                        >
+                          <Ban className="h-4 w-4 mr-2" />
+                          Annuler
+                        </Button>
+                      </div>
+                    </>
                   )}
                 </div>
               </div>

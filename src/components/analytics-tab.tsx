@@ -262,21 +262,23 @@ export function AnalyticsTab({ onRefresh }: AnalyticsTabProps) {
       const res = await fetch('/api/owner/analytics')
       if (res.ok) {
         const json = await res.json()
-        setData(json)
+        // Handle both flat response and legacy nested { analytics: {...} } format
+        const flat = json.analytics || json
+        setData(flat)
 
         // Process stock alerts from response (if provided)
-        if (json.stock_alerts) {
-          setStockAlerts(json.stock_alerts)
+        if (flat.stock_alerts) {
+          setStockAlerts(flat.stock_alerts)
         }
 
         // Process reservation alerts from response (if provided)
-        if (json.reservation_alerts) {
-          setReservationAlerts(json.reservation_alerts)
+        if (flat.reservation_alerts) {
+          setReservationAlerts(flat.reservation_alerts)
         }
 
         // Process monthly revenue data from response (if provided)
-        if (json.monthly_revenue && Array.isArray(json.monthly_revenue)) {
-          setMonthlyData(json.monthly_revenue)
+        if (flat.monthly_revenue && Array.isArray(flat.monthly_revenue)) {
+          setMonthlyData(flat.monthly_revenue)
         } else {
           // Generate placeholder monthly data for the chart
           setMonthlyData(generatePlaceholderMonthlyData())
