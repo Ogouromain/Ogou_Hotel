@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { validateIdentityDocument, mimeToExtension, type AllowedMimeType } from '@/lib/file-validation'
+import { logAudit } from '@/lib/audit'
 
 // ─── Helper: upload identity document to Supabase Storage ──────────
 async function uploadIdentityDocument(
@@ -251,6 +252,22 @@ export async function POST(request: NextRequest) {
 
       signedUrl = urlData?.signedUrl || null
     }
+
+    // ─── Audit log ─────────────────────────────────────────────
+    await logAudit({
+      hotel_id: hotelId,
+      profile_id: user.id,
+      action: 'create',
+      entity_type: 'customer',
+      entity_id: (customer as Record<string, unknown>).id as string,
+      new_values: {
+        first_name: first_name.trim(),
+        last_name: last_name.trim(),
+        phone: phone.trim(),
+        email: email?.trim() || null,
+        identity_document_type: identity_document_type || null,
+      },
+    })
 
     return NextResponse.json({
       customer,

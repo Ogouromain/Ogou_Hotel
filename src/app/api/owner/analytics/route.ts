@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClientWithCookies } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 
-const ALLOWED_ROLES = ['owner', 'manager', 'receptionist']
+const ALLOWED_ROLES = ['owner', 'manager']
 
 /**
  * GET /api/owner/analytics

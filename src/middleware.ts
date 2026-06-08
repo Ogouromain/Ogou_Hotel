@@ -18,13 +18,18 @@ const EXCLUDED_PATHS = ['/_next/', '/static/', '/favicon.ico', '/logo.svg']
 // ─── Role-Based Route Access Control ──────────────────────────────────────────
 // Defines which roles can access which route prefixes.
 // Routes not listed here are accessible to all authenticated users.
+// NOTE: Individual route handlers enforce MORE GRANULAR role checks.
+// For example, /api/owner/analytics only allows owner+manager even though
+// the middleware allows receptionist to access /api/owner/* broadly.
+// This is defense-in-depth: middleware = broad gate, handlers = fine-grained.
 
 const ROLE_ROUTE_ACCESS: Record<string, string[]> = {
   // Super-admin routes: only super_admin can access
   '/api/super-admin': ['super_admin'],
 
-  // Owner routes: owner, manager, and receptionist can access
-  // (individual route handlers enforce granular role checks via ALLOWED_ROLES)
+  // Owner routes: broad access at middleware level
+  // Individual handlers restrict: analytics/subscription/activity-log = owner+manager only,
+  // employees = owner+manager only, hotel PATCH = owner+manager only, etc.
   '/api/owner': ['owner', 'manager', 'receptionist'],
 
   // Staff routes: all hotel staff can access

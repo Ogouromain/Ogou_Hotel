@@ -8,7 +8,7 @@ import { createAdminClient } from '@/lib/supabase/admin'
  * Returns the hotel and subscription info for the currently authenticated owner.
  * Only accessible by authenticated users with the 'owner' role.
  */
-const ALLOWED_ROLES_GET = ['owner', 'manager', 'receptionist']
+const ALLOWED_ROLES_GET = ['owner', 'manager']
 const ALLOWED_ROLES_PATCH = ['owner', 'manager']
 
 export async function GET() {

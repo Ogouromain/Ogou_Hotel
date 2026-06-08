@@ -121,6 +121,10 @@ const ConferenceTab = dynamic(
   () => import('@/components/conference-tab').then(mod => ({ default: mod.ConferenceTab })),
   { ssr: false, loading: () => <TabLoadingSkeleton /> }
 )
+const ActivityLogTab = dynamic(
+  () => import('@/components/activity-log-tab').then(mod => ({ default: mod.ActivityLogTab })),
+  { ssr: false, loading: () => <TabLoadingSkeleton /> }
+)
 
 import { RealtimeIndicator, RealtimeRefreshPulse } from '@/components/realtime-indicator'
 import { useRealtimeSafe } from '@/lib/realtime-context'
@@ -202,7 +206,7 @@ interface EmployeeInfo {
   created_at: string
 }
 
-type TabId = 'overview' | 'rooms' | 'reservations' | 'customers' | 'invoices' | 'analytics' | 'notifications' | 'team' | 'settings' | 'restaurant' | 'stocks' | 'conference' | 'formation'
+type TabId = 'overview' | 'rooms' | 'reservations' | 'customers' | 'invoices' | 'analytics' | 'activity' | 'notifications' | 'team' | 'settings' | 'restaurant' | 'stocks' | 'conference' | 'formation'
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -287,6 +291,7 @@ const NAV_ITEMS: { id: TabId; label: string; icon: React.ReactNode; requiredFeat
   { id: 'customers', label: 'Clients', icon: <Users className="h-4 w-4" /> },
   { id: 'invoices', label: 'Factures', icon: <FileText className="h-4 w-4" /> },
   { id: 'analytics', label: 'Analytique', icon: <BarChart3 className="h-4 w-4" />, requiredFeature: 'analytics' },
+  { id: 'activity', label: "Journal d'activité", icon: <BookOpen className="h-4 w-4" /> },
   { id: 'restaurant', label: 'Restaurant', icon: <UtensilsCrossed className="h-4 w-4" />, requiredFeature: 'restaurant' },
   { id: 'stocks', label: 'Stocks', icon: <Package className="h-4 w-4" />, requiredFeature: 'stocks' },
   { id: 'conference', label: 'Salles conférence', icon: <Building2 className="h-4 w-4" />, requiredFeature: 'conference' },
@@ -832,6 +837,7 @@ export function OwnerDashboard({ profile, onLogout, isNewRegistration }: OwnerDa
               onNavigateToReservations={() => setActiveTab('reservations')}
               onNavigateToCustomers={() => setActiveTab('customers')}
               onNavigateToInvoices={() => setActiveTab('invoices')}
+              onNavigateToActivity={() => setActiveTab('activity')}
             />
           )}
 
@@ -869,6 +875,10 @@ export function OwnerDashboard({ profile, onLogout, isNewRegistration }: OwnerDa
             hasFeature(planInfo?.name, 'analytics')
               ? <AnalyticsTab onRefresh={fetchAllData} />
               : <LockedFeatureCard feature="analytics" planName={planInfo?.name} />
+          )}
+
+          {activeTab === 'activity' && (
+            <ActivityLogTab onRefresh={fetchAllData} />
           )}
 
           {activeTab === 'restaurant' && (
@@ -1017,6 +1027,7 @@ function OverviewTab({
   onNavigateToReservations,
   onNavigateToCustomers,
   onNavigateToInvoices,
+  onNavigateToActivity,
 }: {
   hotelInfo: HotelInfo | null
   subscription: SubscriptionInfo | null
@@ -1032,6 +1043,7 @@ function OverviewTab({
   onNavigateToReservations?: () => void
   onNavigateToCustomers?: () => void
   onNavigateToInvoices?: () => void
+  onNavigateToActivity?: () => void
 }) {
   const totalEmployees = usage.receptionists + usage.managers // Only count employees (not owner)
 
@@ -1409,6 +1421,66 @@ function OverviewTab({
           </CardContent>
         </Card>
       </div>
+
+      {/* Transparence & Activité Récente */}
+      <Card className="border-amber-200/60 bg-gradient-to-br from-amber-50/30 to-orange-50/20">
+        <CardHeader className="pb-3">
+          <div className="flex items-center justify-between">
+            <CardTitle className="flex items-center gap-2 text-base">
+              <BookOpen className="h-5 w-5 text-amber-600" />
+              Transparence & Activité
+            </CardTitle>
+            <Badge className="bg-amber-100 text-amber-700 border-amber-200 hover:bg-amber-100 text-[10px]">
+              Supervision
+            </Badge>
+          </div>
+          <CardDescription className="text-xs text-muted-foreground mt-1">
+            Suivez les actions de votre équipe pour une gestion transparente
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-4">
+            <div className="rounded-lg border border-emerald-200 bg-emerald-50/50 p-3 text-center">
+              <CheckCircle2 className="h-5 w-5 text-emerald-600 mx-auto mb-1" />
+              <p className="text-xs text-emerald-700 font-medium">Check-ins</p>
+              <p className="text-lg font-bold text-emerald-800">Aujourd&apos;hui</p>
+              <p className="text-sm text-emerald-600">{todayCheckIns.length} prévu{todayCheckIns.length !== 1 ? 's' : ''}</p>
+            </div>
+            <div className="rounded-lg border border-amber-200 bg-amber-50/50 p-3 text-center">
+              <DoorOpen className="h-5 w-5 text-amber-600 mx-auto mb-1" />
+              <p className="text-xs text-amber-700 font-medium">Check-outs</p>
+              <p className="text-lg font-bold text-amber-800">Aujourd&apos;hui</p>
+              <p className="text-sm text-amber-600">{todayCheckOuts.length} prévu{todayCheckOuts.length !== 1 ? 's' : ''}</p>
+            </div>
+            <div className="rounded-lg border border-sky-200 bg-sky-50/50 p-3 text-center">
+              <Users className="h-5 w-5 text-sky-600 mx-auto mb-1" />
+              <p className="text-xs text-sky-700 font-medium">Équipe active</p>
+              <p className="text-lg font-bold text-sky-800">{totalEmployees}</p>
+              <p className="text-sm text-sky-600">employé{totalEmployees !== 1 ? 's' : ''}</p>
+            </div>
+          </div>
+          <div className="rounded-lg border border-amber-200/60 bg-white/60 p-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Shield className="h-4 w-4 text-amber-600" />
+                <p className="text-sm font-medium text-gray-700">
+                  Journal d&apos;activité disponible
+                </p>
+              </div>
+              <button
+                onClick={onNavigateToActivity}
+                className="text-sm font-medium text-amber-600 hover:text-amber-800 transition-colors flex items-center gap-1"
+              >
+                Voir le journal
+                <ChevronRight className="h-3.5 w-3.5" />
+              </button>
+            </div>
+            <p className="text-xs text-muted-foreground mt-1 ml-6">
+              Consultez toutes les actions de vos employés : check-ins, réservations, factures, modifications...
+            </p>
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Locked Features — Upgrade Prompt */}
       {planInfo && planInfo.name !== 'Premium' && (

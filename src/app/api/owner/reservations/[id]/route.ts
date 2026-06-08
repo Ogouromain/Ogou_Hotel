@@ -98,12 +98,15 @@ export async function PATCH(
 
     // Role-based action restrictions
     const userRole = user.app_metadata?.role
-    const OPERATIONAL_ACTIONS = ['check_in', 'check_out']
-    const OPERATIONAL_ROLES = ['manager', 'receptionist']
-    
-    if (OPERATIONAL_ACTIONS.includes(action) && !OPERATIONAL_ROLES.includes(userRole)) {
+
+    // Owner can do everything (full oversight authority)
+    // Manager can do everything except cancel (requires owner approval in some cases)
+    // Receptionist can only perform operational actions (check_in, check_out, update)
+    // Receptionist CANNOT cancel reservations (must escalate to manager/owner)
+    const CANCEL_ROLES = ['owner', 'manager']
+    if (action === 'cancel' && !CANCEL_ROLES.includes(userRole)) {
       return NextResponse.json(
-        { error: `Action "${action}" non autorisée. Seuls le manager et le réceptionniste peuvent effectuer les check-ins/check-outs.` },
+        { error: 'Annulation non autorisée. Seuls le propriétaire et le manager peuvent annuler les réservations.' },
         { status: 403 }
       )
     }
