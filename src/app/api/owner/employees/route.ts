@@ -60,8 +60,8 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Non authentifié' }, { status: 401 })
     }
 
-    const role = user.app_metadata?.role
-    if (!ALLOWED_ROLES.includes(role)) {
+    const userRole = user.app_metadata?.role
+    if (!ALLOWED_ROLES.includes(userRole)) {
       return NextResponse.json({ error: 'Accès refusé. Seul le propriétaire ou le manager peut ajouter des employés.' }, { status: 403 })
     }
 
