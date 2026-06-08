@@ -15,6 +15,7 @@ import {
   User,
   Clock,
   ArrowUpDown,
+  DoorOpen,
 } from 'lucide-react'
 
 import { Card, CardContent } from '@/components/ui/card'
@@ -35,6 +36,7 @@ import { TooltipProvider } from '@/components/ui/tooltip'
 import { PlanningGrid } from '@/components/planning-grid'
 import { ReservationCreationDialog } from '@/components/reservation-dialog'
 import { ReservationDetailSheet } from '@/components/reservation-detail-sheet'
+import { WalkInDialog } from '@/components/walk-in-dialog'
 import { useRealtimeSafe } from '@/lib/realtime-context'
 import { RealtimeIndicator } from '@/components/realtime-indicator'
 
@@ -130,6 +132,7 @@ export function ReservationsTab({ rooms, onRefresh }: ReservationsTabProps) {
 
   // Dialogs
   const [createDialogOpen, setCreateDialogOpen] = useState(false)
+  const [walkInDialogOpen, setWalkInDialogOpen] = useState(false)
   const [preselectedRoomId, setPreselectedRoomId] = useState<string | null>(null)
   const [preselectedDate, setPreselectedDate] = useState<string | null>(null)
 
@@ -253,6 +256,13 @@ export function ReservationsTab({ rooms, onRefresh }: ReservationsTabProps) {
             <Button variant="outline" size="sm" onClick={() => { fetchReservations(); onRefresh?.() }} disabled={loading}>
               <RefreshCw className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
               Actualiser
+            </Button>
+            <Button
+              className="bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white shadow-md shadow-emerald-500/20"
+              onClick={() => setWalkInDialogOpen(true)}
+            >
+              <DoorOpen className="h-4 w-4 mr-2" />
+              Enregistrement Direct
             </Button>
             <Button
               className="bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700 text-white shadow-md shadow-amber-500/20"
@@ -506,6 +516,17 @@ export function ReservationsTab({ rooms, onRefresh }: ReservationsTabProps) {
           rooms={rooms}
           preselectedRoomId={preselectedRoomId}
           preselectedDate={preselectedDate}
+          onSuccess={() => {
+            fetchReservations()
+            onRefresh?.()
+          }}
+        />
+
+        {/* ─── Walk-In Direct Check-In Dialog ──────────────────────────────── */}
+        <WalkInDialog
+          open={walkInDialogOpen}
+          onOpenChange={setWalkInDialogOpen}
+          rooms={rooms}
           onSuccess={() => {
             fetchReservations()
             onRefresh?.()

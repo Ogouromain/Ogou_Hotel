@@ -49,6 +49,7 @@ import { ScrollArea } from '@/components/ui/scroll-area'
 
 import { ReservationsTab } from '@/components/reservations-tab'
 import { CustomersTab } from '@/components/customers-tab'
+import { WalkInDialog } from '@/components/walk-in-dialog'
 import dynamic from 'next/dynamic'
 
 const InvoicesTab = dynamic(
@@ -738,6 +739,7 @@ function ReceptionistView({ profile, onLogout }: StaffDashboardProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [roomStatusFilter, setRoomStatusFilter] = useState<string>('all')
   const [roomActionLoading, setRoomActionLoading] = useState<string | null>(null)
+  const [walkInOpen, setWalkInOpen] = useState(false)
 
   const fetchAllData = useCallback(async () => {
     setLoading(true)
@@ -1293,6 +1295,23 @@ function ReceptionistView({ profile, onLogout }: StaffDashboardProps) {
                 )}
               </div>
 
+              {/* Walk-In Direct Check-In Button */}
+              <Card
+                className="border-2 border-emerald-300 bg-gradient-to-r from-emerald-50 to-teal-50 cursor-pointer hover:shadow-lg transition-all"
+                onClick={() => setWalkInOpen(true)}
+              >
+                <CardContent className="p-5 flex items-center gap-4">
+                  <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 shadow-lg shadow-emerald-500/30">
+                    <DoorOpen className="h-6 w-6 text-white" />
+                  </div>
+                  <div className="flex-1">
+                    <p className="text-base font-bold text-emerald-900">Enregistrement Direct</p>
+                    <p className="text-sm text-emerald-700">Client sans réservation ? Enregistrez-le et attribuez une chambre immédiatement</p>
+                  </div>
+                  <Plus className="h-6 w-6 text-emerald-500 shrink-0" />
+                </CardContent>
+              </Card>
+
               {/* Quick Actions */}
               <div>
                 <h3 className="text-base font-bold text-gray-900 mb-3">Actions rapides</h3>
@@ -1308,11 +1327,11 @@ function ReceptionistView({ profile, onLogout }: StaffDashboardProps) {
                   </Card>
                   <Card
                     className="border-emerald-200/40 cursor-pointer hover:shadow-md transition-shadow"
-                    onClick={() => setActiveTab('customers')}
+                    onClick={() => setWalkInOpen(true)}
                   >
                     <CardContent className="p-4 flex flex-col items-center text-center gap-2">
-                      <User className="h-6 w-6 text-emerald-600" />
-                      <span className="text-sm font-medium text-emerald-900">Ajouter client</span>
+                      <DoorOpen className="h-6 w-6 text-emerald-600" />
+                      <span className="text-sm font-medium text-emerald-900">Enregistrement direct</span>
                     </CardContent>
                   </Card>
                   <Card
@@ -1542,6 +1561,20 @@ function ReceptionistView({ profile, onLogout }: StaffDashboardProps) {
           )}
         </div>
       </main>
+
+      {/* ─── Walk-In Direct Check-In Dialog ────────────────────────────── */}
+      <WalkInDialog
+        open={walkInOpen}
+        onOpenChange={setWalkInOpen}
+        rooms={rooms.map((r) => ({
+          id: r.id,
+          room_number: r.room_number,
+          room_type: r.room_type,
+          status: r.status,
+          price_per_night: r.price_per_night,
+        }))}
+        onSuccess={fetchAllData}
+      />
     </div>
   )
 }
