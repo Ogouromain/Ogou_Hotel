@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 
+const READ_ROLES = ['owner', 'manager', 'receptionist']
+const WRITE_ROLES = ['owner', 'manager']
+
 /**
  * GET /api/owner/stocks/items
  * List all stock items for the hotel, with a low_stock computed field.
@@ -13,6 +16,11 @@ export async function GET() {
 
     if (!user) {
       return NextResponse.json({ error: 'Non authentifié' }, { status: 401 })
+    }
+
+    const role = user.app_metadata?.role
+    if (!READ_ROLES.includes(role)) {
+      return NextResponse.json({ error: 'Accès non autorisé' }, { status: 403 })
     }
 
     const hotelId = user.app_metadata?.hotel_id
@@ -55,6 +63,11 @@ export async function POST(request: NextRequest) {
 
     if (!user) {
       return NextResponse.json({ error: 'Non authentifié' }, { status: 401 })
+    }
+
+    const role = user.app_metadata?.role
+    if (!WRITE_ROLES.includes(role)) {
+      return NextResponse.json({ error: 'Accès non autorisé. Seuls le propriétaire et le manager peuvent créer des articles de stock.' }, { status: 403 })
     }
 
     const hotelId = user.app_metadata?.hotel_id

@@ -18,6 +18,11 @@ export async function PATCH(
       return NextResponse.json({ error: 'Non authentifié' }, { status: 401 })
     }
 
+    const userRole = user.app_metadata?.role
+    if (!['owner', 'manager'].includes(userRole)) {
+      return NextResponse.json({ error: 'Accès non autorisé. Seuls le propriétaire et le manager peuvent gérer les employés.' }, { status: 403 })
+    }
+
     const hotelId = user.app_metadata?.hotel_id
     if (!hotelId) {
       return NextResponse.json({ error: 'Aucun hôtel associé' }, { status: 404 })
@@ -155,6 +160,11 @@ export async function DELETE(
 
     if (!user) {
       return NextResponse.json({ error: 'Non authentifié' }, { status: 401 })
+    }
+
+    const userRole = user.app_metadata?.role
+    if (!['owner', 'manager'].includes(userRole)) {
+      return NextResponse.json({ error: 'Accès non autorisé. Seuls le propriétaire et le manager peuvent gérer les employés.' }, { status: 403 })
     }
 
     const hotelId = user.app_metadata?.hotel_id

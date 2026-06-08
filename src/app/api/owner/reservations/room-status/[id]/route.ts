@@ -3,7 +3,7 @@ import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { logAudit } from '@/lib/audit'
 
-const ALLOWED_ROLES = ['owner', 'manager', 'receptionist']
+const ALLOWED_ROLES = ['manager', 'receptionist']
 
 // Valid room status transitions for quick status updates
 // Receptionist can mark rooms as available after cleaning, or set cleaning/maintenance

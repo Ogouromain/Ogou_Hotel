@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 
-const ALLOWED_ROLES = ['housekeeper', 'manager', 'owner']
+const ALLOWED_ROLES = ['receptionist', 'housekeeper', 'manager']
 
 /**
  * PATCH /api/staff/room-status/[id]

@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 
+const READ_ROLES = ['owner', 'manager', 'receptionist', 'restaurant_staff']
+const WRITE_ROLES = ['owner', 'manager', 'receptionist']
+
 /**
  * GET /api/owner/restaurant/orders
  * List all orders for the hotel, with order items joined.
@@ -14,6 +17,11 @@ export async function GET(request: NextRequest) {
 
     if (!user) {
       return NextResponse.json({ error: 'Non authentifié' }, { status: 401 })
+    }
+
+    const role = user.app_metadata?.role
+    if (!READ_ROLES.includes(role)) {
+      return NextResponse.json({ error: 'Accès non autorisé' }, { status: 403 })
     }
 
     const hotelId = user.app_metadata?.hotel_id
@@ -66,6 +74,11 @@ export async function POST(request: NextRequest) {
 
     if (!user) {
       return NextResponse.json({ error: 'Non authentifié' }, { status: 401 })
+    }
+
+    const role = user.app_metadata?.role
+    if (!WRITE_ROLES.includes(role)) {
+      return NextResponse.json({ error: 'Accès non autorisé. Seuls le propriétaire, le manager et le réceptionniste peuvent créer des commandes.' }, { status: 403 })
     }
 
     const hotelId = user.app_metadata?.hotel_id

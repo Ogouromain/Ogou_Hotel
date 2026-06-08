@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 
+const WRITE_ROLES = ['owner', 'manager', 'restaurant_staff']
+
 /**
  * Valid order status transitions:
  * pending → preparing → served → paid
@@ -29,6 +31,11 @@ export async function PATCH(
 
     if (!user) {
       return NextResponse.json({ error: 'Non authentifié' }, { status: 401 })
+    }
+
+    const role = user.app_metadata?.role
+    if (!WRITE_ROLES.includes(role)) {
+      return NextResponse.json({ error: 'Accès non autorisé. Seuls le propriétaire, le manager et le personnel restaurant peuvent modifier les commandes.' }, { status: 403 })
     }
 
     const hotelId = user.app_metadata?.hotel_id

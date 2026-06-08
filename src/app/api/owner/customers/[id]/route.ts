@@ -193,8 +193,8 @@ export async function DELETE(
     }
 
     const role = user.app_metadata?.role
-    if (!['owner', 'manager', 'receptionist'].includes(role)) {
-      return NextResponse.json({ error: 'Accès refusé' }, { status: 403 })
+    if (!['owner', 'manager'].includes(role)) {
+      return NextResponse.json({ error: 'Accès refusé. Seuls le propriétaire et le manager peuvent supprimer des clients.' }, { status: 403 })
     }
 
     const { id } = await params

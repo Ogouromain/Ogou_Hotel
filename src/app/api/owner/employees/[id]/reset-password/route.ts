@@ -20,6 +20,11 @@ export async function POST(
       return NextResponse.json({ error: 'Non authentifié' }, { status: 401 })
     }
 
+    const userRole = user.app_metadata?.role
+    if (userRole !== 'owner') {
+      return NextResponse.json({ error: 'Accès non autorisé. Seul le propriétaire peut réinitialiser les mots de passe.' }, { status: 403 })
+    }
+
     const hotelId = user.app_metadata?.hotel_id
     if (!hotelId) {
       return NextResponse.json({ error: 'Aucun hôtel associé' }, { status: 404 })

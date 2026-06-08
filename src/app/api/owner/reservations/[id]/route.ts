@@ -96,6 +96,18 @@ export async function PATCH(
 
     const action = body.action
 
+    // Role-based action restrictions
+    const userRole = user.app_metadata?.role
+    const OPERATIONAL_ACTIONS = ['check_in', 'check_out']
+    const OPERATIONAL_ROLES = ['manager', 'receptionist']
+    
+    if (OPERATIONAL_ACTIONS.includes(action) && !OPERATIONAL_ROLES.includes(userRole)) {
+      return NextResponse.json(
+        { error: `Action "${action}" non autorisée. Seuls le manager et le réceptionniste peuvent effectuer les check-ins/check-outs.` },
+        { status: 403 }
+      )
+    }
+
     if (!action) {
       return NextResponse.json({ error: 'Action requise (check_in, check_out, cancel, update)' }, { status: 400 })
     }
