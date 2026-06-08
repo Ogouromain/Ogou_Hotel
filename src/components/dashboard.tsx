@@ -69,6 +69,7 @@ import {
   SheetTrigger,
 } from '@/components/ui/sheet'
 import { Skeleton } from '@/components/ui/skeleton'
+import Image from 'next/image'
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -1230,11 +1231,9 @@ function SidebarContent({
     <div className="flex h-full flex-col">
       {/* Logo */}
       <div className="flex items-center gap-3 px-6 py-5 border-b border-amber-200/40">
-        <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-gradient-to-br from-amber-500 to-orange-600 shadow-md shadow-amber-500/20">
-          <Hotel className="h-5 w-5 text-white" />
-        </div>
+        <Image src="/logo.png" alt="OGOU_Hôtel" height={32} width={32} className="object-contain" />
         <div>
-          <h1 className="text-lg font-bold tracking-tight bg-gradient-to-r from-amber-600 to-orange-600 bg-clip-text text-transparent">
+          <h1 className="text-lg font-bold tracking-tight bg-gradient-to-r from-emerald-600 to-green-500 bg-clip-text text-transparent">
             OGOU_Hôtel
           </h1>
           <p className="text-[10px] text-muted-foreground leading-none">Gestion Hôtelière</p>

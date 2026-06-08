@@ -35,6 +35,7 @@ import {
   BedDouble,
   CircleDollarSign,
 } from 'lucide-react'
+import Image from 'next/image'
 
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -916,11 +917,9 @@ export function InvoicesTab({ onRefresh }: InvoicesTabProps) {
                       {/* Left: Hotel Branding */}
                       <div className="space-y-3">
                         <div className="flex items-center gap-3.5">
-                          <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-amber-500 to-orange-600 shadow-lg shadow-amber-500/30">
-                            <Hotel className="h-8 w-8 text-white" />
-                          </div>
+                          <Image src="/logo.png" alt="OGOU_Hôtel" height={56} width={56} className="object-contain" />
                           <div>
-                            <h3 className="text-2xl font-extrabold text-gray-900 tracking-tight leading-none">OGOU_Hôtel</h3>
+                            <h3 className="text-2xl font-extrabold bg-gradient-to-r from-emerald-600 to-green-500 bg-clip-text text-transparent tracking-tight leading-none">OGOU_Hôtel</h3>
                             <p className="text-[11px] text-amber-600 font-bold tracking-[0.18em] uppercase mt-0.5">Hôtellerie &amp; Restauration</p>
                           </div>
                         </div>

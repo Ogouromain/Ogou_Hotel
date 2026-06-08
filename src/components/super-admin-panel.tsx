@@ -24,6 +24,7 @@ import {
   BellRing,
   MessageSquare,
 } from 'lucide-react'
+import Image from 'next/image'
 import { useRealtimeSafe } from '@/lib/realtime-context'
 import { RealtimeIndicator } from '@/components/realtime-indicator'
 
@@ -245,11 +246,9 @@ function SidebarContent({
     <div className="flex h-full flex-col bg-gradient-to-b from-amber-50 to-orange-50">
       {/* Logo */}
       <div className="flex items-center gap-3 px-6 py-6 border-b border-amber-200/50">
-        <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-amber-500 to-orange-600 shadow-lg shadow-amber-500/30">
-          <Hotel className="h-5 w-5 text-white" />
-        </div>
+        <Image src="/logo.png" alt="OGOU_Hôtel" height={36} width={36} className="object-contain" />
         <div>
-          <h1 className="text-lg font-bold text-amber-900">OGOU_Hôtel</h1>
+          <h1 className="text-lg font-bold bg-gradient-to-r from-emerald-600 to-green-500 bg-clip-text text-transparent">OGOU_Hôtel</h1>
           <p className="text-[10px] uppercase tracking-wider text-amber-600 font-semibold">Super Admin</p>
         </div>
       </div>

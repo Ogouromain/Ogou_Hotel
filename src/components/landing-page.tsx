@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { toast } from 'sonner'
+import Image from 'next/image'
 import {
   Hotel,
   Bed,
@@ -406,10 +407,18 @@ export function LandingPage({ onLogin, onRegister, onDemo }: LandingPageProps) {
       <header className="sticky top-0 z-50 w-full border-b border-amber-100 bg-white/80 backdrop-blur-lg">
         <div className="max-w-7xl mx-auto flex h-16 items-center justify-between px-4 sm:px-6 lg:px-8">
           <div className="flex items-center gap-2.5">
-            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-amber-500 to-orange-600 shadow-md shadow-amber-500/20">
-              <Hotel className="h-5 w-5 text-white" />
-            </div>
-            <span className="text-xl font-bold tracking-tight text-amber-900">OGOU_Hôtel</span>
+            <Image
+              src="/logo.png"
+              alt="OGOU_Hôtel"
+              height={36}
+              width={36}
+              className="object-contain"
+              priority
+            />
+            <span className="text-xl font-bold tracking-tight">
+              <span className="bg-gradient-to-r from-emerald-600 to-green-500 bg-clip-text text-transparent">OGOU</span>
+              <span className="text-gray-800">_Hôtel</span>
+            </span>
           </div>
           <nav className="hidden md:flex items-center gap-6 text-sm font-medium">
             <a href="#features" className="text-gray-600 hover:text-amber-700 transition-colors">Fonctionnalités</a>
@@ -663,10 +672,17 @@ export function LandingPage({ onLogin, onRegister, onDemo }: LandingPageProps) {
             {/* Brand */}
             <div className="md:col-span-2">
               <div className="flex items-center gap-2.5 mb-4">
-                <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-amber-500 to-orange-600">
-                  <Hotel className="h-5 w-5 text-white" />
-                </div>
-                <span className="text-xl font-bold text-white">OGOU_Hôtel</span>
+                <Image
+                  src="/logo.png"
+                  alt="OGOU_Hôtel"
+                  height={36}
+                  width={36}
+                  className="object-contain"
+                />
+                <span className="text-xl font-bold">
+                  <span className="bg-gradient-to-r from-emerald-400 to-green-400 bg-clip-text text-transparent">OGOU</span>
+                  <span className="text-white">_Hôtel</span>
+                </span>
               </div>
               <p className="text-sm leading-relaxed max-w-sm">
                 La plateforme de gestion hôtelière multi-tenant conçue pour les établissements de Côte d&apos;Ivoire.

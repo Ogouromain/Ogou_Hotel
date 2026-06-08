@@ -28,8 +28,8 @@ import {
   ExternalLink,
   Check,
   X,
-  Hotel,
 } from 'lucide-react'
+import Image from 'next/image'
 
 interface SetupStatus {
   tablesExist: boolean
@@ -216,10 +216,8 @@ export function SetupWizard({ onComplete }: SetupWizardProps) {
         <Card className="w-full max-w-md shadow-lg border-amber-200/50">
           <CardContent className="flex flex-col items-center gap-4 py-12">
             <div className="relative">
-              <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-amber-400 to-orange-500 flex items-center justify-center shadow-lg shadow-amber-500/30">
-                <Hotel className="w-8 h-8 text-white" />
-              </div>
-              <div className="absolute -inset-1 rounded-2xl bg-gradient-to-br from-amber-400 to-orange-500 opacity-20 animate-pulse" />
+              <Image src="/logo.png" alt="OGOU_Hôtel" height={64} width={64} className="object-contain" />
+              <div className="absolute -inset-1 rounded-2xl bg-gradient-to-br from-emerald-400 to-green-500 opacity-20 animate-pulse" />
             </div>
             <Loader2 className="w-6 h-6 text-amber-500 animate-spin mt-2" />
             <p className="text-sm text-muted-foreground">Vérification du système...</p>
@@ -235,10 +233,8 @@ export function SetupWizard({ onComplete }: SetupWizardProps) {
         {/* Header */}
         <div className="text-center mb-8">
           <div className="flex items-center justify-center gap-3 mb-3">
-            <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-amber-400 to-orange-500 flex items-center justify-center shadow-lg shadow-amber-500/30">
-              <Hotel className="w-6 h-6 text-white" />
-            </div>
-            <h1 className="text-3xl sm:text-4xl font-bold bg-gradient-to-r from-amber-600 to-orange-600 bg-clip-text text-transparent">
+            <Image src="/logo.png" alt="OGOU_Hôtel" height={48} width={48} className="object-contain" />
+            <h1 className="text-3xl sm:text-4xl font-bold bg-gradient-to-r from-emerald-600 to-green-500 bg-clip-text text-transparent">
               OGOU_Hôtel
             </h1>
           </div>

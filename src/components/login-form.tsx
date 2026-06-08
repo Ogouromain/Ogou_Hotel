@@ -2,7 +2,8 @@
 
 import { useState, FormEvent } from 'react'
 import { toast } from 'sonner'
-import { LogIn, Eye, EyeOff, Loader2, Hotel, ShieldCheck } from 'lucide-react'
+import { LogIn, Eye, EyeOff, Loader2, ShieldCheck } from 'lucide-react'
+import Image from 'next/image'
 import {
   Card,
   CardHeader,
@@ -92,14 +93,22 @@ export function LoginForm({ onSwitchToRegister }: LoginFormProps) {
       <div className="w-full max-w-md space-y-6">
         {/* Logo and branding */}
         <div className="text-center space-y-3">
-          <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-2xl bg-gradient-to-br from-amber-500 to-orange-600 shadow-xl shadow-amber-500/30">
-            <Hotel className="h-10 w-10 text-white" />
+          <div className="mx-auto">
+            <Image
+              src="/logo.png"
+              alt="OGOU_Hôtel"
+              height={80}
+              width={80}
+              className="object-contain mx-auto"
+              priority
+            />
           </div>
           <div className="space-y-1">
             <h1 className="text-3xl font-bold tracking-tight">
-              <span className="bg-gradient-to-r from-amber-600 to-orange-600 bg-clip-text text-transparent">
-                OGOU_Hôtel
+              <span className="bg-gradient-to-r from-emerald-600 to-green-500 bg-clip-text text-transparent">
+                OGOU
               </span>
+              <span className="text-gray-800 dark:text-gray-200">_Hôtel</span>
             </h1>
             <p className="text-sm text-muted-foreground">
               Gestion hôtelière — Côte d&apos;Ivoire

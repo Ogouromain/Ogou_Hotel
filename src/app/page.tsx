@@ -5,7 +5,8 @@ import { LoginForm } from '@/components/login-form'
 import { RegisterForm } from '@/components/register-form'
 import { SetupWizard } from '@/components/setup-wizard'
 import { LandingPage } from '@/components/landing-page'
-import { Loader2, Hotel } from 'lucide-react'
+import { Loader2 } from 'lucide-react'
+import Image from 'next/image'
 import { useState, useEffect, useMemo, useCallback } from 'react'
 import dynamic from 'next/dynamic'
 import type { Profile } from '@/lib/types'
@@ -109,9 +110,7 @@ export default function Home() {
       <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-amber-50 via-orange-50 to-amber-100 dark:from-gray-950 dark:via-gray-900 dark:to-gray-950">
         <div className="flex flex-col items-center gap-4">
           <div className="relative">
-            <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-amber-500 to-orange-600 flex items-center justify-center shadow-xl shadow-amber-500/30">
-              <Hotel className="w-8 h-8 text-white" />
-            </div>
+            <Image src="/logo.png" alt="OGOU_Hôtel" height={64} width={64} className="object-contain" />
           </div>
           <Loader2 className="h-6 w-6 text-amber-500 animate-spin" />
           <p className="text-sm text-muted-foreground">
