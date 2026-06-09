@@ -190,7 +190,7 @@ type ManagerTabId = 'overview' | 'rooms' | 'reservations' | 'customers' | 'invoi
 const RECEPTIONIST_NAV_ITEMS: { id: ReceptionistTabId; label: string; icon: React.ReactNode }[] = [
   { id: 'overview', label: 'Accueil', icon: <BarChart3 className="h-4 w-4" /> },
   { id: 'rooms', label: 'Chambres', icon: <Bed className="h-4 w-4" /> },
-  { id: 'reservations', label: 'R\u00e9servations', icon: <Calendar className="h-4 w-4" /> },
+  { id: 'reservations', label: 'Réservations', icon: <Calendar className="h-4 w-4" /> },
   { id: 'customers', label: 'Clients', icon: <Users className="h-4 w-4" /> },
   { id: 'invoices', label: 'Factures', icon: <FileText className="h-4 w-4" /> },
   { id: 'notifications', label: 'Notifications', icon: <Bell className="h-4 w-4" /> },
@@ -212,30 +212,30 @@ const HOUSEKEEPER_NAV_ITEMS: { id: HousekeeperTabId; label: string; icon: React.
 const MANAGER_NAV_ITEMS: { id: ManagerTabId; label: string; icon: React.ReactNode }[] = [
   { id: 'overview', label: 'Accueil', icon: <BarChart3 className="h-4 w-4" /> },
   { id: 'rooms', label: 'Chambres', icon: <Bed className="h-4 w-4" /> },
-  { id: 'reservations', label: 'R\u00e9servations', icon: <Calendar className="h-4 w-4" /> },
+  { id: 'reservations', label: 'Réservations', icon: <Calendar className="h-4 w-4" /> },
   { id: 'customers', label: 'Clients', icon: <Users className="h-4 w-4" /> },
   { id: 'invoices', label: 'Factures', icon: <FileText className="h-4 w-4" /> },
   { id: 'restaurant', label: 'Restaurant', icon: <Utensils className="h-4 w-4" /> },
-  { id: 'housekeeping', label: 'M\u00e9nage', icon: <SprayCan className="h-4 w-4" /> },
+  { id: 'housekeeping', label: 'Ménage', icon: <SprayCan className="h-4 w-4" /> },
   { id: 'notifications', label: 'Notifications', icon: <Bell className="h-4 w-4" /> },
 ]
 
 const MENU_CATEGORIES = [
-  { value: 'entree', label: 'Entr\u00e9e' },
+  { value: 'entree', label: 'Entrée' },
   { value: 'plat_principal', label: 'Plat principal' },
   { value: 'dessert', label: 'Dessert' },
   { value: 'boisson', label: 'Boisson' },
-  { value: 'aperitif', label: 'Ap\u00e9ritif' },
+  { value: 'aperitif', label: 'Apéritif' },
   { value: 'autre', label: 'Autre' },
 ]
 
 const CATEGORY_ICONS: Record<string, string> = {
-  entree: '\uD83E\uDD57',
-  plat_principal: '\uD83C\uDF7D\uFE0F',
-  dessert: '\uD83C\uDF70',
-  boisson: '\uD83E\uDD64',
-  aperitif: '\uD83C\uDF78',
-  autre: '\uD83C\uDF74',
+  entree: '🥗',
+  plat_principal: '🍽️',
+  dessert: '🍰',
+  boisson: '🥤',
+  aperitif: '🍸',
+  autre: '🍴',
 }
 
 function TabLoadingSkeleton() {
@@ -280,7 +280,7 @@ function formatTimeAgo(dateStr: string): string {
     const diffMin = Math.floor(diffMs / 60000)
     const diffHour = Math.floor(diffMin / 60)
 
-    if (diffMin < 1) return "\u00C0 l'instant"
+    if (diffMin < 1) return "À l'instant"
     if (diffMin < 60) return `Il y a ${diffMin} min`
     if (diffHour < 24) return `Il y a ${diffHour}h`
     return formatDateFR(dateStr)
@@ -311,7 +311,7 @@ function getRoomInfo(rooms: RoomBrief | RoomBrief[] | null): RoomBrief | null {
 function getRoomStatusBadge(status: string) {
   switch (status) {
     case 'available': return <Badge className="bg-emerald-100 text-emerald-700 border-emerald-200 hover:bg-emerald-100 text-xs">Disponible</Badge>
-    case 'occupied': return <Badge className="bg-sky-100 text-sky-700 border-sky-200 hover:bg-sky-100 text-xs">Occup\u00e9e</Badge>
+    case 'occupied': return <Badge className="bg-sky-100 text-sky-700 border-sky-200 hover:bg-sky-100 text-xs">Occupée</Badge>
     case 'cleaning': return <Badge className="bg-amber-100 text-amber-700 border-amber-200 hover:bg-amber-100 text-xs">Nettoyage</Badge>
     case 'maintenance': return <Badge className="bg-red-100 text-red-700 border-red-200 hover:bg-red-100 text-xs">Maintenance</Badge>
     default: return <Badge variant="secondary" className="text-xs">{status}</Badge>
@@ -347,7 +347,7 @@ function StaffFooter({ onLogout }: { onLogout: () => void }) {
         onClick={onLogout}
       >
         <LogOut className="h-4 w-4 mr-2" />
-        D\u00e9connexion
+        Déconnexion
       </Button>
     </div>
   )
@@ -415,14 +415,14 @@ function RestaurantStaffView({ profile, onLogout }: StaffDashboardProps) {
       })
       if (res.ok) {
         const statusLabels: Record<string, string> = {
-          preparing: 'en pr\u00e9paration',
+          preparing: 'en préparation',
           served: 'servie',
         }
-        toast.success(`Commande marqu\u00e9e ${statusLabels[newStatus] || newStatus}`)
+        toast.success(`Commande marquée ${statusLabels[newStatus] || newStatus}`)
         fetchData()
       } else {
         const data = await res.json()
-        toast.error(data.error || 'Erreur lors de la mise \u00e0 jour')
+        toast.error(data.error || 'Erreur lors de la mise à jour')
       }
     } catch {
       toast.error('Erreur de connexion')
@@ -435,7 +435,7 @@ function RestaurantStaffView({ profile, onLogout }: StaffDashboardProps) {
 
   const filterConfig = [
     { key: 'pending' as const, label: 'En attente', icon: <Clock className="h-4 w-4" />, count: stats?.pending ?? 0, color: 'bg-amber-100 text-amber-800' },
-    { key: 'preparing' as const, label: 'En pr\u00e9paration', icon: <Utensils className="h-4 w-4" />, count: stats?.preparing ?? 0, color: 'bg-orange-100 text-orange-800' },
+    { key: 'preparing' as const, label: 'En préparation', icon: <Utensils className="h-4 w-4" />, count: stats?.preparing ?? 0, color: 'bg-orange-100 text-orange-800' },
     { key: 'served' as const, label: 'Servies', icon: <CheckCircle2 className="h-4 w-4" />, count: stats?.served ?? 0, color: 'bg-emerald-100 text-emerald-800' },
   ]
 
@@ -453,16 +453,16 @@ function RestaurantStaffView({ profile, onLogout }: StaffDashboardProps) {
     : menuItems
 
   const filteredGroupedMenu = menuSearch
-    ? [{ value: 'search', label: `R\u00e9sultats (${filteredMenuItems.length})`, items: filteredMenuItems }]
+    ? [{ value: 'search', label: `Résultats (${filteredMenuItems.length})`, items: filteredMenuItems }]
     : groupedMenu
 
   // Sidebar
   const sidebarContent = (
     <div className="flex h-full flex-col bg-gradient-to-b from-orange-50 to-amber-50">
       <div className="flex items-center gap-3 px-6 py-6 border-b border-orange-200/50">
-        <Image src="/logo.png" alt="OGOU_H\u00f4tel" height={36} width={36} className="object-contain" />
+        <Image src="/logo.png" alt="OGOU_Hôtel" height={36} width={36} className="object-contain" />
         <div className="flex-1 min-w-0">
-          <h1 className="text-lg font-bold bg-gradient-to-r from-orange-600 to-amber-600 bg-clip-text text-transparent">OGOU_H\u00f4tel</h1>
+          <h1 className="text-lg font-bold bg-gradient-to-r from-orange-600 to-amber-600 bg-clip-text text-transparent">OGOU_Hôtel</h1>
           <div className="flex items-center gap-2">
             <p className="text-[10px] uppercase tracking-wider text-orange-600 font-semibold">Restaurant</p>
             <div className="flex h-2 w-2 rounded-full bg-orange-500" />
@@ -527,7 +527,7 @@ function RestaurantStaffView({ profile, onLogout }: StaffDashboardProps) {
           onClick={onLogout}
         >
           <LogOut className="h-4 w-4 mr-2" />
-          D\u00e9connexion
+          Déconnexion
         </Button>
       </div>
     </div>
@@ -548,7 +548,7 @@ function RestaurantStaffView({ profile, onLogout }: StaffDashboardProps) {
             <Sheet open={sidebarOpen} onOpenChange={setSidebarOpen}>
               <SheetTrigger asChild>
                 <Button variant="ghost" size="icon" className="h-8 w-8">
-                  <Image src="/logo.png" alt="OGOU_H\u00f4tel" height={20} width={20} className="object-contain" />
+                  <Image src="/logo.png" alt="OGOU_Hôtel" height={20} width={20} className="object-contain" />
                 </Button>
               </SheetTrigger>
               <SheetContent side="left" className="w-64 p-0">
@@ -558,7 +558,7 @@ function RestaurantStaffView({ profile, onLogout }: StaffDashboardProps) {
                 {sidebarContent}
               </SheetContent>
             </Sheet>
-            <span className="font-bold bg-gradient-to-r from-orange-600 to-amber-600 bg-clip-text text-transparent">OGOU_H\u00f4tel</span>
+            <span className="font-bold bg-gradient-to-r from-orange-600 to-amber-600 bg-clip-text text-transparent">OGOU_Hôtel</span>
           </div>
           <Button variant="ghost" size="sm" onClick={onLogout}>
             <LogOut className="h-4 w-4" />
@@ -591,7 +591,7 @@ function RestaurantStaffView({ profile, onLogout }: StaffDashboardProps) {
               <div className="flex items-center justify-between">
                 <div>
                   <div className="flex items-center gap-3">
-                    <h2 className="text-2xl font-bold text-gray-900">Bonjour, {profile.first_name} \uD83D\uDC4B</h2>
+                    <h2 className="text-2xl font-bold text-gray-900">Bonjour, {profile.first_name} 👋</h2>
                     <Badge className="bg-orange-100 text-orange-700 border-orange-200 hover:bg-orange-100 text-xs animate-pulse">
                       <div className="h-2 w-2 rounded-full bg-orange-500 mr-1.5" />
                       En service
@@ -632,7 +632,7 @@ function RestaurantStaffView({ profile, onLogout }: StaffDashboardProps) {
                       <Utensils className="h-8 w-8 text-orange-600" />
                       <span className="text-3xl font-bold text-orange-700">{stats?.preparing ?? 0}</span>
                     </div>
-                    <p className="text-sm font-medium text-orange-800 mt-2">En pr\u00e9paration</p>
+                    <p className="text-sm font-medium text-orange-800 mt-2">En préparation</p>
                   </CardContent>
                 </Card>
                 <Card className="border-emerald-200/50 bg-gradient-to-br from-emerald-50 to-emerald-100/50 cursor-pointer hover:shadow-md transition-shadow" onClick={() => setActiveTab('orders')}>
@@ -745,7 +745,7 @@ function RestaurantStaffView({ profile, onLogout }: StaffDashboardProps) {
                   <h3 className="text-lg font-semibold text-gray-800">Aucune commande</h3>
                   <p className="text-sm text-muted-foreground mt-1">
                     {activeFilter === 'pending' ? "Aucune commande en attente" :
-                     activeFilter === 'preparing' ? "Aucune commande en pr\u00e9paration" :
+                     activeFilter === 'preparing' ? "Aucune commande en préparation" :
                      "Aucune commande servie"}
                   </p>
                 </div>
@@ -762,7 +762,7 @@ function RestaurantStaffView({ profile, onLogout }: StaffDashboardProps) {
                                 <Badge className="bg-amber-100 text-amber-700 border-amber-200 hover:bg-amber-100 text-xs">En attente</Badge>
                               )}
                               {order.status === 'preparing' && (
-                                <Badge className="bg-orange-100 text-orange-700 border-orange-200 hover:bg-orange-100 text-xs">En pr\u00e9paration</Badge>
+                                <Badge className="bg-orange-100 text-orange-700 border-orange-200 hover:bg-orange-100 text-xs">En préparation</Badge>
                               )}
                               {order.status === 'served' && (
                                 <Badge className="bg-emerald-100 text-emerald-700 border-emerald-200 hover:bg-emerald-100 text-xs">Servie</Badge>
@@ -772,9 +772,9 @@ function RestaurantStaffView({ profile, onLogout }: StaffDashboardProps) {
                               {order.room_id ? (
                                 <><Bed className="h-3.5 w-3.5" /><span>Chambre</span></>
                               ) : (
-                                <><Utensils className="h-3.5 w-3.5" /><span>Table {order.table_number || '\u2014'}</span></>
+                                <><Utensils className="h-3.5 w-3.5" /><span>Table {order.table_number || '—'}</span></>
                               )}
-                              <span className="mx-1">\u2022</span>
+                              <span className="mx-1">•</span>
                               <Clock className="h-3.5 w-3.5" />
                               <span>{formatTimeAgo(order.created_at)}</span>
                             </div>
@@ -809,8 +809,8 @@ function RestaurantStaffView({ profile, onLogout }: StaffDashboardProps) {
                             onClick={() => handleOrderStatus(order.id, 'preparing')}
                             disabled={actionLoading === order.id}
                           >
-                            {actionLoading === order.id ? <Loader2 className="h-5 w-5 animate-spin mr-2" /> : <span className="mr-2">\uD83D\uDD25</span>}
-                            Pr\u00e9parer
+                            {actionLoading === order.id ? <Loader2 className="h-5 w-5 animate-spin mr-2" /> : <span className="mr-2">🔥</span>}
+                            Préparer
                           </Button>
                         )}
                         {order.status === 'preparing' && (
@@ -876,13 +876,13 @@ function RestaurantStaffView({ profile, onLogout }: StaffDashboardProps) {
                     <UtensilsCrossed className="h-8 w-8" />
                   </div>
                   <h3 className="text-lg font-semibold text-gray-800">Aucun article au menu</h3>
-                  <p className="text-sm text-muted-foreground mt-1">Le menu sera g\u00e9r\u00e9 par le propri\u00e9taire</p>
+                  <p className="text-sm text-muted-foreground mt-1">Le menu sera géré par le propriétaire</p>
                 </div>
               ) : (
                 filteredGroupedMenu.map((group) => (
                   <div key={group.value}>
                     <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-3 flex items-center gap-2">
-                      {CATEGORY_ICONS[group.value] || '\uD83C\uDF74'} {group.label}
+                      {CATEGORY_ICONS[group.value] || '🍴'} {group.label}
                       <Badge variant="secondary" className="text-[10px]">{group.items.length}</Badge>
                     </h3>
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -907,7 +907,7 @@ function RestaurantStaffView({ profile, onLogout }: StaffDashboardProps) {
                                 item.category === 'aperitif' ? 'bg-purple-100 text-purple-700 border-purple-200' :
                                 'bg-gray-100 text-gray-700 border-gray-200'
                               }`}>
-                                {CATEGORY_ICONS[item.category] || '\uD83C\uDF74'} {MENU_CATEGORIES.find(c => c.value === item.category)?.label || item.category}
+                                {CATEGORY_ICONS[item.category] || '🍴'} {MENU_CATEGORIES.find(c => c.value === item.category)?.label || item.category}
                               </Badge>
                             </div>
                             <div className="flex items-center justify-between mt-3">
@@ -979,11 +979,11 @@ function HousekeeperView({ profile, onLogout }: StaffDashboardProps) {
       })
       if (res.ok) {
         const statusLabel = newStatus === 'available' ? 'propre' : 'en maintenance'
-        toast.success(`Chambre ${roomNumber} marqu\u00e9e ${statusLabel}`)
+        toast.success(`Chambre ${roomNumber} marquée ${statusLabel}`)
         fetchData()
       } else {
         const data = await res.json()
-        toast.error(data.error || 'Erreur lors de la mise \u00e0 jour')
+        toast.error(data.error || 'Erreur lors de la mise à jour')
       }
     } catch {
       toast.error('Erreur de connexion')
@@ -998,11 +998,11 @@ function HousekeeperView({ profile, onLogout }: StaffDashboardProps) {
   const sidebarContent = (
     <div className="flex h-full flex-col bg-gradient-to-b from-emerald-50 to-green-50">
       <div className="flex items-center gap-3 px-6 py-6 border-b border-emerald-200/50">
-        <Image src="/logo.png" alt="OGOU_H\u00f4tel" height={36} width={36} className="object-contain" />
+        <Image src="/logo.png" alt="OGOU_Hôtel" height={36} width={36} className="object-contain" />
         <div className="flex-1 min-w-0">
-          <h1 className="text-lg font-bold bg-gradient-to-r from-emerald-600 to-green-500 bg-clip-text text-transparent">OGOU_H\u00f4tel</h1>
+          <h1 className="text-lg font-bold bg-gradient-to-r from-emerald-600 to-green-500 bg-clip-text text-transparent">OGOU_Hôtel</h1>
           <div className="flex items-center gap-2">
-            <p className="text-[10px] uppercase tracking-wider text-emerald-600 font-semibold">M\u00e9nage</p>
+            <p className="text-[10px] uppercase tracking-wider text-emerald-600 font-semibold">Ménage</p>
             <div className="flex h-2 w-2 rounded-full bg-emerald-500" />
           </div>
         </div>
@@ -1054,7 +1054,7 @@ function HousekeeperView({ profile, onLogout }: StaffDashboardProps) {
             <p className="text-sm font-medium text-emerald-900 truncate">{profile.first_name} {profile.last_name}</p>
             <p className="text-xs text-emerald-600 flex items-center gap-1">
               <Shield className="h-3 w-3" />
-              M\u00e9nage
+              Ménage
             </p>
           </div>
         </div>
@@ -1065,7 +1065,7 @@ function HousekeeperView({ profile, onLogout }: StaffDashboardProps) {
           onClick={onLogout}
         >
           <LogOut className="h-4 w-4 mr-2" />
-          D\u00e9connexion
+          Déconnexion
         </Button>
       </div>
     </div>
@@ -1086,7 +1086,7 @@ function HousekeeperView({ profile, onLogout }: StaffDashboardProps) {
             <Sheet open={sidebarOpen} onOpenChange={setSidebarOpen}>
               <SheetTrigger asChild>
                 <Button variant="ghost" size="icon" className="h-8 w-8">
-                  <Image src="/logo.png" alt="OGOU_H\u00f4tel" height={20} width={20} className="object-contain" />
+                  <Image src="/logo.png" alt="OGOU_Hôtel" height={20} width={20} className="object-contain" />
                 </Button>
               </SheetTrigger>
               <SheetContent side="left" className="w-64 p-0">
@@ -1096,7 +1096,7 @@ function HousekeeperView({ profile, onLogout }: StaffDashboardProps) {
                 {sidebarContent}
               </SheetContent>
             </Sheet>
-            <span className="font-bold bg-gradient-to-r from-emerald-600 to-green-500 bg-clip-text text-transparent">OGOU_H\u00f4tel</span>
+            <span className="font-bold bg-gradient-to-r from-emerald-600 to-green-500 bg-clip-text text-transparent">OGOU_Hôtel</span>
           </div>
           <Button variant="ghost" size="sm" onClick={onLogout}>
             <LogOut className="h-4 w-4" />
@@ -1129,7 +1129,7 @@ function HousekeeperView({ profile, onLogout }: StaffDashboardProps) {
               <div className="flex items-center justify-between">
                 <div>
                   <div className="flex items-center gap-3">
-                    <h2 className="text-2xl font-bold text-gray-900">Bonjour, {profile.first_name} \uD83D\uDC4B</h2>
+                    <h2 className="text-2xl font-bold text-gray-900">Bonjour, {profile.first_name} 👋</h2>
                     <Badge className="bg-emerald-100 text-emerald-700 border-emerald-200 hover:bg-emerald-100 text-xs animate-pulse">
                       <div className="h-2 w-2 rounded-full bg-emerald-500 mr-1.5" />
                       En service
@@ -1188,7 +1188,7 @@ function HousekeeperView({ profile, onLogout }: StaffDashboardProps) {
                       <Bed className="h-8 w-8 text-sky-600" />
                       <span className="text-3xl font-bold text-sky-700">{stats?.occupied ?? 0}</span>
                     </div>
-                    <p className="text-sm font-medium text-sky-800 mt-2">Occup\u00e9es</p>
+                    <p className="text-sm font-medium text-sky-800 mt-2">Occupées</p>
                   </CardContent>
                 </Card>
               </div>
@@ -1225,7 +1225,7 @@ function HousekeeperView({ profile, onLogout }: StaffDashboardProps) {
                   <Card className="border-amber-200/40 cursor-pointer hover:shadow-md transition-shadow" onClick={() => { setActiveTab('rooms'); setRoomFilter('cleaning') }}>
                     <CardContent className="p-4 flex flex-col items-center text-center gap-2">
                       <SprayCan className="h-6 w-6 text-amber-600" />
-                      <span className="text-sm font-medium text-amber-900">Chambres \u00e0 nettoyer</span>
+                      <span className="text-sm font-medium text-amber-900">Chambres à nettoyer</span>
                     </CardContent>
                   </Card>
                   <Card className="border-emerald-200/40 cursor-pointer hover:shadow-md transition-shadow" onClick={() => { setActiveTab('rooms'); setRoomFilter('all') }}>
@@ -1263,7 +1263,7 @@ function HousekeeperView({ profile, onLogout }: StaffDashboardProps) {
                   { key: 'cleaning', label: 'Nettoyage', count: stats?.cleaning ?? 0, activeClass: 'bg-amber-600 text-white', inactiveClass: 'bg-amber-100 text-amber-800 hover:bg-amber-200' },
                   { key: 'maintenance', label: 'Maintenance', count: stats?.maintenance ?? 0, activeClass: 'bg-red-600 text-white', inactiveClass: 'bg-red-100 text-red-800 hover:bg-red-200' },
                   { key: 'available', label: 'Propres', count: stats?.available ?? 0, activeClass: 'bg-emerald-600 text-white', inactiveClass: 'bg-emerald-100 text-emerald-800 hover:bg-emerald-200' },
-                  { key: 'occupied', label: 'Occup\u00e9es', count: stats?.occupied ?? 0, activeClass: 'bg-sky-600 text-white', inactiveClass: 'bg-sky-100 text-sky-800 hover:bg-sky-200' },
+                  { key: 'occupied', label: 'Occupées', count: stats?.occupied ?? 0, activeClass: 'bg-sky-600 text-white', inactiveClass: 'bg-sky-100 text-sky-800 hover:bg-sky-200' },
                 ].map((f) => (
                   <button
                     key={f.key}
@@ -1343,7 +1343,7 @@ function HousekeeperView({ profile, onLogout }: StaffDashboardProps) {
                           {room.status === 'occupied' && (
                             <div className="flex items-center gap-1.5 text-sky-600 text-xs font-medium">
                               <Bed className="h-3 w-3" />
-                              Chambre occup\u00e9e
+                              Chambre occupée
                             </div>
                           )}
                         </div>
@@ -1417,7 +1417,7 @@ function ReceptionistView({ profile, onLogout }: StaffDashboardProps) {
         body: JSON.stringify({ action: 'check_in' }),
       })
       if (res.ok) {
-        toast.success('Check-in effectu\u00e9 avec succ\u00e8s')
+        toast.success('Check-in effectué avec succès')
         fetchAllData()
       } else {
         const data = await res.json()
@@ -1439,7 +1439,7 @@ function ReceptionistView({ profile, onLogout }: StaffDashboardProps) {
         body: JSON.stringify({ action: 'check_out' }),
       })
       if (res.ok) {
-        toast.success('Check-out effectu\u00e9 \u2014 M\u00e9nage requis')
+        toast.success('Check-out effectué — Ménage requis')
         fetchAllData()
       } else {
         const data = await res.json()
@@ -1466,7 +1466,7 @@ function ReceptionistView({ profile, onLogout }: StaffDashboardProps) {
           cleaning: 'Nettoyage',
           maintenance: 'Maintenance',
         }
-        toast.success(`Statut chang\u00e9 en "${statusLabels[newStatus] || newStatus}"`)
+        toast.success(`Statut changé en "${statusLabels[newStatus] || newStatus}"`)
         fetchAllData()
       } else {
         const data = await res.json()
@@ -1497,15 +1497,15 @@ function ReceptionistView({ profile, onLogout }: StaffDashboardProps) {
               {room && (
                 <div className="flex items-center gap-1.5 mt-1.5 text-sm text-muted-foreground">
                   <Bed className="h-3.5 w-3.5" />
-                  <span>Chambre {room.room_number} \u2014 {room.room_type}</span>
+                  <span>Chambre {room.room_number} — {room.room_type}</span>
                 </div>
               )}
               <div className="flex items-center gap-1.5 mt-1 text-xs text-muted-foreground">
                 <Clock className="h-3 w-3" />
                 <span>
                   {type === 'check-in'
-                    ? `Arriv\u00e9e : ${formatDateFR(reservation.check_in_date)}`
-                    : `D\u00e9part : ${formatDateFR(reservation.check_out_date)}`
+                    ? `Arrivée : ${formatDateFR(reservation.check_in_date)}`
+                    : `Départ : ${formatDateFR(reservation.check_out_date)}`
                   }
                 </span>
               </div>
@@ -1516,14 +1516,14 @@ function ReceptionistView({ profile, onLogout }: StaffDashboardProps) {
                   <CheckCircle2 className="h-5 w-5 text-emerald-600" />
                 </div>
               ) : isCheckedIn && type === 'check-out' ? (
-                <Badge className="bg-sky-100 text-sky-700 border-sky-200 hover:bg-sky-100 text-xs">Enregistr\u00e9</Badge>
+                <Badge className="bg-sky-100 text-sky-700 border-sky-200 hover:bg-sky-100 text-xs">Enregistré</Badge>
               ) : isCheckedIn && type === 'check-in' ? (
                 <div className="flex h-8 w-8 items-center justify-center rounded-full bg-emerald-100">
                   <CheckCircle2 className="h-5 w-5 text-emerald-600" />
                 </div>
               ) : (
                 <Badge className="bg-amber-100 text-amber-700 border-amber-200 hover:bg-amber-100 text-xs">
-                  {reservation.status === 'pending' ? 'En attente' : 'Confirm\u00e9e'}
+                  {reservation.status === 'pending' ? 'En attente' : 'Confirmée'}
                 </Badge>
               )}
             </div>
@@ -1542,7 +1542,7 @@ function ReceptionistView({ profile, onLogout }: StaffDashboardProps) {
           {type === 'check-in' && isCheckedIn && (
             <div className="flex items-center justify-center gap-2 text-emerald-600 py-1">
               <CheckCircle2 className="h-5 w-5" />
-              <span className="text-sm font-medium">Client enregistr\u00e9</span>
+              <span className="text-sm font-medium">Client enregistré</span>
             </div>
           )}
           {type === 'check-out' && isCheckedIn && (
@@ -1558,7 +1558,7 @@ function ReceptionistView({ profile, onLogout }: StaffDashboardProps) {
           {type === 'check-out' && isCheckedOut && (
             <div className="flex items-center justify-center gap-2 text-emerald-600 py-1">
               <CheckCircle2 className="h-5 w-5" />
-              <span className="text-sm font-medium">D\u00e9part effectu\u00e9</span>
+              <span className="text-sm font-medium">Départ effectué</span>
             </div>
           )}
         </CardContent>
@@ -1577,11 +1577,11 @@ function ReceptionistView({ profile, onLogout }: StaffDashboardProps) {
   const sidebarContent = (
     <div className="flex h-full flex-col bg-gradient-to-b from-amber-50 to-orange-50">
       <div className="flex items-center gap-3 px-6 py-6 border-b border-amber-200/50">
-        <Image src="/logo.png" alt="OGOU_H\u00f4tel" height={36} width={36} className="object-contain" />
+        <Image src="/logo.png" alt="OGOU_Hôtel" height={36} width={36} className="object-contain" />
         <div className="flex-1 min-w-0">
-          <h1 className="text-lg font-bold bg-gradient-to-r from-emerald-600 to-green-500 bg-clip-text text-transparent">OGOU_H\u00f4tel</h1>
+          <h1 className="text-lg font-bold bg-gradient-to-r from-emerald-600 to-green-500 bg-clip-text text-transparent">OGOU_Hôtel</h1>
           <div className="flex items-center gap-2">
-            <p className="text-[10px] uppercase tracking-wider text-amber-600 font-semibold">R\u00e9ceptionniste</p>
+            <p className="text-[10px] uppercase tracking-wider text-amber-600 font-semibold">Réceptionniste</p>
             <div className="flex h-2 w-2 rounded-full bg-emerald-500" />
           </div>
         </div>
@@ -1633,7 +1633,7 @@ function ReceptionistView({ profile, onLogout }: StaffDashboardProps) {
             <p className="text-sm font-medium text-amber-900 truncate">{profile.first_name} {profile.last_name}</p>
             <p className="text-xs text-amber-600 flex items-center gap-1">
               <Shield className="h-3 w-3" />
-              R\u00e9ceptionniste
+              Réceptionniste
             </p>
           </div>
         </div>
@@ -1644,7 +1644,7 @@ function ReceptionistView({ profile, onLogout }: StaffDashboardProps) {
           onClick={onLogout}
         >
           <LogOut className="h-4 w-4 mr-2" />
-          D\u00e9connexion
+          Déconnexion
         </Button>
       </div>
     </div>
@@ -1662,7 +1662,7 @@ function ReceptionistView({ profile, onLogout }: StaffDashboardProps) {
             <Sheet open={sidebarOpen} onOpenChange={setSidebarOpen}>
               <SheetTrigger asChild>
                 <Button variant="ghost" size="icon" className="h-8 w-8">
-                  <Image src="/logo.png" alt="OGOU_H\u00f4tel" height={20} width={20} className="object-contain" />
+                  <Image src="/logo.png" alt="OGOU_Hôtel" height={20} width={20} className="object-contain" />
                 </Button>
               </SheetTrigger>
               <SheetContent side="left" className="w-64 p-0">
@@ -1672,7 +1672,7 @@ function ReceptionistView({ profile, onLogout }: StaffDashboardProps) {
                 {sidebarContent}
               </SheetContent>
             </Sheet>
-            <span className="font-bold bg-gradient-to-r from-emerald-600 to-green-500 bg-clip-text text-transparent">OGOU_H\u00f4tel</span>
+            <span className="font-bold bg-gradient-to-r from-emerald-600 to-green-500 bg-clip-text text-transparent">OGOU_Hôtel</span>
           </div>
           <Button variant="ghost" size="sm" onClick={onLogout}>
             <LogOut className="h-4 w-4" />
@@ -1701,7 +1701,7 @@ function ReceptionistView({ profile, onLogout }: StaffDashboardProps) {
               <div className="flex items-center justify-between">
                 <div>
                   <div className="flex items-center gap-3">
-                    <h2 className="text-2xl font-bold text-gray-900">Bonjour, {profile.first_name} \uD83D\uDC4B</h2>
+                    <h2 className="text-2xl font-bold text-gray-900">Bonjour, {profile.first_name} 👋</h2>
                     <Badge className="bg-emerald-100 text-emerald-700 border-emerald-200 hover:bg-emerald-100 text-xs animate-pulse">
                       <div className="h-2 w-2 rounded-full bg-emerald-500 mr-1.5" />
                       En service
@@ -1727,7 +1727,7 @@ function ReceptionistView({ profile, onLogout }: StaffDashboardProps) {
                       <DoorOpen className="h-8 w-8 text-emerald-600" />
                       <span className="text-3xl font-bold text-emerald-700">{checkIns.length}</span>
                     </div>
-                    <p className="text-sm font-medium text-emerald-800 mt-2">Arriv\u00e9es aujourd&apos;hui</p>
+                    <p className="text-sm font-medium text-emerald-800 mt-2">Arrivées aujourd&apos;hui</p>
                   </CardContent>
                 </Card>
                 <Card className="border-amber-200/50 bg-gradient-to-br from-amber-50 to-amber-100/50 cursor-pointer hover:shadow-md transition-shadow" onClick={() => setActiveTab('reservations')}>
@@ -1736,7 +1736,7 @@ function ReceptionistView({ profile, onLogout }: StaffDashboardProps) {
                       <DoorOpen className="h-8 w-8 text-amber-600" />
                       <span className="text-3xl font-bold text-amber-700">{checkOuts.length}</span>
                     </div>
-                    <p className="text-sm font-medium text-amber-800 mt-2">D\u00e9parts aujourd&apos;hui</p>
+                    <p className="text-sm font-medium text-amber-800 mt-2">Départs aujourd&apos;hui</p>
                   </CardContent>
                 </Card>
                 <Card className="border-sky-200/50 bg-gradient-to-br from-sky-50 to-sky-100/50 cursor-pointer hover:shadow-md transition-shadow" onClick={() => setActiveTab('rooms')}>
@@ -1745,7 +1745,7 @@ function ReceptionistView({ profile, onLogout }: StaffDashboardProps) {
                       <Bed className="h-8 w-8 text-sky-600" />
                       <span className="text-3xl font-bold text-sky-700">{roomStats.occupied}</span>
                     </div>
-                    <p className="text-sm font-medium text-sky-800 mt-2">Chambres occup\u00e9es</p>
+                    <p className="text-sm font-medium text-sky-800 mt-2">Chambres occupées</p>
                   </CardContent>
                 </Card>
                 <Card className="border-green-200/50 bg-gradient-to-br from-green-50 to-green-100/50 cursor-pointer hover:shadow-md transition-shadow" onClick={() => setActiveTab('rooms')}>
@@ -1763,13 +1763,13 @@ function ReceptionistView({ profile, onLogout }: StaffDashboardProps) {
                 <CardHeader className="pb-3">
                   <CardTitle className="text-base flex items-center gap-2">
                     <Bed className="h-4 w-4 text-amber-600" />
-                    \u00c9tat des chambres
+                    État des chambres
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
                   <div className="flex flex-wrap gap-3">
                     <div className="flex items-center gap-1.5"><div className="h-3 w-3 rounded-full bg-emerald-500" /><span className="text-sm text-muted-foreground">{roomStats.available} disponibles</span></div>
-                    <div className="flex items-center gap-1.5"><div className="h-3 w-3 rounded-full bg-sky-500" /><span className="text-sm text-muted-foreground">{roomStats.occupied} occup\u00e9es</span></div>
+                    <div className="flex items-center gap-1.5"><div className="h-3 w-3 rounded-full bg-sky-500" /><span className="text-sm text-muted-foreground">{roomStats.occupied} occupées</span></div>
                     <div className="flex items-center gap-1.5"><div className="h-3 w-3 rounded-full bg-amber-500" /><span className="text-sm text-muted-foreground">{roomStats.cleaning} nettoyage</span></div>
                     <div className="flex items-center gap-1.5"><div className="h-3 w-3 rounded-full bg-red-500" /><span className="text-sm text-muted-foreground">{roomStats.maintenance} maintenance</span></div>
                   </div>
@@ -1781,7 +1781,7 @@ function ReceptionistView({ profile, onLogout }: StaffDashboardProps) {
                   <CardHeader className="pb-2">
                     <CardTitle className="text-base flex items-center gap-2">
                       <Clock className="h-4 w-4 text-amber-600" />
-                      T\u00e2ches prioritaires du jour
+                      Tâches prioritaires du jour
                     </CardTitle>
                   </CardHeader>
                   <CardContent>
@@ -1789,19 +1789,19 @@ function ReceptionistView({ profile, onLogout }: StaffDashboardProps) {
                       {checkIns.length > 0 && (
                         <div className="flex items-center gap-2 rounded-lg bg-emerald-50 border border-emerald-200 px-3 py-2">
                           <DoorOpen className="h-4 w-4 text-emerald-600 shrink-0" />
-                          <div><p className="text-sm font-semibold text-emerald-800">{checkIns.length} arriv\u00e9e{checkIns.length > 1 ? 's' : ''}</p><p className="text-xs text-emerald-600">Check-in \u00e0 effectuer</p></div>
+                          <div><p className="text-sm font-semibold text-emerald-800">{checkIns.length} arrivée{checkIns.length > 1 ? 's' : ''}</p><p className="text-xs text-emerald-600">Check-in à effectuer</p></div>
                         </div>
                       )}
                       {checkOuts.length > 0 && (
                         <div className="flex items-center gap-2 rounded-lg bg-amber-50 border border-amber-200 px-3 py-2">
                           <DoorOpen className="h-4 w-4 text-amber-600 shrink-0" />
-                          <div><p className="text-sm font-semibold text-amber-800">{checkOuts.length} d\u00e9part{checkOuts.length > 1 ? 's' : ''}</p><p className="text-xs text-amber-600">Check-out \u00e0 effectuer</p></div>
+                          <div><p className="text-sm font-semibold text-amber-800">{checkOuts.length} départ{checkOuts.length > 1 ? 's' : ''}</p><p className="text-xs text-amber-600">Check-out à effectuer</p></div>
                         </div>
                       )}
                       {roomStats.cleaning > 0 && (
                         <div className="flex items-center gap-2 rounded-lg bg-orange-50 border border-orange-200 px-3 py-2">
                           <SprayCan className="h-4 w-4 text-orange-600 shrink-0" />
-                          <div><p className="text-sm font-semibold text-orange-800">{roomStats.cleaning} nettoyage</p><p className="text-xs text-orange-600">Chambres \u00e0 v\u00e9rifier</p></div>
+                          <div><p className="text-sm font-semibold text-orange-800">{roomStats.cleaning} nettoyage</p><p className="text-xs text-orange-600">Chambres à vérifier</p></div>
                         </div>
                       )}
                     </div>
@@ -1818,7 +1818,7 @@ function ReceptionistView({ profile, onLogout }: StaffDashboardProps) {
                 {loading ? (
                   <div className="space-y-3">{Array.from({ length: 2 }).map((_, i) => (<Card key={i} className="border-amber-200/40"><CardContent className="p-4"><Skeleton className="h-20 w-full" /></CardContent></Card>))}</div>
                 ) : checkIns.length === 0 ? (
-                  <Card className="border-amber-200/40"><CardContent className="p-6 text-center"><p className="text-sm text-muted-foreground">Aucun check-in pr\u00e9vu aujourd&apos;hui</p></CardContent></Card>
+                  <Card className="border-amber-200/40"><CardContent className="p-6 text-center"><p className="text-sm text-muted-foreground">Aucun check-in prévu aujourd&apos;hui</p></CardContent></Card>
                 ) : (
                   <div className="space-y-3">{checkIns.map((res) => renderReservationCard(res, 'check-in'))}</div>
                 )}
@@ -1833,7 +1833,7 @@ function ReceptionistView({ profile, onLogout }: StaffDashboardProps) {
                 {loading ? (
                   <div className="space-y-3">{Array.from({ length: 2 }).map((_, i) => (<Card key={i} className="border-amber-200/40"><CardContent className="p-4"><Skeleton className="h-20 w-full" /></CardContent></Card>))}</div>
                 ) : checkOuts.length === 0 ? (
-                  <Card className="border-amber-200/40"><CardContent className="p-6 text-center"><p className="text-sm text-muted-foreground">Aucun check-out pr\u00e9vu aujourd&apos;hui</p></CardContent></Card>
+                  <Card className="border-amber-200/40"><CardContent className="p-6 text-center"><p className="text-sm text-muted-foreground">Aucun check-out prévu aujourd&apos;hui</p></CardContent></Card>
                 ) : (
                   <div className="space-y-3">{checkOuts.map((res) => renderReservationCard(res, 'check-out'))}</div>
                 )}
@@ -1846,7 +1846,7 @@ function ReceptionistView({ profile, onLogout }: StaffDashboardProps) {
                   </div>
                   <div className="flex-1">
                     <p className="text-base font-bold text-emerald-900">Enregistrement Direct</p>
-                    <p className="text-sm text-emerald-700">Client sans r\u00e9servation ? Enregistrez-le et attribuez une chambre imm\u00e9diatement</p>
+                    <p className="text-sm text-emerald-700">Client sans réservation ? Enregistrez-le et attribuez une chambre immédiatement</p>
                   </div>
                   <Plus className="h-6 w-6 text-emerald-500 shrink-0" />
                 </CardContent>
@@ -1856,7 +1856,7 @@ function ReceptionistView({ profile, onLogout }: StaffDashboardProps) {
                 <h3 className="text-base font-bold text-gray-900 mb-3">Actions rapides</h3>
                 <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
                   <Card className="border-amber-200/40 cursor-pointer hover:shadow-md transition-shadow" onClick={() => setActiveTab('reservations')}>
-                    <CardContent className="p-4 flex flex-col items-center text-center gap-2"><Calendar className="h-6 w-6 text-amber-600" /><span className="text-sm font-medium text-amber-900">Nouvelle r\u00e9servation</span></CardContent>
+                    <CardContent className="p-4 flex flex-col items-center text-center gap-2"><Calendar className="h-6 w-6 text-amber-600" /><span className="text-sm font-medium text-amber-900">Nouvelle réservation</span></CardContent>
                   </Card>
                   <Card className="border-emerald-200/40 cursor-pointer hover:shadow-md transition-shadow" onClick={() => setWalkInOpen(true)}>
                     <CardContent className="p-4 flex flex-col items-center text-center gap-2"><DoorOpen className="h-6 w-6 text-emerald-600" /><span className="text-sm font-medium text-emerald-900">Enregistrement direct</span></CardContent>
@@ -1884,7 +1884,7 @@ function ReceptionistView({ profile, onLogout }: StaffDashboardProps) {
                 {[
                   { key: 'all', label: `Toutes (${rooms.length})`, activeClass: 'bg-gray-800 text-white', inactiveClass: 'bg-gray-100 text-gray-600 hover:bg-gray-200' },
                   { key: 'available', label: `${roomStats.available} disponibles`, activeClass: 'bg-emerald-600 text-white', inactiveClass: 'bg-emerald-100 text-emerald-800 hover:bg-emerald-200' },
-                  { key: 'occupied', label: `${roomStats.occupied} occup\u00e9es`, activeClass: 'bg-sky-600 text-white', inactiveClass: 'bg-sky-100 text-sky-800 hover:bg-sky-200' },
+                  { key: 'occupied', label: `${roomStats.occupied} occupées`, activeClass: 'bg-sky-600 text-white', inactiveClass: 'bg-sky-100 text-sky-800 hover:bg-sky-200' },
                   { key: 'cleaning', label: `${roomStats.cleaning} nettoyage`, activeClass: 'bg-amber-600 text-white', inactiveClass: 'bg-amber-100 text-amber-800 hover:bg-amber-200' },
                   { key: 'maintenance', label: `${roomStats.maintenance} maintenance`, activeClass: 'bg-red-600 text-white', inactiveClass: 'bg-red-100 text-red-800 hover:bg-red-200' },
                 ].map((f) => (
@@ -1947,7 +1947,7 @@ function ReceptionistView({ profile, onLogout }: StaffDashboardProps) {
                           )}
                           {room.status === 'occupied' && (
                             <div className="flex items-center gap-1.5 mt-3 pt-3 border-t border-gray-100">
-                              <span className="text-[10px] text-sky-600 font-medium flex items-center gap-1"><Bed className="h-3 w-3" />Chambre occup\u00e9e \u2014 check-out requis</span>
+                              <span className="text-[10px] text-sky-600 font-medium flex items-center gap-1"><Bed className="h-3 w-3" />Chambre occupée — check-out requis</span>
                             </div>
                           )}
                         </CardContent>
@@ -2038,7 +2038,7 @@ function ManagerView({ profile, onLogout }: StaffDashboardProps) {
         body: JSON.stringify({ action: 'check_in' }),
       })
       if (res.ok) {
-        toast.success('Check-in effectu\u00e9 avec succ\u00e8s')
+        toast.success('Check-in effectué avec succès')
         fetchAllData()
       } else {
         const data = await res.json()
@@ -2060,7 +2060,7 @@ function ManagerView({ profile, onLogout }: StaffDashboardProps) {
         body: JSON.stringify({ action: 'check_out' }),
       })
       if (res.ok) {
-        toast.success('Check-out effectu\u00e9 \u2014 M\u00e9nage requis')
+        toast.success('Check-out effectué — Ménage requis')
         fetchAllData()
       } else {
         const data = await res.json()
@@ -2083,7 +2083,7 @@ function ManagerView({ profile, onLogout }: StaffDashboardProps) {
       })
       if (res.ok) {
         const statusLabels: Record<string, string> = { available: 'Disponible', cleaning: 'Nettoyage', maintenance: 'Maintenance' }
-        toast.success(`Statut chang\u00e9 en "${statusLabels[newStatus] || newStatus}"`)
+        toast.success(`Statut changé en "${statusLabels[newStatus] || newStatus}"`)
         fetchAllData()
       } else {
         const data = await res.json()
@@ -2106,7 +2106,7 @@ function ManagerView({ profile, onLogout }: StaffDashboardProps) {
       })
       if (res.ok) {
         const statusLabel = newStatus === 'available' ? 'propre' : 'en maintenance'
-        toast.success(`Chambre ${roomNumber} marqu\u00e9e ${statusLabel}`)
+        toast.success(`Chambre ${roomNumber} marquée ${statusLabel}`)
         fetchAllData()
       } else {
         const data = await res.json()
@@ -2130,9 +2130,9 @@ function ManagerView({ profile, onLogout }: StaffDashboardProps) {
   const sidebarContent = (
     <div className="flex h-full flex-col bg-gradient-to-b from-amber-50 to-orange-50">
       <div className="flex items-center gap-3 px-6 py-6 border-b border-amber-200/50">
-        <Image src="/logo.png" alt="OGOU_H\u00f4tel" height={36} width={36} className="object-contain" />
+        <Image src="/logo.png" alt="OGOU_Hôtel" height={36} width={36} className="object-contain" />
         <div className="flex-1 min-w-0">
-          <h1 className="text-lg font-bold bg-gradient-to-r from-amber-600 to-orange-600 bg-clip-text text-transparent">OGOU_H\u00f4tel</h1>
+          <h1 className="text-lg font-bold bg-gradient-to-r from-amber-600 to-orange-600 bg-clip-text text-transparent">OGOU_Hôtel</h1>
           <div className="flex items-center gap-2">
             <p className="text-[10px] uppercase tracking-wider text-amber-600 font-semibold">Manager</p>
             <div className="flex h-2 w-2 rounded-full bg-amber-500" />
@@ -2197,7 +2197,7 @@ function ManagerView({ profile, onLogout }: StaffDashboardProps) {
           onClick={onLogout}
         >
           <LogOut className="h-4 w-4 mr-2" />
-          D\u00e9connexion
+          Déconnexion
         </Button>
       </div>
     </div>
@@ -2215,7 +2215,7 @@ function ManagerView({ profile, onLogout }: StaffDashboardProps) {
             <Sheet open={sidebarOpen} onOpenChange={setSidebarOpen}>
               <SheetTrigger asChild>
                 <Button variant="ghost" size="icon" className="h-8 w-8">
-                  <Image src="/logo.png" alt="OGOU_H\u00f4tel" height={20} width={20} className="object-contain" />
+                  <Image src="/logo.png" alt="OGOU_Hôtel" height={20} width={20} className="object-contain" />
                 </Button>
               </SheetTrigger>
               <SheetContent side="left" className="w-64 p-0">
@@ -2225,7 +2225,7 @@ function ManagerView({ profile, onLogout }: StaffDashboardProps) {
                 {sidebarContent}
               </SheetContent>
             </Sheet>
-            <span className="font-bold bg-gradient-to-r from-amber-600 to-orange-600 bg-clip-text text-transparent">OGOU_H\u00f4tel</span>
+            <span className="font-bold bg-gradient-to-r from-amber-600 to-orange-600 bg-clip-text text-transparent">OGOU_Hôtel</span>
           </div>
           <Button variant="ghost" size="sm" onClick={onLogout}>
             <LogOut className="h-4 w-4" />
@@ -2255,7 +2255,7 @@ function ManagerView({ profile, onLogout }: StaffDashboardProps) {
               <div className="flex items-center justify-between">
                 <div>
                   <div className="flex items-center gap-3">
-                    <h2 className="text-2xl font-bold text-gray-900">Bonjour, {profile.first_name} \uD83D\uDC4B</h2>
+                    <h2 className="text-2xl font-bold text-gray-900">Bonjour, {profile.first_name} 👋</h2>
                     <Badge className="bg-amber-100 text-amber-700 border-amber-200 hover:bg-amber-100 text-xs animate-pulse">
                       <div className="h-2 w-2 rounded-full bg-amber-500 mr-1.5" />
                       En service
@@ -2293,7 +2293,7 @@ function ManagerView({ profile, onLogout }: StaffDashboardProps) {
                       <DoorOpen className="h-8 w-8 text-sky-600" />
                       <span className="text-3xl font-bold text-sky-700">{managerStats?.todayCheckIns ?? checkIns.length}</span>
                     </div>
-                    <p className="text-sm font-medium text-sky-800 mt-2">Arriv\u00e9es aujourd&apos;hui</p>
+                    <p className="text-sm font-medium text-sky-800 mt-2">Arrivées aujourd&apos;hui</p>
                   </CardContent>
                 </Card>
                 <Card className="border-amber-200/50 bg-gradient-to-br from-amber-50 to-amber-100/50 cursor-pointer hover:shadow-md transition-shadow" onClick={() => setActiveTab('reservations')}>
@@ -2302,7 +2302,7 @@ function ManagerView({ profile, onLogout }: StaffDashboardProps) {
                       <DoorOpen className="h-8 w-8 text-amber-600" />
                       <span className="text-3xl font-bold text-amber-700">{managerStats?.todayCheckOuts ?? checkOuts.length}</span>
                     </div>
-                    <p className="text-sm font-medium text-amber-800 mt-2">D\u00e9parts aujourd&apos;hui</p>
+                    <p className="text-sm font-medium text-amber-800 mt-2">Départs aujourd&apos;hui</p>
                   </CardContent>
                 </Card>
                 <Card className="border-red-200/50 bg-gradient-to-br from-red-50 to-red-100/50">
@@ -2311,7 +2311,7 @@ function ManagerView({ profile, onLogout }: StaffDashboardProps) {
                       <AlertTriangle className="h-8 w-8 text-red-600" />
                       <span className="text-3xl font-bold text-red-700">{managerStats?.expiredStays ?? 0}</span>
                     </div>
-                    <p className="text-sm font-medium text-red-800 mt-2">S\u00e9jours expir\u00e9s</p>
+                    <p className="text-sm font-medium text-red-800 mt-2">Séjours expirés</p>
                   </CardContent>
                 </Card>
                 <Card className="border-orange-200/50 bg-gradient-to-br from-orange-50 to-orange-100/50 cursor-pointer hover:shadow-md transition-shadow" onClick={() => setActiveTab('restaurant')}>
@@ -2338,7 +2338,7 @@ function ManagerView({ profile, onLogout }: StaffDashboardProps) {
                       <Calendar className="h-8 w-8 text-sky-600" />
                       <span className="text-3xl font-bold text-sky-700">{managerStats?.activeReservations ?? 0}</span>
                     </div>
-                    <p className="text-sm font-medium text-sky-800 mt-2">R\u00e9servations actives</p>
+                    <p className="text-sm font-medium text-sky-800 mt-2">Réservations actives</p>
                   </CardContent>
                 </Card>
                 <Card className="border-amber-200/50 bg-gradient-to-br from-amber-50 to-amber-100/50 cursor-pointer hover:shadow-md transition-shadow" onClick={() => setActiveTab('customers')}>
@@ -2360,13 +2360,13 @@ function ManagerView({ profile, onLogout }: StaffDashboardProps) {
                     <CardContent className="p-4 flex flex-col items-center text-center gap-2"><DoorOpen className="h-6 w-6 text-emerald-600" /><span className="text-sm font-medium text-emerald-900">Enregistrement direct</span></CardContent>
                   </Card>
                   <Card className="border-amber-200/40 cursor-pointer hover:shadow-md transition-shadow" onClick={() => setActiveTab('reservations')}>
-                    <CardContent className="p-4 flex flex-col items-center text-center gap-2"><Calendar className="h-6 w-6 text-amber-600" /><span className="text-sm font-medium text-amber-900">R\u00e9servations</span></CardContent>
+                    <CardContent className="p-4 flex flex-col items-center text-center gap-2"><Calendar className="h-6 w-6 text-amber-600" /><span className="text-sm font-medium text-amber-900">Réservations</span></CardContent>
                   </Card>
                   <Card className="border-orange-200/40 cursor-pointer hover:shadow-md transition-shadow" onClick={() => setActiveTab('restaurant')}>
                     <CardContent className="p-4 flex flex-col items-center text-center gap-2"><Utensils className="h-6 w-6 text-orange-600" /><span className="text-sm font-medium text-orange-900">Restaurant</span></CardContent>
                   </Card>
                   <Card className="border-emerald-200/40 cursor-pointer hover:shadow-md transition-shadow" onClick={() => setActiveTab('housekeeping')}>
-                    <CardContent className="p-4 flex flex-col items-center text-center gap-2"><SprayCan className="h-6 w-6 text-emerald-600" /><span className="text-sm font-medium text-emerald-900">M\u00e9nage</span></CardContent>
+                    <CardContent className="p-4 flex flex-col items-center text-center gap-2"><SprayCan className="h-6 w-6 text-emerald-600" /><span className="text-sm font-medium text-emerald-900">Ménage</span></CardContent>
                   </Card>
                 </div>
               </div>
@@ -2386,7 +2386,7 @@ function ManagerView({ profile, onLogout }: StaffDashboardProps) {
                 {[
                   { key: 'all', label: `Toutes (${rooms.length})`, activeClass: 'bg-gray-800 text-white', inactiveClass: 'bg-gray-100 text-gray-600 hover:bg-gray-200' },
                   { key: 'available', label: `${roomStats.available} disponibles`, activeClass: 'bg-emerald-600 text-white', inactiveClass: 'bg-emerald-100 text-emerald-800 hover:bg-emerald-200' },
-                  { key: 'occupied', label: `${roomStats.occupied} occup\u00e9es`, activeClass: 'bg-sky-600 text-white', inactiveClass: 'bg-sky-100 text-sky-800 hover:bg-sky-200' },
+                  { key: 'occupied', label: `${roomStats.occupied} occupées`, activeClass: 'bg-sky-600 text-white', inactiveClass: 'bg-sky-100 text-sky-800 hover:bg-sky-200' },
                   { key: 'cleaning', label: `${roomStats.cleaning} nettoyage`, activeClass: 'bg-amber-600 text-white', inactiveClass: 'bg-amber-100 text-amber-800 hover:bg-amber-200' },
                   { key: 'maintenance', label: `${roomStats.maintenance} maintenance`, activeClass: 'bg-red-600 text-white', inactiveClass: 'bg-red-100 text-red-800 hover:bg-red-200' },
                 ].map((f) => (
@@ -2449,7 +2449,7 @@ function ManagerView({ profile, onLogout }: StaffDashboardProps) {
                           )}
                           {room.status === 'occupied' && (
                             <div className="flex items-center gap-1.5 mt-3 pt-3 border-t border-gray-100">
-                              <span className="text-[10px] text-sky-600 font-medium flex items-center gap-1"><Bed className="h-3 w-3" />Chambre occup\u00e9e \u2014 check-out requis</span>
+                              <span className="text-[10px] text-sky-600 font-medium flex items-center gap-1"><Bed className="h-3 w-3" />Chambre occupée — check-out requis</span>
                             </div>
                           )}
                         </CardContent>
@@ -2472,7 +2472,7 @@ function ManagerView({ profile, onLogout }: StaffDashboardProps) {
           {activeTab === 'housekeeping' && (
             <div className="space-y-6">
               <div className="flex items-center justify-between">
-                <h2 className="text-2xl font-bold text-gray-900">M\u00e9nage</h2>
+                <h2 className="text-2xl font-bold text-gray-900">Ménage</h2>
                 <Button variant="outline" size="sm" onClick={fetchAllData} disabled={loading} className="border-amber-200 text-amber-700 hover:bg-amber-50">
                   <RefreshCw className={`h-4 w-4 mr-1.5 ${loading ? 'animate-spin' : ''}`} />Actualiser
                 </Button>
@@ -2483,7 +2483,7 @@ function ManagerView({ profile, onLogout }: StaffDashboardProps) {
                   <div className="flex items-center gap-1.5 rounded-full bg-amber-100 px-3 py-1.5 text-xs font-medium text-amber-800 whitespace-nowrap"><SprayCan className="h-3.5 w-3.5" />{housekeepingStats.cleaning} nettoyage</div>
                   <div className="flex items-center gap-1.5 rounded-full bg-red-100 px-3 py-1.5 text-xs font-medium text-red-800 whitespace-nowrap"><Wrench className="h-3.5 w-3.5" />{housekeepingStats.maintenance} maintenance</div>
                   <div className="flex items-center gap-1.5 rounded-full bg-emerald-100 px-3 py-1.5 text-xs font-medium text-emerald-800 whitespace-nowrap"><CheckCircle2 className="h-3.5 w-3.5" />{housekeepingStats.available} propres</div>
-                  <div className="flex items-center gap-1.5 rounded-full bg-sky-100 px-3 py-1.5 text-xs font-medium text-sky-800 whitespace-nowrap"><Bed className="h-3.5 w-3.5" />{housekeepingStats.occupied} occup\u00e9es</div>
+                  <div className="flex items-center gap-1.5 rounded-full bg-sky-100 px-3 py-1.5 text-xs font-medium text-sky-800 whitespace-nowrap"><Bed className="h-3.5 w-3.5" />{housekeepingStats.occupied} occupées</div>
                 </div>
               )}
 
@@ -2492,7 +2492,7 @@ function ManagerView({ profile, onLogout }: StaffDashboardProps) {
               ) : housekeepingRooms.length === 0 ? (
                 <div className="flex flex-col items-center justify-center py-16 text-center">
                   <div className="flex h-16 w-16 items-center justify-center rounded-full bg-emerald-100 text-emerald-500 mb-4"><CheckCircle2 className="h-8 w-8" /></div>
-                  <h3 className="text-lg font-semibold text-gray-800">Toutes les chambres sont propres ! \uD83C\uDF89</h3>
+                  <h3 className="text-lg font-semibold text-gray-800">Toutes les chambres sont propres ! 🎉</h3>
                 </div>
               ) : (
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
@@ -2541,7 +2541,7 @@ function ManagerView({ profile, onLogout }: StaffDashboardProps) {
                           )}
                           {room.status === 'occupied' && (
                             <div className="flex items-center gap-1.5 text-sky-600 text-xs font-medium">
-                              <Bed className="h-3 w-3" />Chambre occup\u00e9e
+                              <Bed className="h-3 w-3" />Chambre occupée
                             </div>
                           )}
                         </div>
@@ -2579,10 +2579,10 @@ export function StaffDashboard({ profile, onLogout }: StaffDashboardProps) {
         <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-amber-50 to-orange-50">
           <Card className="max-w-sm w-full mx-4 border-amber-200/40">
             <CardContent className="p-6 text-center">
-              <p className="text-muted-foreground">R\u00f4le non reconnu</p>
+              <p className="text-muted-foreground">Rôle non reconnu</p>
               <Button variant="outline" className="mt-4" onClick={onLogout}>
                 <LogOut className="h-4 w-4 mr-2" />
-                D\u00e9connexion
+                Déconnexion
               </Button>
             </CardContent>
           </Card>
