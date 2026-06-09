@@ -34,6 +34,9 @@ import {
   Package,
   ClipboardCheck,
   LayoutDashboard,
+  ShoppingCart,
+  Minus,
+  X,
 } from 'lucide-react'
 import Image from 'next/image'
 
@@ -52,6 +55,15 @@ import {
   SheetTrigger,
 } from '@/components/ui/sheet'
 import { ScrollArea } from '@/components/ui/scroll-area'
+import { Switch } from '@/components/ui/switch'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
 
 import { ReservationsTab } from '@/components/reservations-tab'
 import { CustomersTab } from '@/components/customers-tab'
@@ -71,6 +83,11 @@ const NotificationPanel = dynamic(
 
 const RestaurantTab = dynamic(
   () => import('@/components/restaurant-tab').then(mod => ({ default: mod.RestaurantTab })),
+  { ssr: false, loading: () => <TabLoadingSkeleton /> }
+)
+
+const StocksTab = dynamic(
+  () => import('@/components/stocks-tab').then(mod => ({ default: mod.StocksTab })),
   { ssr: false, loading: () => <TabLoadingSkeleton /> }
 )
 
@@ -180,12 +197,21 @@ interface MenuItem {
   is_available: boolean
 }
 
+interface StockItem {
+  id: string
+  name: string
+  quantity: number
+  unit: string
+  min_threshold: number
+  low_stock: boolean
+}
+
 // ─── Tab Types & Navigation ────────────────────────────────────────────────
 
 type ReceptionistTabId = 'overview' | 'rooms' | 'reservations' | 'customers' | 'invoices' | 'notifications'
-type RestaurantStaffTabId = 'overview' | 'orders' | 'menu' | 'notifications'
+type RestaurantStaffTabId = 'overview' | 'orders' | 'menu' | 'stocks' | 'notifications'
 type HousekeeperTabId = 'overview' | 'rooms' | 'notifications'
-type ManagerTabId = 'overview' | 'rooms' | 'reservations' | 'customers' | 'invoices' | 'restaurant' | 'housekeeping' | 'notifications'
+type ManagerTabId = 'overview' | 'rooms' | 'reservations' | 'customers' | 'invoices' | 'restaurant' | 'housekeeping' | 'stocks' | 'notifications'
 
 const RECEPTIONIST_NAV_ITEMS: { id: ReceptionistTabId; label: string; icon: React.ReactNode }[] = [
   { id: 'overview', label: 'Accueil', icon: <BarChart3 className="h-4 w-4" /> },
@@ -200,6 +226,7 @@ const RESTAURANT_NAV_ITEMS: { id: RestaurantStaffTabId; label: string; icon: Rea
   { id: 'overview', label: 'Accueil', icon: <BarChart3 className="h-4 w-4" /> },
   { id: 'orders', label: 'Commandes', icon: <Utensils className="h-4 w-4" /> },
   { id: 'menu', label: 'Menu', icon: <UtensilsCrossed className="h-4 w-4" /> },
+  { id: 'stocks', label: 'Stocks', icon: <Package className="h-4 w-4" /> },
   { id: 'notifications', label: 'Notifications', icon: <Bell className="h-4 w-4" /> },
 ]
 
@@ -217,6 +244,7 @@ const MANAGER_NAV_ITEMS: { id: ManagerTabId; label: string; icon: React.ReactNod
   { id: 'invoices', label: 'Factures', icon: <FileText className="h-4 w-4" /> },
   { id: 'restaurant', label: 'Restaurant', icon: <Utensils className="h-4 w-4" /> },
   { id: 'housekeeping', label: 'Ménage', icon: <SprayCan className="h-4 w-4" /> },
+  { id: 'stocks', label: 'Stocks', icon: <Package className="h-4 w-4" /> },
   { id: 'notifications', label: 'Notifications', icon: <Bell className="h-4 w-4" /> },
 ]
 
@@ -366,6 +394,20 @@ function RestaurantStaffView({ profile, onLogout }: StaffDashboardProps) {
   const [menuItems, setMenuItems] = useState<MenuItem[]>([])
   const [menuLoading, setMenuLoading] = useState(true)
   const [menuSearch, setMenuSearch] = useState('')
+  const [menuToggleLoading, setMenuToggleLoading] = useState<string | null>(null)
+
+  // Stock state
+  const [stockItems, setStockItems] = useState<StockItem[]>([])
+  const [stockLoading, setStockLoading] = useState(true)
+  const [stockAlerts, setStockAlerts] = useState<StockItem[]>([])
+
+  // Create order state
+  const [createOrderOpen, setCreateOrderOpen] = useState(false)
+  const [creatingOrder, setCreatingOrder] = useState(false)
+  const [orderItems, setOrderItems] = useState<{ menuItemId: string; name: string; price: number; quantity: number }[]>([])
+  const [orderTableNumber, setOrderTableNumber] = useState('')
+  const [orderType, setOrderType] = useState<'table' | 'room'>('table')
+  const [orderSearch, setOrderSearch] = useState('')
 
   const fetchData = useCallback(async () => {
     setLoading(true)
@@ -400,10 +442,33 @@ function RestaurantStaffView({ profile, onLogout }: StaffDashboardProps) {
     }
   }, [])
 
+  const fetchStocks = useCallback(async () => {
+    setStockLoading(true)
+    try {
+      const [itemsRes, alertsRes] = await Promise.all([
+        fetch('/api/owner/stocks/items'),
+        fetch('/api/owner/stocks/alerts'),
+      ])
+      if (itemsRes.ok) {
+        const data = await itemsRes.json()
+        setStockItems(data.items || [])
+      }
+      if (alertsRes.ok) {
+        const data = await alertsRes.json()
+        setStockAlerts(data.alerts || [])
+      }
+    } catch {
+      // Silently fail - stock is not critical for restaurant staff
+    } finally {
+      setStockLoading(false)
+    }
+  }, [])
+
   useEffect(() => {
     fetchData()
     fetchMenu()
-  }, [fetchData, fetchMenu])
+    fetchStocks()
+  }, [fetchData, fetchMenu, fetchStocks])
 
   const handleOrderStatus = async (orderId: string, newStatus: string) => {
     setActionLoading(orderId)
@@ -414,10 +479,7 @@ function RestaurantStaffView({ profile, onLogout }: StaffDashboardProps) {
         body: JSON.stringify({ status: newStatus }),
       })
       if (res.ok) {
-        const statusLabels: Record<string, string> = {
-          preparing: 'en préparation',
-          served: 'servie',
-        }
+        const statusLabels: Record<string, string> = { preparing: 'en préparation', served: 'servie' }
         toast.success(`Commande marquée ${statusLabels[newStatus] || newStatus}`)
         fetchData()
       } else {
@@ -431,6 +493,87 @@ function RestaurantStaffView({ profile, onLogout }: StaffDashboardProps) {
     }
   }
 
+  const handleToggleAvailability = async (menuItemId: string, currentAvailability: boolean) => {
+    setMenuToggleLoading(menuItemId)
+    try {
+      const res = await fetch(`/api/staff/menu/${menuItemId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ is_available: !currentAvailability }),
+      })
+      if (res.ok) {
+        toast.success(!currentAvailability ? 'Article marqué disponible' : 'Article marqué indisponible')
+        fetchMenu()
+      } else {
+        const data = await res.json()
+        toast.error(data.error || 'Erreur')
+      }
+    } catch {
+      toast.error('Erreur de connexion')
+    } finally {
+      setMenuToggleLoading(null)
+    }
+  }
+
+  const handleCreateOrder = async () => {
+    if (orderItems.length === 0) return
+    setCreatingOrder(true)
+    try {
+      const res = await fetch('/api/owner/restaurant/orders', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          table_number: orderType === 'table' ? orderTableNumber : null,
+          room_id: null,
+          items: orderItems.map(item => ({
+            item_name: item.name,
+            quantity: item.quantity,
+            unit_price: item.price,
+          })),
+        }),
+      })
+      if (res.ok) {
+        toast.success('Commande créée avec succès')
+        setCreateOrderOpen(false)
+        setOrderItems([])
+        setOrderTableNumber('')
+        setOrderSearch('')
+        fetchData()
+      } else {
+        const data = await res.json()
+        toast.error(data.error || 'Erreur lors de la création')
+      }
+    } catch {
+      toast.error('Erreur de connexion')
+    } finally {
+      setCreatingOrder(false)
+    }
+  }
+
+  const addOrderItem = (menuItem: MenuItem) => {
+    setOrderItems(prev => {
+      const existing = prev.find(i => i.menuItemId === menuItem.id)
+      if (existing) {
+        return prev.map(i => i.menuItemId === menuItem.id ? { ...i, quantity: i.quantity + 1 } : i)
+      }
+      return [...prev, { menuItemId: menuItem.id, name: menuItem.name, price: menuItem.price, quantity: 1 }]
+    })
+  }
+
+  const updateOrderItemQuantity = (menuItemId: string, qty: number) => {
+    if (qty <= 0) {
+      setOrderItems(prev => prev.filter(i => i.menuItemId !== menuItemId))
+    } else {
+      setOrderItems(prev => prev.map(i => i.menuItemId === menuItemId ? { ...i, quantity: qty } : i))
+    }
+  }
+
+  const getOrderTotal = () => orderItems.reduce((sum, i) => sum + i.price * i.quantity, 0)
+
+  const fetchAllDataForRefresh = useCallback(async () => {
+    await Promise.all([fetchData(), fetchMenu(), fetchStocks()])
+  }, [fetchData, fetchMenu, fetchStocks])
+
   const filteredOrders = orders.filter(o => o.status === activeFilter)
 
   const filterConfig = [
@@ -439,9 +582,7 @@ function RestaurantStaffView({ profile, onLogout }: StaffDashboardProps) {
     { key: 'served' as const, label: 'Servies', icon: <CheckCircle2 className="h-4 w-4" />, count: stats?.served ?? 0, color: 'bg-emerald-100 text-emerald-800' },
   ]
 
-  const dailyRevenue = orders
-    .filter(o => o.status === 'served')
-    .reduce((sum, o) => sum + o.total_amount, 0)
+  const dailyRevenue = orders.filter(o => o.status === 'served').reduce((sum, o) => sum + o.total_amount, 0)
 
   const groupedMenu = MENU_CATEGORIES.map(cat => ({
     ...cat,
@@ -455,6 +596,22 @@ function RestaurantStaffView({ profile, onLogout }: StaffDashboardProps) {
   const filteredGroupedMenu = menuSearch
     ? [{ value: 'search', label: `Résultats (${filteredMenuItems.length})`, items: filteredMenuItems }]
     : groupedMenu
+
+  const availableMenuCount = menuItems.filter(i => i.is_available).length
+  const unavailableMenuCount = menuItems.filter(i => !i.is_available).length
+
+  // Available menu items for order creation
+  const availableMenuForOrder = menuItems.filter(i => i.is_available)
+  const groupedMenuForOrder = MENU_CATEGORIES.map(cat => ({
+    ...cat,
+    items: availableMenuForOrder.filter(i => i.category === cat.value),
+  })).filter(g => g.items.length > 0)
+  const filteredMenuForOrder = orderSearch
+    ? availableMenuForOrder.filter(i => i.name.toLowerCase().includes(orderSearch.toLowerCase()))
+    : []
+  const groupedMenuForOrderFiltered = orderSearch
+    ? [{ value: 'search', label: `Résultats (${filteredMenuForOrder.length})`, items: filteredMenuForOrder }]
+    : groupedMenuForOrder
 
   // Sidebar
   const sidebarContent = (
@@ -485,24 +642,19 @@ function RestaurantStaffView({ profile, onLogout }: StaffDashboardProps) {
               {item.icon}
               <span className="truncate flex-1">{item.label}</span>
               {item.id === 'overview' && <ExpiredStayBadge />}
+              {item.id === 'stocks' && stockAlerts.length > 0 && (
+                <Badge className="bg-red-100 text-red-700 border-red-200 text-[10px] h-5 px-1.5">{stockAlerts.length}</Badge>
+              )}
             </button>
           )
         })}
       </nav>
       <div className="px-4 py-2 border-t border-orange-200/50">
-        <a
-          href="https://wa.me/2250576103277"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="flex items-center gap-2 rounded-lg bg-emerald-50 border border-emerald-200 px-3 py-2.5 text-sm font-medium text-emerald-700 hover:bg-emerald-100 transition-colors w-full"
-        >
+        <a href="https://wa.me/2250576103277" target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 rounded-lg bg-emerald-50 border border-emerald-200 px-3 py-2.5 text-sm font-medium text-emerald-700 hover:bg-emerald-100 transition-colors w-full">
           <MessageSquare className="h-4 w-4 text-emerald-600 shrink-0" />
           <span className="truncate">Support WhatsApp</span>
         </a>
-        <a
-          href="mailto:omouitsi@gmail.com"
-          className="flex items-center gap-2 rounded-lg bg-orange-50 border border-orange-200 px-3 py-2.5 text-sm font-medium text-orange-700 hover:bg-orange-100 transition-colors w-full mt-2"
-        >
+        <a href="mailto:omouitsi@gmail.com" className="flex items-center gap-2 rounded-lg bg-orange-50 border border-orange-200 px-3 py-2.5 text-sm font-medium text-orange-700 hover:bg-orange-100 transition-colors w-full mt-2">
           <Mail className="h-4 w-4 text-orange-600 shrink-0" />
           <span className="truncate">Email</span>
         </a>
@@ -515,19 +667,12 @@ function RestaurantStaffView({ profile, onLogout }: StaffDashboardProps) {
           <div className="min-w-0">
             <p className="text-sm font-medium text-orange-900 truncate">{profile.first_name} {profile.last_name}</p>
             <p className="text-xs text-orange-600 flex items-center gap-1">
-              <Shield className="h-3 w-3" />
-              Restaurant
+              <Shield className="h-3 w-3" />Restaurant
             </p>
           </div>
         </div>
-        <Button
-          variant="outline"
-          size="sm"
-          className="w-full border-orange-200 text-orange-700 hover:bg-orange-100 hover:text-orange-900"
-          onClick={onLogout}
-        >
-          <LogOut className="h-4 w-4 mr-2" />
-          Déconnexion
+        <Button variant="outline" size="sm" className="w-full border-orange-200 text-orange-700 hover:bg-orange-100 hover:text-orange-900" onClick={onLogout}>
+          <LogOut className="h-4 w-4 mr-2" />Déconnexion
         </Button>
       </div>
     </div>
@@ -535,14 +680,11 @@ function RestaurantStaffView({ profile, onLogout }: StaffDashboardProps) {
 
   return (
     <div className="flex min-h-screen bg-gray-50/50">
-      {/* Desktop Sidebar */}
       <aside className="hidden lg:flex w-64 flex-col border-r border-orange-200/50 shrink-0">
         {sidebarContent}
       </aside>
 
-      {/* Main Content */}
       <main className="flex-1 min-w-0">
-        {/* Mobile Header */}
         <div className="lg:hidden flex items-center justify-between px-4 py-3 border-b bg-white">
           <div className="flex items-center gap-2">
             <Sheet open={sidebarOpen} onOpenChange={setSidebarOpen}>
@@ -552,40 +694,35 @@ function RestaurantStaffView({ profile, onLogout }: StaffDashboardProps) {
                 </Button>
               </SheetTrigger>
               <SheetContent side="left" className="w-64 p-0">
-                <SheetHeader className="sr-only">
-                  <SheetTitle>Navigation</SheetTitle>
-                </SheetHeader>
+                <SheetHeader className="sr-only"><SheetTitle>Navigation</SheetTitle></SheetHeader>
                 {sidebarContent}
               </SheetContent>
             </Sheet>
             <span className="font-bold bg-gradient-to-r from-orange-600 to-amber-600 bg-clip-text text-transparent">OGOU_Hôtel</span>
           </div>
-          <Button variant="ghost" size="sm" onClick={onLogout}>
-            <LogOut className="h-4 w-4" />
-          </Button>
+          <Button variant="ghost" size="sm" onClick={onLogout}><LogOut className="h-4 w-4" /></Button>
         </div>
 
-        {/* Mobile Navigation Pills */}
         <div className="lg:hidden flex overflow-x-auto gap-1 px-4 py-2 border-b bg-white">
           {RESTAURANT_NAV_ITEMS.map((item) => (
             <button
               key={item.id}
               onClick={() => setActiveTab(item.id)}
               className={`flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium whitespace-nowrap transition-colors ${
-                activeTab === item.id
-                  ? 'bg-orange-100 text-orange-900'
-                  : 'text-gray-500 hover:bg-gray-100'
+                activeTab === item.id ? 'bg-orange-100 text-orange-900' : 'text-gray-500 hover:bg-gray-100'
               }`}
             >
-              {item.icon}
-              {item.label}
+              {item.icon}{item.label}
               {item.id === 'overview' && <ExpiredStayBadge />}
+              {item.id === 'stocks' && stockAlerts.length > 0 && (
+                <span className="flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-white text-[9px]">{stockAlerts.length}</span>
+              )}
             </button>
           ))}
         </div>
 
         <div className="p-4 sm:p-6 lg:p-8 max-w-6xl mx-auto">
-          {/* Overview Tab */}
+          {/* ── Overview Tab ── */}
           {activeTab === 'overview' && (
             <div className="space-y-6">
               <div className="flex items-center justify-between">
@@ -593,64 +730,77 @@ function RestaurantStaffView({ profile, onLogout }: StaffDashboardProps) {
                   <div className="flex items-center gap-3">
                     <h2 className="text-2xl font-bold text-gray-900">Bonjour, {profile.first_name} 👋</h2>
                     <Badge className="bg-orange-100 text-orange-700 border-orange-200 hover:bg-orange-100 text-xs animate-pulse">
-                      <div className="h-2 w-2 rounded-full bg-orange-500 mr-1.5" />
-                      En service
+                      <div className="h-2 w-2 rounded-full bg-orange-500 mr-1.5" />En service
                     </Badge>
                   </div>
                 </div>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => { fetchData(); fetchMenu() }}
-                  disabled={loading}
-                  className="border-orange-200 text-orange-700 hover:bg-orange-50"
-                >
-                  <RefreshCw className={`h-4 w-4 mr-1.5 ${loading ? 'animate-spin' : ''}`} />
-                  Actualiser
+                <Button variant="outline" size="sm" onClick={() => { fetchData(); fetchMenu(); fetchStocks() }} disabled={loading} className="border-orange-200 text-orange-700 hover:bg-orange-50">
+                  <RefreshCw className={`h-4 w-4 mr-1.5 ${loading ? 'animate-spin' : ''}`} />Actualiser
                 </Button>
               </div>
 
-              <ExpiredStayAlert
-                onCheckOut={async () => {}}
-                onNavigateToReservations={() => {}}
-              />
+              <ExpiredStayAlert onCheckOut={async () => {}} onNavigateToReservations={() => {}} />
 
               {/* Stats Grid */}
               <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
                 <Card className="border-amber-200/50 bg-gradient-to-br from-amber-50 to-amber-100/50 cursor-pointer hover:shadow-md transition-shadow" onClick={() => setActiveTab('orders')}>
                   <CardContent className="p-4">
-                    <div className="flex items-center justify-between">
-                      <Clock className="h-8 w-8 text-amber-600" />
-                      <span className="text-3xl font-bold text-amber-700">{stats?.pending ?? 0}</span>
-                    </div>
+                    <div className="flex items-center justify-between"><Clock className="h-8 w-8 text-amber-600" /><span className="text-3xl font-bold text-amber-700">{stats?.pending ?? 0}</span></div>
                     <p className="text-sm font-medium text-amber-800 mt-2">En attente</p>
                   </CardContent>
                 </Card>
                 <Card className="border-orange-200/50 bg-gradient-to-br from-orange-50 to-orange-100/50 cursor-pointer hover:shadow-md transition-shadow" onClick={() => setActiveTab('orders')}>
                   <CardContent className="p-4">
-                    <div className="flex items-center justify-between">
-                      <Utensils className="h-8 w-8 text-orange-600" />
-                      <span className="text-3xl font-bold text-orange-700">{stats?.preparing ?? 0}</span>
-                    </div>
+                    <div className="flex items-center justify-between"><Utensils className="h-8 w-8 text-orange-600" /><span className="text-3xl font-bold text-orange-700">{stats?.preparing ?? 0}</span></div>
                     <p className="text-sm font-medium text-orange-800 mt-2">En préparation</p>
                   </CardContent>
                 </Card>
                 <Card className="border-emerald-200/50 bg-gradient-to-br from-emerald-50 to-emerald-100/50 cursor-pointer hover:shadow-md transition-shadow" onClick={() => setActiveTab('orders')}>
                   <CardContent className="p-4">
-                    <div className="flex items-center justify-between">
-                      <CheckCircle2 className="h-8 w-8 text-emerald-600" />
-                      <span className="text-3xl font-bold text-emerald-700">{stats?.served ?? 0}</span>
-                    </div>
+                    <div className="flex items-center justify-between"><CheckCircle2 className="h-8 w-8 text-emerald-600" /><span className="text-3xl font-bold text-emerald-700">{stats?.served ?? 0}</span></div>
                     <p className="text-sm font-medium text-emerald-800 mt-2">Servies</p>
                   </CardContent>
                 </Card>
                 <Card className="border-green-200/50 bg-gradient-to-br from-green-50 to-green-100/50">
                   <CardContent className="p-4">
-                    <div className="flex items-center justify-between">
-                      <DollarSign className="h-8 w-8 text-green-600" />
-                      <span className="text-xl font-bold text-green-700">{formatFCFA(dailyRevenue)}</span>
-                    </div>
+                    <div className="flex items-center justify-between"><DollarSign className="h-8 w-8 text-green-600" /><span className="text-xl font-bold text-green-700">{formatFCFA(dailyRevenue)}</span></div>
                     <p className="text-sm font-medium text-green-800 mt-2">Revenu du jour</p>
+                  </CardContent>
+                </Card>
+              </div>
+
+              {/* Second row: Stock alerts + Menu availability */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <Card className={`border-2 cursor-pointer hover:shadow-md transition-shadow ${stockAlerts.length > 0 ? 'border-red-200 bg-gradient-to-br from-red-50 to-red-100/50' : 'border-gray-200 bg-gradient-to-br from-gray-50 to-white'}`} onClick={() => setActiveTab('stocks')}>
+                  <CardContent className="p-4">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <Package className={`h-8 w-8 ${stockAlerts.length > 0 ? 'text-red-600' : 'text-gray-400'}`} />
+                        <div>
+                          <p className="text-sm font-medium text-gray-700">Alertes stock</p>
+                          <p className="text-2xl font-bold text-gray-900">{stockAlerts.length}</p>
+                        </div>
+                      </div>
+                      {stockAlerts.length > 0 && <AlertTriangle className="h-6 w-6 text-red-500 animate-pulse" />}
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-2">
+                      {stockAlerts.length > 0 ? `${stockAlerts.length} article(s) en stock faible` : 'Tous les stocks sont OK'}
+                    </p>
+                  </CardContent>
+                </Card>
+                <Card className="border-2 border-orange-200 bg-gradient-to-br from-orange-50 to-orange-100/50 cursor-pointer hover:shadow-md transition-shadow" onClick={() => setActiveTab('menu')}>
+                  <CardContent className="p-4">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <UtensilsCrossed className="h-8 w-8 text-orange-600" />
+                        <div>
+                          <p className="text-sm font-medium text-gray-700">Menu</p>
+                          <p className="text-2xl font-bold text-gray-900">{availableMenuCount}<span className="text-sm font-normal text-muted-foreground">/{menuItems.length}</span></p>
+                        </div>
+                      </div>
+                      {unavailableMenuCount > 0 && <Badge className="bg-gray-100 text-gray-600 border-gray-200 text-[10px]">{unavailableMenuCount} indispo</Badge>}
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-2">Articles disponibles</p>
                   </CardContent>
                 </Card>
               </div>
@@ -658,17 +808,23 @@ function RestaurantStaffView({ profile, onLogout }: StaffDashboardProps) {
               {/* Quick Actions */}
               <div>
                 <h3 className="text-base font-bold text-gray-900 mb-3">Actions rapides</h3>
-                <div className="grid grid-cols-2 lg:grid-cols-3 gap-3">
-                  <Card className="border-orange-200/40 cursor-pointer hover:shadow-md transition-shadow" onClick={() => setActiveTab('orders')}>
+                <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+                  <Card className="border-orange-200/40 cursor-pointer hover:shadow-md transition-shadow" onClick={() => setCreateOrderOpen(true)}>
                     <CardContent className="p-4 flex flex-col items-center text-center gap-2">
-                      <Utensils className="h-6 w-6 text-orange-600" />
-                      <span className="text-sm font-medium text-orange-900">Voir commandes</span>
+                      <Plus className="h-6 w-6 text-orange-600" />
+                      <span className="text-sm font-medium text-orange-900">Nouvelle commande</span>
                     </CardContent>
                   </Card>
-                  <Card className="border-amber-200/40 cursor-pointer hover:shadow-md transition-shadow" onClick={() => setActiveTab('menu')}>
+                  <Card className="border-amber-200/40 cursor-pointer hover:shadow-md transition-shadow" onClick={() => setActiveTab('orders')}>
                     <CardContent className="p-4 flex flex-col items-center text-center gap-2">
-                      <UtensilsCrossed className="h-6 w-6 text-amber-600" />
-                      <span className="text-sm font-medium text-amber-900">Voir le menu</span>
+                      <Utensils className="h-6 w-6 text-amber-600" />
+                      <span className="text-sm font-medium text-amber-900">Voir commandes</span>
+                    </CardContent>
+                  </Card>
+                  <Card className="border-emerald-200/40 cursor-pointer hover:shadow-md transition-shadow" onClick={() => setActiveTab('stocks')}>
+                    <CardContent className="p-4 flex flex-col items-center text-center gap-2">
+                      <Package className="h-6 w-6 text-emerald-600" />
+                      <span className="text-sm font-medium text-emerald-900">Voir les stocks</span>
                     </CardContent>
                   </Card>
                   <Card className="border-sky-200/40 cursor-pointer hover:shadow-md transition-shadow" onClick={() => setActiveTab('notifications')}>
@@ -682,72 +838,44 @@ function RestaurantStaffView({ profile, onLogout }: StaffDashboardProps) {
             </div>
           )}
 
-          {/* Orders Tab */}
+          {/* ── Orders Tab ── */}
           {activeTab === 'orders' && (
             <div className="space-y-6">
               <div className="flex items-center justify-between">
                 <h2 className="text-2xl font-bold text-gray-900">Commandes</h2>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={fetchData}
-                  disabled={loading}
-                  className="border-orange-200 text-orange-700 hover:bg-orange-50"
-                >
-                  <RefreshCw className={`h-4 w-4 mr-1.5 ${loading ? 'animate-spin' : ''}`} />
-                  Actualiser
-                </Button>
+                <div className="flex gap-2">
+                  <Button className="bg-orange-600 hover:bg-orange-700 text-white shadow-md shadow-orange-600/20" onClick={() => setCreateOrderOpen(true)}>
+                    <Plus className="h-4 w-4 mr-1.5" />Nouvelle
+                  </Button>
+                  <Button variant="outline" size="sm" onClick={fetchData} disabled={loading} className="border-orange-200 text-orange-700 hover:bg-orange-50">
+                    <RefreshCw className={`h-4 w-4 mr-1.5 ${loading ? 'animate-spin' : ''}`} />Actualiser
+                  </Button>
+                </div>
               </div>
 
               <div className="flex gap-2 overflow-x-auto pb-1">
                 {filterConfig.map((filter) => (
-                  <button
-                    key={filter.key}
-                    onClick={() => setActiveFilter(filter.key)}
-                    className={`flex items-center gap-1.5 rounded-full px-3 py-2 text-sm font-medium whitespace-nowrap transition-all ${
-                      activeFilter === filter.key
-                        ? filter.color + ' shadow-sm'
-                        : 'bg-white/60 text-gray-500 border border-gray-200'
-                    }`}
-                  >
-                    {filter.icon}
-                    {filter.label}
-                    <span className={`inline-flex h-5 w-5 items-center justify-center rounded-full text-xs font-bold ${
-                      activeFilter === filter.key ? 'bg-white/60' : 'bg-gray-100'
-                    }`}>
-                      {filter.count}
-                    </span>
+                  <button key={filter.key} onClick={() => setActiveFilter(filter.key)} className={`flex items-center gap-1.5 rounded-full px-3 py-2 text-sm font-medium whitespace-nowrap transition-all ${activeFilter === filter.key ? filter.color + ' shadow-sm' : 'bg-white/60 text-gray-500 border border-gray-200'}`}>
+                    {filter.icon}{filter.label}
+                    <span className={`inline-flex h-5 w-5 items-center justify-center rounded-full text-xs font-bold ${activeFilter === filter.key ? 'bg-white/60' : 'bg-gray-100'}`}>{filter.count}</span>
                   </button>
                 ))}
               </div>
 
               {loading ? (
                 Array.from({ length: 3 }).map((_, i) => (
-                  <Card key={i} className="border-orange-200/40">
-                    <CardContent className="p-4">
-                      <div className="space-y-3">
-                        <div className="flex justify-between">
-                          <Skeleton className="h-5 w-16" />
-                          <Skeleton className="h-5 w-24" />
-                        </div>
-                        <Skeleton className="h-4 w-40" />
-                        <Skeleton className="h-4 w-32" />
-                        <Skeleton className="h-12 w-full" />
-                      </div>
-                    </CardContent>
-                  </Card>
+                  <Card key={i} className="border-orange-200/40"><CardContent className="p-4"><div className="space-y-3"><div className="flex justify-between"><Skeleton className="h-5 w-16" /><Skeleton className="h-5 w-24" /></div><Skeleton className="h-4 w-40" /><Skeleton className="h-4 w-32" /><Skeleton className="h-12 w-full" /></div></CardContent></Card>
                 ))
               ) : filteredOrders.length === 0 ? (
                 <div className="flex flex-col items-center justify-center py-16 text-center">
-                  <div className="flex h-16 w-16 items-center justify-center rounded-full bg-amber-100 text-amber-500 mb-4">
-                    <UtensilsCrossed className="h-8 w-8" />
-                  </div>
+                  <div className="flex h-16 w-16 items-center justify-center rounded-full bg-amber-100 text-amber-500 mb-4"><UtensilsCrossed className="h-8 w-8" /></div>
                   <h3 className="text-lg font-semibold text-gray-800">Aucune commande</h3>
                   <p className="text-sm text-muted-foreground mt-1">
-                    {activeFilter === 'pending' ? "Aucune commande en attente" :
-                     activeFilter === 'preparing' ? "Aucune commande en préparation" :
-                     "Aucune commande servie"}
+                    {activeFilter === 'pending' ? "Aucune commande en attente" : activeFilter === 'preparing' ? "Aucune commande en préparation" : "Aucune commande servie"}
                   </p>
+                  <Button className="mt-4 bg-orange-600 hover:bg-orange-700 text-white" onClick={() => setCreateOrderOpen(true)}>
+                    <Plus className="h-4 w-4 mr-1.5" />Créer une commande
+                  </Button>
                 </div>
               ) : (
                 <div className="space-y-3">
@@ -758,30 +886,17 @@ function RestaurantStaffView({ profile, onLogout }: StaffDashboardProps) {
                           <div>
                             <div className="flex items-center gap-2">
                               <span className="text-lg font-bold text-gray-900">{getShortOrderId(order.id)}</span>
-                              {order.status === 'pending' && (
-                                <Badge className="bg-amber-100 text-amber-700 border-amber-200 hover:bg-amber-100 text-xs">En attente</Badge>
-                              )}
-                              {order.status === 'preparing' && (
-                                <Badge className="bg-orange-100 text-orange-700 border-orange-200 hover:bg-orange-100 text-xs">En préparation</Badge>
-                              )}
-                              {order.status === 'served' && (
-                                <Badge className="bg-emerald-100 text-emerald-700 border-emerald-200 hover:bg-emerald-100 text-xs">Servie</Badge>
-                              )}
+                              {order.status === 'pending' && <Badge className="bg-amber-100 text-amber-700 border-amber-200 hover:bg-amber-100 text-xs">En attente</Badge>}
+                              {order.status === 'preparing' && <Badge className="bg-orange-100 text-orange-700 border-orange-200 hover:bg-orange-100 text-xs">En préparation</Badge>}
+                              {order.status === 'served' && <Badge className="bg-emerald-100 text-emerald-700 border-emerald-200 hover:bg-emerald-100 text-xs">Servie</Badge>}
                             </div>
                             <div className="flex items-center gap-1.5 mt-1 text-sm text-muted-foreground">
-                              {order.room_id ? (
-                                <><Bed className="h-3.5 w-3.5" /><span>Chambre</span></>
-                              ) : (
-                                <><Utensils className="h-3.5 w-3.5" /><span>Table {order.table_number || '—'}</span></>
-                              )}
-                              <span className="mx-1">•</span>
-                              <Clock className="h-3.5 w-3.5" />
-                              <span>{formatTimeAgo(order.created_at)}</span>
+                              {order.room_id ? (<><Bed className="h-3.5 w-3.5" /><span>Chambre</span></>) : (<><Utensils className="h-3.5 w-3.5" /><span>Table {order.table_number || '—'}</span></>)}
+                              <span className="mx-1">•</span><Clock className="h-3.5 w-3.5" /><span>{formatTimeAgo(order.created_at)}</span>
                             </div>
                           </div>
                           <ChevronRight className="h-5 w-5 text-orange-300" />
                         </div>
-
                         {order.restaurant_order_items && order.restaurant_order_items.length > 0 && (
                           <div className="bg-orange-50/50 rounded-lg p-3 mb-3">
                             <div className="space-y-1.5">
@@ -797,37 +912,22 @@ function RestaurantStaffView({ profile, onLogout }: StaffDashboardProps) {
                             </div>
                             <Separator className="my-2" />
                             <div className="flex items-center justify-between text-sm font-semibold">
-                              <span>Total</span>
-                              <span className="text-orange-800">{formatFCFA(order.total_amount)}</span>
+                              <span>Total</span><span className="text-orange-800">{formatFCFA(order.total_amount)}</span>
                             </div>
                           </div>
                         )}
-
                         {order.status === 'pending' && (
-                          <Button
-                            className="w-full h-12 text-base font-medium rounded-xl bg-orange-600 hover:bg-orange-700 text-white shadow-md shadow-orange-600/20"
-                            onClick={() => handleOrderStatus(order.id, 'preparing')}
-                            disabled={actionLoading === order.id}
-                          >
-                            {actionLoading === order.id ? <Loader2 className="h-5 w-5 animate-spin mr-2" /> : <span className="mr-2">🔥</span>}
-                            Préparer
+                          <Button className="w-full h-12 text-base font-medium rounded-xl bg-orange-600 hover:bg-orange-700 text-white shadow-md shadow-orange-600/20" onClick={() => handleOrderStatus(order.id, 'preparing')} disabled={actionLoading === order.id}>
+                            {actionLoading === order.id ? <Loader2 className="h-5 w-5 animate-spin mr-2" /> : <span className="mr-2">🔥</span>}Préparer
                           </Button>
                         )}
                         {order.status === 'preparing' && (
-                          <Button
-                            className="w-full h-12 text-base font-medium rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white shadow-md shadow-emerald-600/20"
-                            onClick={() => handleOrderStatus(order.id, 'served')}
-                            disabled={actionLoading === order.id}
-                          >
-                            {actionLoading === order.id ? <Loader2 className="h-5 w-5 animate-spin mr-2" /> : <CheckCircle2 className="h-5 w-5 mr-2" />}
-                            Servir
+                          <Button className="w-full h-12 text-base font-medium rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white shadow-md shadow-emerald-600/20" onClick={() => handleOrderStatus(order.id, 'served')} disabled={actionLoading === order.id}>
+                            {actionLoading === order.id ? <Loader2 className="h-5 w-5 animate-spin mr-2" /> : <CheckCircle2 className="h-5 w-5 mr-2" />}Servir
                           </Button>
                         )}
                         {order.status === 'served' && (
-                          <div className="flex items-center justify-center gap-2 text-emerald-600 py-1">
-                            <CheckCircle2 className="h-5 w-5" />
-                            <span className="text-sm font-medium">Commande servie</span>
-                          </div>
+                          <div className="flex items-center justify-center gap-2 text-emerald-600 py-1"><CheckCircle2 className="h-5 w-5" /><span className="text-sm font-medium">Commande servie</span></div>
                         )}
                       </CardContent>
                     </Card>
@@ -837,44 +937,33 @@ function RestaurantStaffView({ profile, onLogout }: StaffDashboardProps) {
             </div>
           )}
 
-          {/* Menu Tab (Read-Only) */}
+          {/* ── Menu Tab (Read-Only + Availability Toggle) ── */}
           {activeTab === 'menu' && (
             <div className="space-y-6">
               <div className="flex items-center justify-between">
                 <h2 className="text-2xl font-bold text-gray-900">Menu</h2>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={fetchMenu}
-                  disabled={menuLoading}
-                  className="border-orange-200 text-orange-700 hover:bg-orange-50"
-                >
-                  <RefreshCw className={`h-4 w-4 mr-1.5 ${menuLoading ? 'animate-spin' : ''}`} />
-                  Actualiser
+                <Button variant="outline" size="sm" onClick={fetchMenu} disabled={menuLoading} className="border-orange-200 text-orange-700 hover:bg-orange-50">
+                  <RefreshCw className={`h-4 w-4 mr-1.5 ${menuLoading ? 'animate-spin' : ''}`} />Actualiser
                 </Button>
               </div>
 
+              {unavailableMenuCount > 0 && (
+                <div className="flex items-center gap-2 rounded-xl bg-amber-50 border border-amber-200 px-4 py-3">
+                  <AlertTriangle className="h-4 w-4 text-amber-600 shrink-0" />
+                  <p className="text-sm text-amber-800">{unavailableMenuCount} article(s) actuellement indisponible(s). Vous pouvez modifier la disponibilité avec le commutateur.</p>
+                </div>
+              )}
+
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input
-                  placeholder="Rechercher un plat..."
-                  value={menuSearch}
-                  onChange={(e) => setMenuSearch(e.target.value)}
-                  className="pl-9 border-orange-200 focus:border-orange-400"
-                />
+                <Input placeholder="Rechercher un plat..." value={menuSearch} onChange={(e) => setMenuSearch(e.target.value)} className="pl-9 border-orange-200 focus:border-orange-400" />
               </div>
 
               {menuLoading ? (
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {Array.from({ length: 6 }).map((_, i) => (
-                    <Skeleton key={i} className="h-36 w-full" />
-                  ))}
-                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">{Array.from({ length: 6 }).map((_, i) => (<Skeleton key={i} className="h-36 w-full" />))}</div>
               ) : menuItems.length === 0 ? (
                 <div className="flex flex-col items-center justify-center py-16 text-center">
-                  <div className="flex h-16 w-16 items-center justify-center rounded-full bg-amber-100 text-amber-500 mb-4">
-                    <UtensilsCrossed className="h-8 w-8" />
-                  </div>
+                  <div className="flex h-16 w-16 items-center justify-center rounded-full bg-amber-100 text-amber-500 mb-4"><UtensilsCrossed className="h-8 w-8" /></div>
                   <h3 className="text-lg font-semibold text-gray-800">Aucun article au menu</h3>
                   <p className="text-sm text-muted-foreground mt-1">Le menu sera géré par le propriétaire</p>
                 </div>
@@ -887,17 +976,12 @@ function RestaurantStaffView({ profile, onLogout }: StaffDashboardProps) {
                     </h3>
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                       {group.items.map((item) => (
-                        <Card
-                          key={item.id}
-                          className={`border-orange-200/60 transition-all hover:shadow-md ${!item.is_available ? 'opacity-60' : ''}`}
-                        >
+                        <Card key={item.id} className={`border-orange-200/60 transition-all hover:shadow-md ${!item.is_available ? 'opacity-60' : ''}`}>
                           <CardContent className="p-4">
                             <div className="flex items-start justify-between mb-2">
                               <div className="flex-1 min-w-0">
                                 <h4 className="font-semibold text-sm truncate">{item.name}</h4>
-                                {item.description && (
-                                  <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">{item.description}</p>
-                                )}
+                                {item.description && <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">{item.description}</p>}
                               </div>
                               <Badge className={`ml-2 shrink-0 text-[10px] ${
                                 item.category === 'entree' ? 'bg-green-100 text-green-700 border-green-200' :
@@ -912,9 +996,16 @@ function RestaurantStaffView({ profile, onLogout }: StaffDashboardProps) {
                             </div>
                             <div className="flex items-center justify-between mt-3">
                               <span className="font-bold text-orange-700 text-sm">{formatFCFA(item.price)}</span>
-                              {!item.is_available && (
-                                <Badge className="bg-gray-100 text-gray-500 border-gray-200 text-[10px]">Indisponible</Badge>
-                              )}
+                              <div className="flex items-center gap-2">
+                                <span className="text-xs text-muted-foreground">{item.is_available ? 'Dispo' : 'Indispo'}</span>
+                                <Switch
+                                  checked={item.is_available}
+                                  onCheckedChange={() => handleToggleAvailability(item.id, item.is_available)}
+                                  disabled={menuToggleLoading === item.id}
+                                  className="data-[state=checked]:bg-emerald-500 data-[state=unchecked]:bg-gray-300"
+                                />
+                                {menuToggleLoading === item.id && <Loader2 className="h-3.5 w-3.5 animate-spin text-orange-500" />}
+                              </div>
                             </div>
                           </CardContent>
                         </Card>
@@ -926,12 +1017,169 @@ function RestaurantStaffView({ profile, onLogout }: StaffDashboardProps) {
             </div>
           )}
 
-          {/* Notifications Tab */}
-          {activeTab === 'notifications' && (
-            <NotificationPanel onRefresh={fetchData} />
+          {/* ── Stocks Tab (Read-Only) ── */}
+          {activeTab === 'stocks' && (
+            <div className="space-y-6">
+              <div className="flex items-center justify-between">
+                <h2 className="text-2xl font-bold text-gray-900">Stocks</h2>
+                <Button variant="outline" size="sm" onClick={fetchStocks} disabled={stockLoading} className="border-orange-200 text-orange-700 hover:bg-orange-50">
+                  <RefreshCw className={`h-4 w-4 mr-1.5 ${stockLoading ? 'animate-spin' : ''}`} />Actualiser
+                </Button>
+              </div>
+
+              {stockAlerts.length > 0 && (
+                <div className="rounded-xl bg-red-50 border-2 border-red-200 p-4">
+                  <div className="flex items-center gap-2 mb-3">
+                    <AlertTriangle className="h-5 w-5 text-red-600" />
+                    <h3 className="text-sm font-bold text-red-800">Alertes stock faible ({stockAlerts.length})</h3>
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    {stockAlerts.map((alert) => (
+                      <div key={alert.id} className="flex items-center justify-between rounded-lg bg-white border border-red-200 px-3 py-2">
+                        <span className="text-sm font-medium text-red-900">{alert.name}</span>
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm font-bold text-red-600">{alert.quantity} {alert.unit}</span>
+                          <Badge className="bg-red-100 text-red-700 border-red-200 text-[10px]">Seuil: {alert.min_threshold}</Badge>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                  <p className="text-xs text-red-600 mt-2">Contactez le propriétaire ou le manager pour réapprovisionner.</p>
+                </div>
+              )}
+
+              {stockLoading ? (
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">{Array.from({ length: 6 }).map((_, i) => (<Skeleton key={i} className="h-24 w-full" />))}</div>
+              ) : stockItems.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-16 text-center">
+                  <div className="flex h-16 w-16 items-center justify-center rounded-full bg-gray-100 text-gray-400 mb-4"><Package className="h-8 w-8" /></div>
+                  <h3 className="text-lg font-semibold text-gray-800">Aucun article en stock</h3>
+                  <p className="text-sm text-muted-foreground mt-1">Les stocks sont gérés par le propriétaire</p>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                  {stockItems.map((item) => (
+                    <Card key={item.id} className={`border-2 transition-all ${item.low_stock ? 'border-red-200 bg-red-50/30' : 'border-gray-200 bg-white'}`}>
+                      <CardContent className="p-4">
+                        <div className="flex items-center justify-between mb-2">
+                          <span className="font-semibold text-sm text-gray-900">{item.name}</span>
+                          {item.low_stock ? (
+                            <Badge className="bg-red-100 text-red-700 border-red-200 text-[10px]"><AlertTriangle className="h-3 w-3 mr-1" />Faible</Badge>
+                          ) : (
+                            <Badge className="bg-emerald-100 text-emerald-700 border-emerald-200 text-[10px]">OK</Badge>
+                          )}
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <span className="text-2xl font-bold text-gray-900">{item.quantity}</span>
+                            <span className="text-sm text-muted-foreground ml-1">{item.unit}</span>
+                          </div>
+                          <div className="text-right">
+                            <p className="text-xs text-muted-foreground">Seuil minimum</p>
+                            <p className="text-sm font-medium text-gray-700">{item.min_threshold} {item.unit}</p>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              )}
+            </div>
           )}
+
+          {/* ── Notifications Tab ── */}
+          {activeTab === 'notifications' && <NotificationPanel onRefresh={fetchAllDataForRefresh} />}
         </div>
       </main>
+
+      {/* Create Order Dialog */}
+      <Dialog open={createOrderOpen} onOpenChange={setCreateOrderOpen}>
+        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2"><ShoppingCart className="h-5 w-5 text-orange-600" />Nouvelle commande</DialogTitle>
+            <DialogDescription>Ajoutez des articles du menu et validez la commande.</DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            {/* Order type */}
+            <div className="flex gap-2">
+              <Button variant={orderType === 'table' ? 'default' : 'outline'} size="sm" className={orderType === 'table' ? 'bg-orange-600 hover:bg-orange-700 text-white' : 'border-orange-200 text-orange-700'} onClick={() => setOrderType('table')}>
+                                Table
+              </Button>
+              <Button variant={orderType === 'room' ? 'default' : 'outline'} size="sm" className={orderType === 'room' ? 'bg-orange-600 hover:bg-orange-700 text-white' : 'border-orange-200 text-orange-700'} onClick={() => setOrderType('room')}>
+                                Chambre
+              </Button>
+            </div>
+            {orderType === 'table' ? (
+              <Input placeholder="Numéro de table" value={orderTableNumber} onChange={(e) => setOrderTableNumber(e.target.value)} className="border-orange-200" />
+            ) : (
+              <Input placeholder="Numéro de chambre" value={orderTableNumber} onChange={(e) => setOrderTableNumber(e.target.value)} className="border-orange-200" />
+            )}
+
+            {/* Search menu items */}
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input placeholder="Rechercher un plat..." value={orderSearch} onChange={(e) => setOrderSearch(e.target.value)} className="pl-9 border-orange-200" />
+            </div>
+
+            {/* Menu items for selection */}
+            <div className="max-h-48 overflow-y-auto space-y-1 border rounded-lg p-2 bg-gray-50">
+              {(orderSearch ? filteredMenuForOrder : groupedMenuForOrder).length === 0 || (orderSearch && filteredMenuForOrder.length === 0) ? (
+                <p className="text-sm text-muted-foreground text-center py-4">Aucun article disponible</p>
+              ) : (orderSearch ? [{ value: 'search', label: 'Résultats', items: filteredMenuForOrder }] : groupedMenuForOrder).map(group => (
+                <div key={group.value}>
+                  {!orderSearch && <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider px-2 py-1">{CATEGORY_ICONS[group.value] || '🍴'} {group.label}</p>}
+                  {group.items.map(item => {
+                    const inOrder = orderItems.find(o => o.menuItemId === item.id)
+                    return (
+                      <button key={item.id} onClick={() => addOrderItem(item)} className="w-full flex items-center justify-between rounded-lg px-3 py-2 text-sm hover:bg-orange-50 transition-colors">
+                        <div className="flex-1 text-left">
+                          <span className="font-medium text-gray-900">{item.name}</span>
+                          <span className="ml-2 text-muted-foreground">{formatFCFA(item.price)}</span>
+                        </div>
+                        {inOrder && <Badge className="bg-orange-100 text-orange-700 text-[10px]">x{inOrder.quantity}</Badge>}
+                      </button>
+                    )
+                  })}
+                </div>
+              ))}
+            </div>
+
+            {/* Current order items */}
+            {orderItems.length > 0 && (
+              <div className="space-y-2 border rounded-lg p-3 bg-orange-50/50">
+                <p className="text-sm font-semibold text-orange-800">Commande</p>
+                {orderItems.map(item => (
+                  <div key={item.menuItemId} className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <Button variant="outline" size="icon" className="h-7 w-7 border-orange-200" onClick={() => updateOrderItemQuantity(item.menuItemId, item.quantity - 1)}><Minus className="h-3 w-3" /></Button>
+                      <span className="text-sm font-bold text-orange-800 min-w-[24px] text-center">{item.quantity}</span>
+                      <Button variant="outline" size="icon" className="h-7 w-7 border-orange-200" onClick={() => updateOrderItemQuantity(item.menuItemId, item.quantity + 1)}><Plus className="h-3 w-3" /></Button>
+                      <span className="text-sm text-gray-700">{item.name}</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm font-medium text-orange-800">{formatFCFA(item.price * item.quantity)}</span>
+                      <Button variant="ghost" size="icon" className="h-7 w-7 text-red-500" onClick={() => updateOrderItemQuantity(item.menuItemId, 0)}><X className="h-3 w-3" /></Button>
+                    </div>
+                  </div>
+                ))}
+                <Separator />
+                <div className="flex items-center justify-between text-sm font-bold">
+                  <span>Total</span>
+                  <span className="text-orange-800">{formatFCFA(getOrderTotal())}</span>
+                </div>
+              </div>
+            )}
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setCreateOrderOpen(false)}>Annuler</Button>
+            <Button className="bg-orange-600 hover:bg-orange-700 text-white shadow-md" disabled={creatingOrder || orderItems.length === 0} onClick={handleCreateOrder}>
+              {creatingOrder ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Création...</> : <><CheckCircle2 className="h-4 w-4 mr-2" />Créer ({formatFCFA(getOrderTotal())})</>}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
@@ -2554,6 +2802,9 @@ function ManagerView({ profile, onLogout }: StaffDashboardProps) {
           )}
 
           {activeTab === 'notifications' && <NotificationPanel onRefresh={fetchAllData} />}
+
+          {/* ── Stocks Tab (Full Access for Manager) ── */}
+          {activeTab === 'stocks' && <StocksTab onRefresh={fetchAllData} />}
         </div>
       </main>
 

@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 
-const READ_ROLES = ['owner', 'manager', 'receptionist']
+const READ_ROLES = ['owner', 'manager', 'receptionist', 'restaurant_staff']
 const WRITE_ROLES = ['owner', 'manager']
 
 /**
