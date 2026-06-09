@@ -24,7 +24,7 @@ export const metadata: Metadata = {
   ],
   authors: [{ name: "OGOU_Hôtel" }],
   icons: {
-    icon: "/logo.png",
+    icon: "/logo.svg",
   },
 };
 

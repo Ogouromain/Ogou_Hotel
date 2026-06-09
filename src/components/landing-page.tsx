@@ -408,7 +408,7 @@ export function LandingPage({ onLogin, onRegister, onDemo }: LandingPageProps) {
         <div className="max-w-7xl mx-auto flex h-16 items-center justify-between px-4 sm:px-6 lg:px-8">
           <div className="flex items-center gap-2.5">
             <Image
-              src="/logo.png"
+              src="/logo.svg"
               alt="OGOU_Hôtel"
               height={36}
               width={36}
@@ -673,7 +673,7 @@ export function LandingPage({ onLogin, onRegister, onDemo }: LandingPageProps) {
             <div className="md:col-span-2">
               <div className="flex items-center gap-2.5 mb-4">
                 <Image
-                  src="/logo.png"
+                  src="/logo.svg"
                   alt="OGOU_Hôtel"
                   height={36}
                   width={36}

@@ -29,6 +29,9 @@ export async function GET() {
     }
 
     const adminClient = createAdminClient()
+    if (!adminClient) {
+      return NextResponse.json({ error: 'Service admin non configuré' }, { status: 500 })
+    }
     const { data: items, error } = await adminClient
       .from('menu_items')
       .select('*')
@@ -111,6 +114,9 @@ export async function POST(request: NextRequest) {
     }
 
     const adminClient = createAdminClient()
+    if (!adminClient) {
+      return NextResponse.json({ error: 'Service admin non configuré' }, { status: 500 })
+    }
 
     // Check uniqueness: (hotel_id, name)
     const { data: existing } = await adminClient

@@ -110,7 +110,7 @@ export default function Home() {
       <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-amber-50 via-orange-50 to-amber-100 dark:from-gray-950 dark:via-gray-900 dark:to-gray-950">
         <div className="flex flex-col items-center gap-4">
           <div className="relative">
-            <Image src="/logo.png" alt="OGOU_Hôtel" height={64} width={64} className="object-contain" />
+            <Image src="/logo.svg" alt="OGOU_Hôtel" height={64} width={64} className="object-contain" />
           </div>
           <Loader2 className="h-6 w-6 text-amber-500 animate-spin" />
           <p className="text-sm text-muted-foreground">

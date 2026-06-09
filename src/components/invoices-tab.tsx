@@ -917,7 +917,7 @@ export function InvoicesTab({ onRefresh }: InvoicesTabProps) {
                       {/* Left: Hotel Branding */}
                       <div className="space-y-3">
                         <div className="flex items-center gap-3.5">
-                          <Image src="/logo.png" alt="OGOU_Hôtel" height={56} width={56} className="object-contain" />
+                          <Image src="/logo.svg" alt="OGOU_Hôtel" height={56} width={56} className="object-contain" />
                           <div>
                             <h3 className="text-2xl font-extrabold bg-gradient-to-r from-emerald-600 to-green-500 bg-clip-text text-transparent tracking-tight leading-none">OGOU_Hôtel</h3>
                             <p className="text-[11px] text-amber-600 font-bold tracking-[0.18em] uppercase mt-0.5">Hôtellerie &amp; Restauration</p>

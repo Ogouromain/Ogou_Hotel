@@ -31,7 +31,7 @@ export function OgouLogo({
   return (
     <div className={`flex items-center gap-2.5 ${className}`}>
       <Image
-        src="/logo.png"
+        src="/logo.svg"
         alt="OGOU_Hôtel - Logo ROMAIN OGOU"
         height={height}
         width={height * 1.2}
@@ -58,7 +58,7 @@ export function OgouLogoCompact({ className = '' }: { className?: string }) {
   return (
     <div className={`flex items-center gap-2.5 ${className}`}>
       <Image
-        src="/logo.png"
+        src="/logo.svg"
         alt="OGOU_Hôtel"
         height={36}
         width={36}

@@ -460,7 +460,7 @@ function RestaurantStaffView({ profile, onLogout }: StaffDashboardProps) {
   const sidebarContent = (
     <div className="flex h-full flex-col bg-gradient-to-b from-orange-50 to-amber-50">
       <div className="flex items-center gap-3 px-6 py-6 border-b border-orange-200/50">
-        <Image src="/logo.png" alt="OGOU_Hôtel" height={36} width={36} className="object-contain" />
+        <Image src="/logo.svg" alt="OGOU_Hôtel" height={36} width={36} className="object-contain" />
         <div className="flex-1 min-w-0">
           <h1 className="text-lg font-bold bg-gradient-to-r from-orange-600 to-amber-600 bg-clip-text text-transparent">OGOU_Hôtel</h1>
           <div className="flex items-center gap-2">
@@ -548,7 +548,7 @@ function RestaurantStaffView({ profile, onLogout }: StaffDashboardProps) {
             <Sheet open={sidebarOpen} onOpenChange={setSidebarOpen}>
               <SheetTrigger asChild>
                 <Button variant="ghost" size="icon" className="h-8 w-8">
-                  <Image src="/logo.png" alt="OGOU_Hôtel" height={20} width={20} className="object-contain" />
+                  <Image src="/logo.svg" alt="OGOU_Hôtel" height={20} width={20} className="object-contain" />
                 </Button>
               </SheetTrigger>
               <SheetContent side="left" className="w-64 p-0">
@@ -998,7 +998,7 @@ function HousekeeperView({ profile, onLogout }: StaffDashboardProps) {
   const sidebarContent = (
     <div className="flex h-full flex-col bg-gradient-to-b from-emerald-50 to-green-50">
       <div className="flex items-center gap-3 px-6 py-6 border-b border-emerald-200/50">
-        <Image src="/logo.png" alt="OGOU_Hôtel" height={36} width={36} className="object-contain" />
+        <Image src="/logo.svg" alt="OGOU_Hôtel" height={36} width={36} className="object-contain" />
         <div className="flex-1 min-w-0">
           <h1 className="text-lg font-bold bg-gradient-to-r from-emerald-600 to-green-500 bg-clip-text text-transparent">OGOU_Hôtel</h1>
           <div className="flex items-center gap-2">
@@ -1086,7 +1086,7 @@ function HousekeeperView({ profile, onLogout }: StaffDashboardProps) {
             <Sheet open={sidebarOpen} onOpenChange={setSidebarOpen}>
               <SheetTrigger asChild>
                 <Button variant="ghost" size="icon" className="h-8 w-8">
-                  <Image src="/logo.png" alt="OGOU_Hôtel" height={20} width={20} className="object-contain" />
+                  <Image src="/logo.svg" alt="OGOU_Hôtel" height={20} width={20} className="object-contain" />
                 </Button>
               </SheetTrigger>
               <SheetContent side="left" className="w-64 p-0">
@@ -1577,7 +1577,7 @@ function ReceptionistView({ profile, onLogout }: StaffDashboardProps) {
   const sidebarContent = (
     <div className="flex h-full flex-col bg-gradient-to-b from-amber-50 to-orange-50">
       <div className="flex items-center gap-3 px-6 py-6 border-b border-amber-200/50">
-        <Image src="/logo.png" alt="OGOU_Hôtel" height={36} width={36} className="object-contain" />
+        <Image src="/logo.svg" alt="OGOU_Hôtel" height={36} width={36} className="object-contain" />
         <div className="flex-1 min-w-0">
           <h1 className="text-lg font-bold bg-gradient-to-r from-emerald-600 to-green-500 bg-clip-text text-transparent">OGOU_Hôtel</h1>
           <div className="flex items-center gap-2">
@@ -1662,7 +1662,7 @@ function ReceptionistView({ profile, onLogout }: StaffDashboardProps) {
             <Sheet open={sidebarOpen} onOpenChange={setSidebarOpen}>
               <SheetTrigger asChild>
                 <Button variant="ghost" size="icon" className="h-8 w-8">
-                  <Image src="/logo.png" alt="OGOU_Hôtel" height={20} width={20} className="object-contain" />
+                  <Image src="/logo.svg" alt="OGOU_Hôtel" height={20} width={20} className="object-contain" />
                 </Button>
               </SheetTrigger>
               <SheetContent side="left" className="w-64 p-0">
@@ -2130,7 +2130,7 @@ function ManagerView({ profile, onLogout }: StaffDashboardProps) {
   const sidebarContent = (
     <div className="flex h-full flex-col bg-gradient-to-b from-amber-50 to-orange-50">
       <div className="flex items-center gap-3 px-6 py-6 border-b border-amber-200/50">
-        <Image src="/logo.png" alt="OGOU_Hôtel" height={36} width={36} className="object-contain" />
+        <Image src="/logo.svg" alt="OGOU_Hôtel" height={36} width={36} className="object-contain" />
         <div className="flex-1 min-w-0">
           <h1 className="text-lg font-bold bg-gradient-to-r from-amber-600 to-orange-600 bg-clip-text text-transparent">OGOU_Hôtel</h1>
           <div className="flex items-center gap-2">
@@ -2215,7 +2215,7 @@ function ManagerView({ profile, onLogout }: StaffDashboardProps) {
             <Sheet open={sidebarOpen} onOpenChange={setSidebarOpen}>
               <SheetTrigger asChild>
                 <Button variant="ghost" size="icon" className="h-8 w-8">
-                  <Image src="/logo.png" alt="OGOU_Hôtel" height={20} width={20} className="object-contain" />
+                  <Image src="/logo.svg" alt="OGOU_Hôtel" height={20} width={20} className="object-contain" />
                 </Button>
               </SheetTrigger>
               <SheetContent side="left" className="w-64 p-0">

@@ -6,8 +6,10 @@ const ALLOWED_ROLES = ['restaurant_staff', 'manager', 'owner']
 
 /**
  * GET /api/staff/restaurant
- * List restaurant orders with status 'pending' or 'preparing' for the staff's hotel.
- * Include order items with names and quantities.
+ *
+ * Returns restaurant orders and stats for the staff's hotel.
+ * Includes ALL orders (pending, preparing, served) so the UI
+ * can display all filter tabs and compute daily revenue.
  */
 export async function GET() {
   try {
@@ -30,19 +32,36 @@ export async function GET() {
     }
 
     const adminClient = createAdminClient()
+    if (!adminClient) {
+      return NextResponse.json({ error: 'Service admin non configuré' }, { status: 500 })
+    }
 
+    // Fetch today's date range for stats
+    const today = new Date()
+    const todayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate()).toISOString()
+    const todayEnd = new Date(today.getFullYear(), today.getMonth(), today.getDate() + 1).toISOString()
+
+    // Fetch all orders (pending + preparing + served) for the hotel
     const { data: orders, error } = await adminClient
       .from('restaurant_orders')
       .select('*, restaurant_order_items(*)')
       .eq('hotel_id', hotelId)
-      .in('status', ['pending', 'preparing'])
+      .in('status', ['pending', 'preparing', 'served'])
       .order('created_at', { ascending: true })
 
     if (error) {
       return NextResponse.json({ error: error.message }, { status: 500 })
     }
 
-    return NextResponse.json({ orders: orders || [] })
+    // Compute stats
+    const allOrders = orders || []
+    const stats = {
+      pending: allOrders.filter(o => o.status === 'pending').length,
+      preparing: allOrders.filter(o => o.status === 'preparing').length,
+      served: allOrders.filter(o => o.status === 'served').length,
+    }
+
+    return NextResponse.json({ orders: allOrders, stats })
   } catch (error) {
     console.error('Staff restaurant GET error:', error)
     return NextResponse.json({ error: 'Erreur serveur' }, { status: 500 })

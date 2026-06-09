@@ -49,6 +49,9 @@ export async function PATCH(
     }
 
     const adminClient = createAdminClient()
+    if (!adminClient) {
+      return NextResponse.json({ error: 'Service admin non configuré' }, { status: 500 })
+    }
 
     // Verify order belongs to this hotel
     const { data: existing } = await adminClient

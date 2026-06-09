@@ -95,7 +95,7 @@ export function LoginForm({ onSwitchToRegister }: LoginFormProps) {
         <div className="text-center space-y-3">
           <div className="mx-auto">
             <Image
-              src="/logo.png"
+              src="/logo.svg"
               alt="OGOU_Hôtel"
               height={80}
               width={80}

@@ -216,7 +216,7 @@ export function SetupWizard({ onComplete }: SetupWizardProps) {
         <Card className="w-full max-w-md shadow-lg border-amber-200/50">
           <CardContent className="flex flex-col items-center gap-4 py-12">
             <div className="relative">
-              <Image src="/logo.png" alt="OGOU_Hôtel" height={64} width={64} className="object-contain" />
+              <Image src="/logo.svg" alt="OGOU_Hôtel" height={64} width={64} className="object-contain" />
               <div className="absolute -inset-1 rounded-2xl bg-gradient-to-br from-emerald-400 to-green-500 opacity-20 animate-pulse" />
             </div>
             <Loader2 className="w-6 h-6 text-amber-500 animate-spin mt-2" />
@@ -233,7 +233,7 @@ export function SetupWizard({ onComplete }: SetupWizardProps) {
         {/* Header */}
         <div className="text-center mb-8">
           <div className="flex items-center justify-center gap-3 mb-3">
-            <Image src="/logo.png" alt="OGOU_Hôtel" height={48} width={48} className="object-contain" />
+            <Image src="/logo.svg" alt="OGOU_Hôtel" height={48} width={48} className="object-contain" />
             <h1 className="text-3xl sm:text-4xl font-bold bg-gradient-to-r from-emerald-600 to-green-500 bg-clip-text text-transparent">
               OGOU_Hôtel
             </h1>

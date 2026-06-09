@@ -1231,7 +1231,7 @@ function SidebarContent({
     <div className="flex h-full flex-col">
       {/* Logo */}
       <div className="flex items-center gap-3 px-6 py-5 border-b border-amber-200/40">
-        <Image src="/logo.png" alt="OGOU_Hôtel" height={32} width={32} className="object-contain" />
+        <Image src="/logo.svg" alt="OGOU_Hôtel" height={32} width={32} className="object-contain" />
         <div>
           <h1 className="text-lg font-bold tracking-tight bg-gradient-to-r from-emerald-600 to-green-500 bg-clip-text text-transparent">
             OGOU_Hôtel

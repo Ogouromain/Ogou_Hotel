@@ -246,7 +246,7 @@ function SidebarContent({
     <div className="flex h-full flex-col bg-gradient-to-b from-amber-50 to-orange-50">
       {/* Logo */}
       <div className="flex items-center gap-3 px-6 py-6 border-b border-amber-200/50">
-        <Image src="/logo.png" alt="OGOU_Hôtel" height={36} width={36} className="object-contain" />
+        <Image src="/logo.svg" alt="OGOU_Hôtel" height={36} width={36} className="object-contain" />
         <div>
           <h1 className="text-lg font-bold bg-gradient-to-r from-emerald-600 to-green-500 bg-clip-text text-transparent">OGOU_Hôtel</h1>
           <p className="text-[10px] uppercase tracking-wider text-amber-600 font-semibold">Super Admin</p>

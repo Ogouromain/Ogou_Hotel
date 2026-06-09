@@ -27,6 +27,13 @@ const ROLE_ROUTE_ACCESS: Record<string, string[]> = {
   // Super-admin routes: only super_admin can access
   '/api/super-admin': ['super_admin'],
 
+  // Restaurant-specific owner routes: restaurant_staff can read menu items
+  // IMPORTANT: This must come BEFORE /api/owner so that the more specific
+  // prefix matches first in the canAccessRoute() iteration.
+  // Individual handlers still enforce fine-grained role checks (e.g. only
+  // owner/manager can add/edit/delete menu items).
+  '/api/owner/restaurant/menu': ['owner', 'manager', 'restaurant_staff'],
+
   // Owner routes: broad access at middleware level
   // Individual handlers restrict: analytics/subscription/activity-log = owner+manager only,
   // employees = owner+manager only, hotel PATCH = owner+manager only, etc.
