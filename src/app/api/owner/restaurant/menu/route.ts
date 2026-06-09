@@ -88,10 +88,24 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const validCategories = ['Entrée', 'Plat principal', 'Dessert', 'Boisson', 'Apéritif', 'Autre']
-    if (!validCategories.includes(category)) {
+    const CATEGORY_MAP: Record<string, string> = {
+      'entree': 'Entrée',
+      'plat_principal': 'Plat principal',
+      'dessert': 'Dessert',
+      'boisson': 'Boisson',
+      'aperitif': 'Apéritif',
+      'autre': 'Autre',
+      'Entrée': 'Entrée',
+      'Plat principal': 'Plat principal',
+      'Dessert': 'Dessert',
+      'Boisson': 'Boisson',
+      'Apéritif': 'Apéritif',
+      'Autre': 'Autre',
+    }
+    const normalizedCategory = CATEGORY_MAP[category]
+    if (!normalizedCategory) {
       return NextResponse.json(
-        { error: `Catégorie invalide. Catégories valides : ${validCategories.join(', ')}` },
+        { error: `Catégorie invalide. Catégories valides : ${Object.values(CATEGORY_MAP).filter((v, i, a) => a.indexOf(v) === i).join(', ')}` },
         { status: 400 }
       )
     }
@@ -118,7 +132,7 @@ export async function POST(request: NextRequest) {
       .insert({
         hotel_id: hotelId,
         name: name.trim(),
-        category,
+        category: normalizedCategory,
         description: description?.trim() || null,
         price: priceNum,
         is_available: is_available !== undefined ? is_available : true,

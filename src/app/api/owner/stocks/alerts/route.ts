@@ -28,6 +28,9 @@ export async function GET() {
     }
 
     const adminClient = createAdminClient()
+    if (!adminClient) {
+      return NextResponse.json({ error: 'Service admin non configuré' }, { status: 500 })
+    }
 
     // Fetch all stock items and filter for low stock
     // Note: Supabase REST API doesn't support column-to-column comparison in filters,

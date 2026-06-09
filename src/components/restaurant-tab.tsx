@@ -133,13 +133,27 @@ const CATEGORY_ICONS: Record<string, string> = {
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
+const LABEL_TO_SLUG: Record<string, string> = {
+  'Entrée': 'entree',
+  'Plat principal': 'plat_principal',
+  'Dessert': 'dessert',
+  'Boisson': 'boisson',
+  'Apéritif': 'aperitif',
+  'Autre': 'autre',
+}
+
+function categoryToSlug(category: string): string {
+  return LABEL_TO_SLUG[category] || category
+}
+
 function formatFCFA(amount: number): string {
   return new Intl.NumberFormat('fr-FR').format(amount) + ' FCFA'
 }
 
 function getCategoryBadge(category: string) {
-  const icon = CATEGORY_ICONS[category] || '🍴'
-  const label = MENU_CATEGORIES.find(c => c.value === category)?.label || category
+  const slug = categoryToSlug(category)
+  const icon = CATEGORY_ICONS[slug] || '🍴'
+  const label = MENU_CATEGORIES.find(c => c.value === slug)?.label || category
   const colorMap: Record<string, string> = {
     entree: 'bg-green-100 text-green-700 border-green-200',
     plat_principal: 'bg-amber-100 text-amber-700 border-amber-200',
@@ -149,7 +163,7 @@ function getCategoryBadge(category: string) {
     autre: 'bg-gray-100 text-gray-700 border-gray-200',
   }
   return (
-    <Badge className={`${colorMap[category] || 'bg-gray-100 text-gray-700'} hover:bg-opacity-90 text-[10px]`}>
+    <Badge className={`${colorMap[slug] || 'bg-gray-100 text-gray-700'} hover:bg-opacity-90 text-[10px]`}>
       {icon} {label}
     </Badge>
   )
@@ -278,7 +292,8 @@ export function RestaurantTab({ onRefresh }: RestaurantTabProps) {
     setEditMode(true)
     setSelectedItem(item)
     setFormName(item.name)
-    setFormCategory(item.category)
+    // Convert label to slug for the Select component
+    setFormCategory(LABEL_TO_SLUG[item.category] || item.category)
     setFormDescription(item.description || '')
     setFormPrice(item.price.toString())
     setFormAvailable(item.is_available)
@@ -508,7 +523,7 @@ export function RestaurantTab({ onRefresh }: RestaurantTabProps) {
   // ─── Grouped menu items ───────────────────────────────────────────────
   const groupedMenu = MENU_CATEGORIES.map(cat => ({
     ...cat,
-    items: menuItems.filter(i => i.category === cat.value),
+    items: menuItems.filter(i => categoryToSlug(i.category) === cat.value),
   })).filter(g => g.items.length > 0)
 
   const filteredOrders = orders.filter(o =>

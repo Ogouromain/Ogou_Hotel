@@ -41,6 +41,9 @@ export async function GET(request: NextRequest) {
     }
 
     const adminClient = createAdminClient()
+    if (!adminClient) {
+      return NextResponse.json({ error: 'Service admin non configuré' }, { status: 500 })
+    }
     let query = adminClient
       .from('stock_transactions')
       .select('*, stock_items(name)')
@@ -125,6 +128,9 @@ export async function POST(request: NextRequest) {
     }
 
     const adminClient = createAdminClient()
+    if (!adminClient) {
+      return NextResponse.json({ error: 'Service admin non configuré' }, { status: 500 })
+    }
 
     // Verify stock item exists and belongs to this hotel
     const { data: stockItem } = await adminClient

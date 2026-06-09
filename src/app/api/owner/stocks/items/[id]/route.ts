@@ -33,6 +33,9 @@ export async function PATCH(
     const { id } = await params
     const body = await request.json()
     const adminClient = createAdminClient()
+    if (!adminClient) {
+      return NextResponse.json({ error: 'Service admin non configuré' }, { status: 500 })
+    }
 
     // Verify item belongs to this hotel
     const { data: existing } = await adminClient
@@ -147,6 +150,9 @@ export async function DELETE(
 
     const { id } = await params
     const adminClient = createAdminClient()
+    if (!adminClient) {
+      return NextResponse.json({ error: 'Service admin non configuré' }, { status: 500 })
+    }
 
     // Verify item belongs to this hotel
     const { data: existing } = await adminClient

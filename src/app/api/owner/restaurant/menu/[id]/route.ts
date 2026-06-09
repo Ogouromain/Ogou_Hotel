@@ -33,6 +33,9 @@ export async function PATCH(
     const { id } = await params
     const body = await request.json()
     const adminClient = createAdminClient()
+    if (!adminClient) {
+      return NextResponse.json({ error: 'Service admin non configuré' }, { status: 500 })
+    }
 
     // Verify item belongs to this hotel
     const { data: existing } = await adminClient
@@ -50,14 +53,28 @@ export async function PATCH(
     const updateData: Record<string, unknown> = {}
     if (body.name !== undefined) updateData.name = body.name.trim()
     if (body.category !== undefined) {
-      const validCategories = ['Entrée', 'Plat principal', 'Dessert', 'Boisson', 'Apéritif', 'Autre']
-      if (!validCategories.includes(body.category)) {
+      const CATEGORY_MAP: Record<string, string> = {
+        'entree': 'Entrée',
+        'plat_principal': 'Plat principal',
+        'dessert': 'Dessert',
+        'boisson': 'Boisson',
+        'aperitif': 'Apéritif',
+        'autre': 'Autre',
+        'Entrée': 'Entrée',
+        'Plat principal': 'Plat principal',
+        'Dessert': 'Dessert',
+        'Boisson': 'Boisson',
+        'Apéritif': 'Apéritif',
+        'Autre': 'Autre',
+      }
+      const normalizedCategory = CATEGORY_MAP[body.category]
+      if (!normalizedCategory) {
         return NextResponse.json(
-          { error: `Catégorie invalide. Catégories valides : ${validCategories.join(', ')}` },
+          { error: `Catégorie invalide. Catégories valides : ${Object.values(CATEGORY_MAP).filter((v, i, a) => a.indexOf(v) === i).join(', ')}` },
           { status: 400 }
         )
       }
-      updateData.category = body.category
+      updateData.category = normalizedCategory
     }
     if (body.description !== undefined) updateData.description = body.description?.trim() || null
     if (body.price !== undefined) {
@@ -140,6 +157,9 @@ export async function DELETE(
 
     const { id } = await params
     const adminClient = createAdminClient()
+    if (!adminClient) {
+      return NextResponse.json({ error: 'Service admin non configuré' }, { status: 500 })
+    }
 
     // Verify item belongs to this hotel
     const { data: existing } = await adminClient

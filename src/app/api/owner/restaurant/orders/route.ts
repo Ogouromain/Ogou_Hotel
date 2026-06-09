@@ -33,6 +33,9 @@ export async function GET(request: NextRequest) {
     const statusFilter = searchParams.get('status')
 
     const adminClient = createAdminClient()
+    if (!adminClient) {
+      return NextResponse.json({ error: 'Service admin non configuré' }, { status: 500 })
+    }
     let query = adminClient
       .from('restaurant_orders')
       .select('*, restaurant_order_items(*)')
@@ -127,6 +130,9 @@ export async function POST(request: NextRequest) {
     )
 
     const adminClient = createAdminClient()
+    if (!adminClient) {
+      return NextResponse.json({ error: 'Service admin non configuré' }, { status: 500 })
+    }
 
     // Insert order
     const { data: order, error: orderError } = await adminClient
