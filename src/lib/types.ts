@@ -195,6 +195,8 @@ export interface AuditLog {
   created_at: string
 }
 
+export type ExpenseCategoryType = 'operating' | 'payroll' | 'maintenance' | 'supply' | 'utility' | 'marketing' | 'other'
+export type ExpensePaymentMethod = 'OM' | 'MTN' | 'Wave' | 'Espèces' | 'Chèque' | 'Carte' | 'Virement'
 export type InvoiceStatus = 'paid' | 'refund' | 'cancelled'
 export type PaymentMethod = 'OM' | 'MTN' | 'Wave' | 'Espèces' | 'Chèque' | 'Carte'
 
@@ -227,6 +229,31 @@ export interface Invoice {
   invoice_items?: InvoiceItem[]
 }
 
+export interface ExpenseCategory {
+  id: string
+  hotel_id: string
+  name: string
+  type: ExpenseCategoryType
+  created_at: string
+}
+
+export interface Expense {
+  id: string
+  hotel_id: string
+  category_id: string | null
+  amount: number
+  description: string
+  expense_date: string
+  payment_method: ExpensePaymentMethod | null
+  receipt_url: string | null
+  created_by: string | null
+  created_at: string
+  updated_at: string
+  // Joined data (from API, not DB columns)
+  expense_categories?: ExpenseCategory | null
+  profiles?: { first_name: string; last_name: string } | null
+}
+
 export interface Database {
   public: {
     Tables: {
@@ -248,6 +275,8 @@ export interface Database {
       audit_logs: { Row: AuditLog; Insert: Omit<AuditLog, 'id' | 'created_at'>; Update: Partial<Omit<AuditLog, 'id' | 'created_at'>> }
       invoices: { Row: Invoice; Insert: Omit<Invoice, 'id' | 'created_at' | 'customers' | 'reservations' | 'invoice_items'>; Update: Partial<Omit<Invoice, 'id' | 'created_at'>> }
       invoice_items: { Row: InvoiceItem; Insert: Omit<InvoiceItem, 'id'>; Update: Partial<Omit<InvoiceItem, 'id'>> }
+      expense_categories: { Row: ExpenseCategory; Insert: Omit<ExpenseCategory, 'id' | 'created_at'>; Update: Partial<Omit<ExpenseCategory, 'id' | 'created_at'>> }
+      expenses: { Row: Expense; Insert: Omit<Expense, 'id' | 'created_at' | 'updated_at' | 'expense_categories' | 'profiles'>; Update: Partial<Omit<Expense, 'id' | 'created_at' | 'updated_at'>> }
     }
   }
 }

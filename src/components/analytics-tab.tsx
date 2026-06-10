@@ -61,6 +61,8 @@ interface AnalyticsData {
   revpar: number
   restaurant_revenue_month: number
   conference_revenue_month: number
+  total_expenses_month: number
+  total_expenses_year: number
 }
 
 interface StockAlert {
@@ -344,6 +346,9 @@ export function AnalyticsTab({ onRefresh }: AnalyticsTabProps) {
       { metric: 'RevPAR (FCFA)', value: String(data.revpar), period: 'Cette année' },
       { metric: 'Revenu restaurant (FCFA)', value: String(data.restaurant_revenue_month), period: 'Ce mois-ci' },
       { metric: 'Revenu conférence (FCFA)', value: String(data.conference_revenue_month), period: 'Ce mois-ci' },
+      { metric: 'Dépenses du mois (FCFA)', value: String(data.total_expenses_month || 0), period: 'Ce mois-ci' },
+      { metric: 'Dépenses de l\'année (FCFA)', value: String(data.total_expenses_year || 0), period: 'Cette année' },
+      { metric: 'Résultat du mois (FCFA)', value: String((data.total_revenue_month || 0) - (data.total_expenses_month || 0)), period: 'Ce mois-ci' },
     ]
 
     const BOM = '\uFEFF'
@@ -601,6 +606,58 @@ export function AnalyticsTab({ onRefresh }: AnalyticsTabProps) {
             gradient="bg-gradient-to-r from-amber-400 to-yellow-400"
             iconBg="bg-amber-50 text-amber-600"
           />
+        </div>
+      </div>
+
+      {/* ─── KPI Cards — Expenses & Profit ───────────────────────────────── */}
+      <div>
+        <h3 className="text-sm font-semibold text-amber-800 mb-3 flex items-center gap-2">
+          <DollarSign className="h-4 w-4 text-amber-600" />
+          Dépenses & Résultat
+        </h3>
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <KpiCard
+            title="Dépenses du mois"
+            value={data ? formatCompactFCFA(data.total_expenses_month || 0) : '—'}
+            subtitle={data ? formatFCFA(data.total_expenses_month || 0) : undefined}
+            icon={<DollarSign className="h-5 w-5 text-red-600" />}
+            trend="down"
+            trendLabel="Ce mois-ci"
+            gradient="bg-gradient-to-r from-red-400 to-red-500"
+            iconBg="bg-red-50 text-red-600"
+          />
+          <KpiCard
+            title="Dépenses de l'année"
+            value={data ? formatCompactFCFA(data.total_expenses_year || 0) : '—'}
+            subtitle={data ? formatFCFA(data.total_expenses_year || 0) : undefined}
+            icon={<DollarSign className="h-5 w-5 text-orange-600" />}
+            trend="down"
+            trendLabel="Cette année"
+            gradient="bg-gradient-to-r from-orange-400 to-orange-500"
+            iconBg="bg-orange-50 text-orange-600"
+          />
+          <Card className="border-amber-200/50 overflow-hidden relative">
+            <div className={`absolute top-0 left-0 right-0 h-1 ${(data?.total_revenue_month || 0) - (data?.total_expenses_month || 0) >= 0 ? 'bg-gradient-to-r from-emerald-400 to-emerald-500' : 'bg-gradient-to-r from-red-400 to-red-500'}`} />
+            <CardContent className="p-4 sm:p-6">
+              <div className="flex items-start justify-between">
+                <div className="space-y-1 min-w-0 flex-1">
+                  <p className="text-xs sm:text-sm font-medium text-muted-foreground truncate">Résultat du mois</p>
+                  <p className={`text-xl sm:text-2xl font-bold tracking-tight ${(data?.total_revenue_month || 0) - (data?.total_expenses_month || 0) >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
+                    {data ? formatCompactFCFA((data.total_revenue_month || 0) - (data.total_expenses_month || 0)) : '—'}
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    {(data?.total_revenue_month || 0) - (data?.total_expenses_month || 0) >= 0 ? 'Bénéfice' : 'Perte'}
+                  </p>
+                </div>
+                <div className={`flex h-10 w-10 sm:h-12 sm:w-12 shrink-0 items-center justify-center rounded-xl ${(data?.total_revenue_month || 0) - (data?.total_expenses_month || 0) >= 0 ? 'bg-emerald-50 text-emerald-600' : 'bg-red-50 text-red-600'}`}>
+                  {(data?.total_revenue_month || 0) - (data?.total_expenses_month || 0) >= 0
+                    ? <TrendingUp className="h-5 w-5" />
+                    : <AlertTriangle className="h-5 w-5" />
+                  }
+                </div>
+              </div>
+            </CardContent>
+          </Card>
         </div>
       </div>
 

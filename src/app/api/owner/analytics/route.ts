@@ -214,6 +214,37 @@ async function computeAnalyticsFallback(
   // ─── Monthly revenue (last 6 months) ───────────────────────────────────
   const monthly_revenue = await computeMonthlyRevenue(adminClient, hotelId)
 
+  // ─── Expenses (month & year) ────────────────────────────────────────
+  let total_expenses_month = 0
+  let total_expenses_year = 0
+  try {
+    const { data: monthExpenses } = await adminClient
+      .from('expenses')
+      .select('amount')
+      .eq('hotel_id', hotelId)
+      .gte('expense_date', monthStart)
+      .lt('expense_date', monthEnd)
+
+    total_expenses_month = monthExpenses?.reduce(
+      (sum: number, e: { amount: number }) => sum + (e.amount || 0), 0
+    ) ?? 0
+
+    const { data: yearExpenses } = await adminClient
+      .from('expenses')
+      .select('amount')
+      .eq('hotel_id', hotelId)
+      .gte('expense_date', yearStart)
+      .lt('expense_date', yearEnd)
+
+    total_expenses_year = yearExpenses?.reduce(
+      (sum: number, e: { amount: number }) => sum + (e.amount || 0), 0
+    ) ?? 0
+  } catch {
+    // expenses table might not exist yet
+    total_expenses_month = 0
+    total_expenses_year = 0
+  }
+
   // ─── Stock alerts ──────────────────────────────────────────────────────
   const stock_alerts = await computeStockAlerts(adminClient, hotelId)
 
@@ -232,6 +263,8 @@ async function computeAnalyticsFallback(
     revpar,
     restaurant_revenue_month,
     conference_revenue_month,
+    total_expenses_month,
+    total_expenses_year,
     monthly_revenue,
     stock_alerts,
     reservation_alerts,

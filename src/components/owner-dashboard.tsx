@@ -46,6 +46,7 @@ import {
   ChevronRight,
   GraduationCap,
   DoorOpen,
+  Wallet,
 } from 'lucide-react'
 
 import Image from 'next/image'
@@ -126,6 +127,10 @@ const ConferenceTab = dynamic(
 )
 const ActivityLogTab = dynamic(
   () => import('@/components/activity-log-tab').then(mod => ({ default: mod.ActivityLogTab })),
+  { ssr: false, loading: () => <TabLoadingSkeleton /> }
+)
+const ExpensesTab = dynamic(
+  () => import('@/components/expenses-tab').then(mod => ({ default: mod.ExpensesTab })),
   { ssr: false, loading: () => <TabLoadingSkeleton /> }
 )
 
@@ -209,7 +214,7 @@ interface EmployeeInfo {
   created_at: string
 }
 
-type TabId = 'overview' | 'rooms' | 'reservations' | 'customers' | 'invoices' | 'analytics' | 'activity' | 'notifications' | 'team' | 'settings' | 'restaurant' | 'stocks' | 'conference' | 'formation'
+type TabId = 'overview' | 'rooms' | 'reservations' | 'customers' | 'invoices' | 'expenses' | 'analytics' | 'activity' | 'notifications' | 'team' | 'settings' | 'restaurant' | 'stocks' | 'conference' | 'formation'
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -293,6 +298,7 @@ const NAV_ITEMS: { id: TabId; label: string; icon: React.ReactNode; requiredFeat
   { id: 'reservations', label: 'Réservations', icon: <Calendar className="h-4 w-4" /> },
   { id: 'customers', label: 'Clients', icon: <Users className="h-4 w-4" /> },
   { id: 'invoices', label: 'Factures', icon: <FileText className="h-4 w-4" /> },
+  { id: 'expenses', label: 'Dépenses', icon: <Wallet className="h-4 w-4" /> },
   { id: 'analytics', label: 'Analytique', icon: <BarChart3 className="h-4 w-4" />, requiredFeature: 'analytics' },
   { id: 'activity', label: "Journal d'activité", icon: <BookOpen className="h-4 w-4" /> },
   { id: 'restaurant', label: 'Restaurant', icon: <UtensilsCrossed className="h-4 w-4" />, requiredFeature: 'restaurant' },
@@ -879,6 +885,10 @@ export function OwnerDashboard({ profile, onLogout, isNewRegistration }: OwnerDa
 
           {activeTab === 'invoices' && (
             <InvoicesTab onRefresh={fetchAllData} />
+          )}
+
+          {activeTab === 'expenses' && (
+            <ExpensesTab onRefresh={fetchAllData} />
           )}
 
           {activeTab === 'analytics' && (
