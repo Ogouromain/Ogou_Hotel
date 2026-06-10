@@ -16,6 +16,10 @@ import {
   Eye,
   CheckCircle2,
   AlertTriangle,
+  History,
+  Calendar,
+  DollarSign,
+  Bed,
 } from 'lucide-react'
 
 import { Card, CardContent } from '@/components/ui/card'
@@ -23,6 +27,7 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { Textarea } from '@/components/ui/textarea'
 import { Skeleton } from '@/components/ui/skeleton'
 import {
   Dialog,
@@ -57,6 +62,15 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetDescription,
+} from '@/components/ui/sheet'
+import { Separator } from '@/components/ui/separator'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -73,12 +87,17 @@ interface CustomerInfo {
   identity_document_type: string | null
   identity_document_number: string | null
   identity_document_path: string | null
+  notes: string | null
   signed_url?: string | null
   created_at: string
   updated_at: string
 }
 
 // ─── Helper ──────────────────────────────────────────────────────────────────
+
+function formatFCFA(amount: number): string {
+  return new Intl.NumberFormat('fr-FR').format(amount) + ' FCFA'
+}
 
 function fileToBase64(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
@@ -128,6 +147,7 @@ export function CustomersTab({ onRefresh }: CustomersTabProps) {
   const [formEmail, setFormEmail] = useState('')
   const [formDocType, setFormDocType] = useState('')
   const [formDocNumber, setFormDocNumber] = useState('')
+  const [formNotes, setFormNotes] = useState('')
   const [formDocFile, setFormDocFile] = useState<File | null>(null)
   const [formDocPreview, setFormDocPreview] = useState<string | null>(null)
   const [existingDocUrl, setExistingDocUrl] = useState<string | null>(null)
@@ -136,6 +156,16 @@ export function CustomersTab({ onRefresh }: CustomersTabProps) {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [deleteTarget, setDeleteTarget] = useState<CustomerInfo | null>(null)
   const [deleting, setDeleting] = useState(false)
+
+  // History sheet
+  const [historyOpen, setHistoryOpen] = useState(false)
+  const [historyCustomer, setHistoryCustomer] = useState<CustomerInfo | null>(null)
+  const [historyData, setHistoryData] = useState<{
+    reservations: Array<{ id: string; check_in_date: string; check_out_date: string; total_price: number; status: string; rooms: { room_number: string; room_type: string } | null }>
+    invoices: Array<{ id: string; invoice_number: string; total_amount: number; status: string; payment_method: string | null; created_at: string }>
+    stats: { total_reservations: number; completed_stays: number; total_spent: number } | null
+  } | null>(null)
+  const [historyLoading, setHistoryLoading] = useState(false)
 
   // ─── Fetch customers ──────────────────────────────────────────────────
   const fetchCustomers = useCallback(async (search?: string) => {
@@ -186,6 +216,7 @@ export function CustomersTab({ onRefresh }: CustomersTabProps) {
     setFormEmail('')
     setFormDocType('')
     setFormDocNumber('')
+    setFormNotes('')
     setFormDocFile(null)
     setFormDocPreview(null)
     setExistingDocUrl(null)
@@ -207,6 +238,7 @@ export function CustomersTab({ onRefresh }: CustomersTabProps) {
     setFormEmail(customer.email || '')
     setFormDocType(customer.identity_document_type || '')
     setFormDocNumber(customer.identity_document_number || '')
+    setFormNotes(customer.notes || '')
     setFormDocFile(null)
     setFormDocPreview(null)
     setExistingDocUrl(customer.signed_url || null)
@@ -264,6 +296,7 @@ export function CustomersTab({ onRefresh }: CustomersTabProps) {
         email: formEmail.trim() || null,
         identity_document_type: formDocType || null,
         identity_document_number: formDocNumber.trim() || null,
+        notes: formNotes.trim() || null,
       }
 
       if (formDocFile) {
@@ -306,6 +339,47 @@ export function CustomersTab({ onRefresh }: CustomersTabProps) {
       toast.error('Erreur de connexion')
     } finally {
       setSubmitting(false)
+    }
+  }
+
+  // ─── Fetch customer history ─────────────────────────────────────────
+  async function openHistory(customer: CustomerInfo) {
+    setHistoryCustomer(customer)
+    setHistoryOpen(true)
+    setHistoryLoading(true)
+    setHistoryData(null)
+    try {
+      const res = await fetch(`/api/owner/customers/${customer.id}/history`)
+      if (res.ok) {
+        const data = await res.json()
+        setHistoryData(data)
+      } else {
+        toast.error('Erreur lors du chargement de l\'historique')
+      }
+    } catch {
+      toast.error('Erreur de connexion')
+    } finally {
+      setHistoryLoading(false)
+    }
+  }
+
+  function getReservationStatusBadge(status: string) {
+    switch (status) {
+      case 'pending': return <Badge className="bg-amber-100 text-amber-700 border-amber-200 hover:bg-amber-100 text-[10px]">En attente</Badge>
+      case 'confirmed': return <Badge className="bg-sky-100 text-sky-700 border-sky-200 hover:bg-sky-100 text-[10px]">Confirmée</Badge>
+      case 'checked_in': return <Badge className="bg-emerald-100 text-emerald-700 border-emerald-200 hover:bg-emerald-100 text-[10px]">En séjour</Badge>
+      case 'checked_out': return <Badge className="bg-gray-100 text-gray-700 border-gray-200 hover:bg-gray-100 text-[10px]">Terminée</Badge>
+      case 'cancelled': return <Badge className="bg-red-100 text-red-700 border-red-200 hover:bg-red-100 text-[10px]">Annulée</Badge>
+      default: return <Badge variant="secondary" className="text-[10px]">{status}</Badge>
+    }
+  }
+
+  function getInvoiceStatusBadge(status: string) {
+    switch (status) {
+      case 'paid': return <Badge className="bg-emerald-100 text-emerald-700 border-emerald-200 hover:bg-emerald-100 text-[10px]">Payée</Badge>
+      case 'refund': return <Badge className="bg-orange-100 text-orange-700 border-orange-200 hover:bg-orange-100 text-[10px]">Remboursée</Badge>
+      case 'cancelled': return <Badge className="bg-red-100 text-red-700 border-red-200 hover:bg-red-100 text-[10px]">Annulée</Badge>
+      default: return <Badge variant="secondary" className="text-[10px]">{status}</Badge>
     }
   }
 
@@ -450,6 +524,15 @@ export function CustomersTab({ onRefresh }: CustomersTabProps) {
                           <Button
                             variant="ghost"
                             size="icon"
+                            className="h-8 w-8 text-amber-600 hover:text-amber-800"
+                            onClick={() => openHistory(customer)}
+                            title="Historique"
+                          >
+                            <History className="h-3.5 w-3.5" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
                             className="h-8 w-8"
                             onClick={() => openEditDialog(customer)}
                           >
@@ -570,6 +653,18 @@ export function CustomersTab({ onRefresh }: CustomersTabProps) {
               </div>
             </div>
 
+            {/* Notes / Remarks */}
+            <div className="space-y-2">
+              <Label htmlFor="cust-notes">Notes / Remarques</Label>
+              <Textarea
+                id="cust-notes"
+                placeholder="Notes internes sur le client (visibles uniquement par le personnel)..."
+                value={formNotes}
+                onChange={(e) => setFormNotes(e.target.value)}
+                rows={3}
+              />
+            </div>
+
             {/* Document upload */}
             <div className="space-y-2">
               <Label>Pièce d&apos;identité</Label>
@@ -662,6 +757,151 @@ export function CustomersTab({ onRefresh }: CustomersTabProps) {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* ─── Customer History Sheet ──────────────────────────────────────── */}
+      <Sheet open={historyOpen} onOpenChange={setHistoryOpen}>
+        <SheetContent className="w-full sm:max-w-lg overflow-y-auto [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-track]:bg-gray-100 [&::-webkit-scrollbar-thumb]:bg-gray-300 [&::-webkit-scrollbar-thumb]:rounded-full">
+          <SheetHeader>
+            <SheetTitle className="flex items-center gap-2">
+              <History className="h-5 w-5 text-amber-600" />
+              Historique de {historyCustomer?.first_name} {historyCustomer?.last_name}
+            </SheetTitle>
+            <SheetDescription>
+              Réservations et factures du client
+            </SheetDescription>
+          </SheetHeader>
+
+          {historyLoading ? (
+            <div className="space-y-3 py-6">
+              {Array.from({ length: 4 }).map((_, i) => (
+                <Skeleton key={i} className="h-16 w-full" />
+              ))}
+            </div>
+          ) : historyData ? (
+            <div className="py-4 space-y-6">
+              {/* Stats */}
+              <div className="grid grid-cols-3 gap-3">
+                <Card className="border-amber-200/50 bg-gradient-to-br from-amber-50 to-white">
+                  <CardContent className="p-3 text-center">
+                    <Calendar className="h-4 w-4 text-amber-600 mx-auto mb-1" />
+                    <p className="text-lg font-bold text-amber-700">{historyData.stats?.total_reservations ?? 0}</p>
+                    <p className="text-[10px] text-muted-foreground">Réservations</p>
+                  </CardContent>
+                </Card>
+                <Card className="border-emerald-200/50 bg-gradient-to-br from-emerald-50 to-white">
+                  <CardContent className="p-3 text-center">
+                    <Bed className="h-4 w-4 text-emerald-600 mx-auto mb-1" />
+                    <p className="text-lg font-bold text-emerald-700">{historyData.stats?.completed_stays ?? 0}</p>
+                    <p className="text-[10px] text-muted-foreground">Séjours terminés</p>
+                  </CardContent>
+                </Card>
+                <Card className="border-sky-200/50 bg-gradient-to-br from-sky-50 to-white">
+                  <CardContent className="p-3 text-center">
+                    <DollarSign className="h-4 w-4 text-sky-600 mx-auto mb-1" />
+                    <p className="text-sm font-bold text-sky-700">{formatFCFA(historyData.stats?.total_spent ?? 0)}</p>
+                    <p className="text-[10px] text-muted-foreground">Total dépensé</p>
+                  </CardContent>
+                </Card>
+              </div>
+
+              <Separator />
+
+              <Tabs defaultValue="reservations">
+                <TabsList className="w-full bg-amber-50 border border-amber-200/60">
+                  <TabsTrigger value="reservations" className="flex-1 data-[state=active]:bg-amber-600 data-[state=active]:text-white">
+                    <Calendar className="h-3.5 w-3.5 mr-1.5" />Réservations ({historyData.reservations.length})
+                  </TabsTrigger>
+                  <TabsTrigger value="invoices" className="flex-1 data-[state=active]:bg-amber-600 data-[state=active]:text-white">
+                    <FileText className="h-3.5 w-3.5 mr-1.5" />Factures ({historyData.invoices.length})
+                  </TabsTrigger>
+                </TabsList>
+
+                <TabsContent value="reservations" className="mt-4 space-y-3 max-h-96 overflow-y-auto [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-track]:bg-gray-100 [&::-webkit-scrollbar-thumb]:bg-gray-300 [&::-webkit-scrollbar-thumb]:rounded-full">
+                  {historyData.reservations.length === 0 ? (
+                    <div className="text-center py-8 text-muted-foreground">
+                      <Calendar className="h-8 w-8 mx-auto mb-2 opacity-40" />
+                      <p className="text-sm">Aucune réservation</p>
+                    </div>
+                  ) : (
+                    historyData.reservations.map((res) => (
+                      <Card key={res.id} className="border-amber-200/40">
+                        <CardContent className="p-3">
+                          <div className="flex items-start justify-between mb-2">
+                            <div className="flex items-center gap-2">
+                              <Bed className="h-4 w-4 text-amber-600" />
+                              <span className="text-sm font-medium">
+                                Chambre {res.rooms?.room_number || '—'}
+                              </span>
+                            </div>
+                            {getReservationStatusBadge(res.status)}
+                          </div>
+                          <div className="text-xs text-muted-foreground space-y-1">
+                            <div className="flex justify-between">
+                              <span>Arrivée</span>
+                              <span>{new Date(res.check_in_date).toLocaleDateString('fr-FR')}</span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span>Départ</span>
+                              <span>{new Date(res.check_out_date).toLocaleDateString('fr-FR')}</span>
+                            </div>
+                            <div className="flex justify-between font-medium text-amber-700">
+                              <span>Montant</span>
+                              <span>{formatFCFA(res.total_price)}</span>
+                            </div>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    ))
+                  )}
+                </TabsContent>
+
+                <TabsContent value="invoices" className="mt-4 space-y-3 max-h-96 overflow-y-auto [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-track]:bg-gray-100 [&::-webkit-scrollbar-thumb]:bg-gray-300 [&::-webkit-scrollbar-thumb]:rounded-full">
+                  {historyData.invoices.length === 0 ? (
+                    <div className="text-center py-8 text-muted-foreground">
+                      <FileText className="h-8 w-8 mx-auto mb-2 opacity-40" />
+                      <p className="text-sm">Aucune facture</p>
+                    </div>
+                  ) : (
+                    historyData.invoices.map((inv) => (
+                      <Card key={inv.id} className="border-sky-200/40">
+                        <CardContent className="p-3">
+                          <div className="flex items-start justify-between mb-2">
+                            <div className="flex items-center gap-2">
+                              <FileText className="h-4 w-4 text-sky-600" />
+                              <span className="text-sm font-medium">{inv.invoice_number}</span>
+                            </div>
+                            {getInvoiceStatusBadge(inv.status)}
+                          </div>
+                          <div className="text-xs text-muted-foreground space-y-1">
+                            <div className="flex justify-between">
+                              <span>Date</span>
+                              <span>{new Date(inv.created_at).toLocaleDateString('fr-FR')}</span>
+                            </div>
+                            {inv.payment_method && (
+                              <div className="flex justify-between">
+                                <span>Paiement</span>
+                                <span>{inv.payment_method}</span>
+                              </div>
+                            )}
+                            <div className="flex justify-between font-medium text-sky-700">
+                              <span>Montant</span>
+                              <span>{formatFCFA(inv.total_amount)}</span>
+                            </div>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    ))
+                  )}
+                </TabsContent>
+              </Tabs>
+            </div>
+          ) : (
+            <div className="text-center py-8 text-muted-foreground">
+              <p className="text-sm">Impossible de charger l&apos;historique</p>
+            </div>
+          )}
+        </SheetContent>
+      </Sheet>
 
       {/* ─── Delete Confirmation Dialog ─────────────────────────────────── */}
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>

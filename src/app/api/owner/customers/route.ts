@@ -67,7 +67,7 @@ export async function GET(request: NextRequest) {
     const search = searchParams.get('search')?.trim()
 
     // Try selecting with identity_document_path first; fall back without it if column doesn't exist yet
-    let selectFields = 'id, hotel_id, first_name, last_name, email, phone, identity_document_type, identity_document_number, identity_document_path, created_at, updated_at'
+    let selectFields = 'id, hotel_id, first_name, last_name, email, phone, identity_document_type, identity_document_number, identity_document_path, notes, created_at, updated_at'
     let query = adminClient
       .from('customers')
       .select(selectFields)
@@ -85,7 +85,7 @@ export async function GET(request: NextRequest) {
 
     // If identity_document_path column doesn't exist yet, retry without it
     if (error && error.message && error.message.includes('identity_document_path')) {
-      selectFields = 'id, hotel_id, first_name, last_name, email, phone, identity_document_type, identity_document_number, created_at, updated_at'
+      selectFields = 'id, hotel_id, first_name, last_name, email, phone, identity_document_type, identity_document_number, notes, created_at, updated_at'
       let retryQuery = adminClient
         .from('customers')
         .select(selectFields)
@@ -146,6 +146,7 @@ export async function POST(request: NextRequest) {
       phone,
       identity_document_type,
       identity_document_number,
+      notes,
       identity_document_file, // base64 encoded file data
       identity_document_mime_type, // e.g. 'image/jpeg'
     } = body
@@ -190,6 +191,7 @@ export async function POST(request: NextRequest) {
         phone: phone.trim(),
         identity_document_type: identity_document_type || null,
         identity_document_number: identity_document_number?.trim() || null,
+        notes: notes?.trim() || null,
       })
       .select(selectFields)
       .single()

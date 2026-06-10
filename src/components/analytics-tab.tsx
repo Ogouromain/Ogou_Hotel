@@ -107,14 +107,14 @@ const MONTHS_FR = [
   'Jul', 'Aoû', 'Sep', 'Oct', 'Nov', 'Déc',
 ]
 
-function generatePlaceholderMonthlyData(): MonthlyRevenuePoint[] {
+function generateEmptyMonthlyData(): MonthlyRevenuePoint[] {
   const now = new Date()
   const data: MonthlyRevenuePoint[] = []
   for (let i = 5; i >= 0; i--) {
     const monthIndex = (now.getMonth() - i + 12) % 12
     data.push({
       month: MONTHS_FR[monthIndex],
-      revenue: Math.round(800_000 + Math.random() * 2_500_000),
+      revenue: 0,
     })
   }
   return data
@@ -282,8 +282,8 @@ export function AnalyticsTab({ onRefresh }: AnalyticsTabProps) {
         if (flat.monthly_revenue && Array.isArray(flat.monthly_revenue)) {
           setMonthlyData(flat.monthly_revenue)
         } else {
-          // Generate placeholder monthly data for the chart
-          setMonthlyData(generatePlaceholderMonthlyData())
+          // Generate empty monthly data for the chart (real data not yet available)
+          setMonthlyData(generateEmptyMonthlyData())
         }
       } else if (res.status === 401 && retryCount < 2) {
         // Session may have expired — wait briefly and retry
@@ -293,12 +293,12 @@ export function AnalyticsTab({ onRefresh }: AnalyticsTabProps) {
       } else {
         const errData = await res.json().catch(() => ({}))
         setError(errData.error || 'Erreur lors du chargement des analyses')
-        // Still generate placeholder chart data
-        setMonthlyData(generatePlaceholderMonthlyData())
+        // Still generate empty chart data
+        setMonthlyData(generateEmptyMonthlyData())
       }
     } catch {
       setError('Erreur de connexion au serveur')
-      setMonthlyData(generatePlaceholderMonthlyData())
+      setMonthlyData(generateEmptyMonthlyData())
     } finally {
       setLoading(false)
     }

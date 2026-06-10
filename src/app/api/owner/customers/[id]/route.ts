@@ -76,6 +76,9 @@ export async function PATCH(
     if (body.identity_document_number !== undefined) {
       updateData.identity_document_number = body.identity_document_number?.trim() || null
     }
+    if (body.notes !== undefined) {
+      updateData.notes = body.notes?.trim() || null
+    }
 
     // ─── Handle identity document upload ──────────────────────
     if (body.identity_document_file && body.identity_document_mime_type) {

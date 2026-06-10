@@ -37,6 +37,7 @@ import {
   ShoppingCart,
   Minus,
   X,
+  Wallet,
 } from 'lucide-react'
 import Image from 'next/image'
 
@@ -73,6 +74,11 @@ import dynamic from 'next/dynamic'
 
 const InvoicesTab = dynamic(
   () => import('@/components/invoices-tab').then(mod => ({ default: mod.InvoicesTab })),
+  { ssr: false, loading: () => <TabLoadingSkeleton /> }
+)
+
+const ExpensesTab = dynamic(
+  () => import('@/components/expenses-tab').then(mod => ({ default: mod.ExpensesTab })),
   { ssr: false, loading: () => <TabLoadingSkeleton /> }
 )
 
@@ -211,7 +217,7 @@ interface StockItem {
 type ReceptionistTabId = 'overview' | 'rooms' | 'reservations' | 'customers' | 'invoices' | 'notifications'
 type RestaurantStaffTabId = 'overview' | 'orders' | 'menu' | 'stocks' | 'notifications'
 type HousekeeperTabId = 'overview' | 'rooms' | 'notifications'
-type ManagerTabId = 'overview' | 'rooms' | 'reservations' | 'customers' | 'invoices' | 'restaurant' | 'housekeeping' | 'stocks' | 'notifications'
+type ManagerTabId = 'overview' | 'rooms' | 'reservations' | 'customers' | 'invoices' | 'expenses' | 'restaurant' | 'housekeeping' | 'stocks' | 'notifications'
 
 const RECEPTIONIST_NAV_ITEMS: { id: ReceptionistTabId; label: string; icon: React.ReactNode }[] = [
   { id: 'overview', label: 'Accueil', icon: <BarChart3 className="h-4 w-4" /> },
@@ -242,6 +248,7 @@ const MANAGER_NAV_ITEMS: { id: ManagerTabId; label: string; icon: React.ReactNod
   { id: 'reservations', label: 'Réservations', icon: <Calendar className="h-4 w-4" /> },
   { id: 'customers', label: 'Clients', icon: <Users className="h-4 w-4" /> },
   { id: 'invoices', label: 'Factures', icon: <FileText className="h-4 w-4" /> },
+  { id: 'expenses', label: 'Dépenses', icon: <Wallet className="h-4 w-4" /> },
   { id: 'restaurant', label: 'Restaurant', icon: <Utensils className="h-4 w-4" /> },
   { id: 'housekeeping', label: 'Ménage', icon: <SprayCan className="h-4 w-4" /> },
   { id: 'stocks', label: 'Stocks', icon: <Package className="h-4 w-4" /> },
@@ -2714,6 +2721,7 @@ function ManagerView({ profile, onLogout }: StaffDashboardProps) {
           )}
           {activeTab === 'customers' && <CustomersTab onRefresh={fetchAllData} />}
           {activeTab === 'invoices' && <InvoicesTab onRefresh={fetchAllData} />}
+          {activeTab === 'expenses' && <ExpensesTab onRefresh={fetchAllData} />}
           {activeTab === 'restaurant' && <RestaurantTab onRefresh={fetchAllData} />}
 
           {/* Housekeeping Tab */}

@@ -19,6 +19,10 @@ import {
   TrendingUp,
   ArrowDownRight,
   X,
+  Upload,
+  FileText,
+  Eye,
+  Paperclip,
 } from 'lucide-react'
 
 import { Card, CardContent } from '@/components/ui/card'
@@ -174,6 +178,11 @@ export function ExpensesTab({ onRefresh }: ExpensesTabProps) {
   const [formExpenseDate, setFormExpenseDate] = useState('')
   const [formPaymentMethod, setFormPaymentMethod] = useState('')
 
+  // Receipt upload
+  const [formReceiptFile, setFormReceiptFile] = useState<File | null>(null)
+  const [receiptUploading, setReceiptUploading] = useState(false)
+  const [viewReceiptUrl, setViewReceiptUrl] = useState<string | null>(null)
+
   // Delete dialog
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [deleteTarget, setDeleteTarget] = useState<Expense | null>(null)
@@ -224,6 +233,7 @@ export function ExpensesTab({ onRefresh }: ExpensesTabProps) {
     setFormDescription('')
     setFormExpenseDate(new Date().toISOString().split('T')[0])
     setFormPaymentMethod('')
+    setFormReceiptFile(null)
   }
 
   function openCreateDialog() {
@@ -241,7 +251,40 @@ export function ExpensesTab({ onRefresh }: ExpensesTabProps) {
     setFormDescription(expense.description)
     setFormExpenseDate(expense.expense_date)
     setFormPaymentMethod(expense.payment_method || '')
+    setFormReceiptFile(null)
     setDialogOpen(true)
+  }
+
+  // ─── Receipt helpers ──────────────────────────────────────────────
+  function fileToBase64(file: File): Promise<string> {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader()
+      reader.onload = () => {
+        const result = reader.result as string
+        const base64 = result.split(',')[1]
+        resolve(base64)
+      }
+      reader.onerror = reject
+      reader.readAsDataURL(file)
+    })
+  }
+
+  async function viewExpenseReceipt(expense: Expense) {
+    if (!expense.receipt_url) return
+    // receipt_url can be a Supabase storage path or a signed URL
+    try {
+      const res = await fetch(`/api/owner/expenses/receipt-url?path=${encodeURIComponent(expense.receipt_url)}`)
+      if (res.ok) {
+        const data = await res.json()
+        if (data.url) {
+          window.open(data.url, '_blank')
+        }
+      } else {
+        toast.error('Impossible d\'accéder au reçu')
+      }
+    } catch {
+      toast.error('Erreur lors de l\'accès au reçu')
+    }
   }
 
   // ─── Submit expense ───────────────────────────────────────────────────
@@ -261,12 +304,46 @@ export function ExpensesTab({ onRefresh }: ExpensesTabProps) {
 
     setSubmitting(true)
     try {
+      // Upload receipt file first if provided
+      let receiptUrl: string | null = null
+      if (formReceiptFile) {
+        setReceiptUploading(true)
+        try {
+          const base64 = await fileToBase64(formReceiptFile)
+          const uploadRes = await fetch('/api/owner/expenses/upload-receipt', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              file_data: base64,
+              mime_type: formReceiptFile.type,
+              file_name: formReceiptFile.name,
+            }),
+          })
+          if (uploadRes.ok) {
+            const uploadData = await uploadRes.json()
+            receiptUrl = uploadData.path || uploadData.url || null
+          } else {
+            toast.error('Erreur lors du téléchargement du reçu')
+            setReceiptUploading(false)
+            setSubmitting(false)
+            return
+          }
+        } catch {
+          toast.error('Erreur lors du téléchargement du reçu')
+          setReceiptUploading(false)
+          setSubmitting(false)
+          return
+        }
+        setReceiptUploading(false)
+      }
+
       const payload = {
         category_id: formCategoryId || null,
         amount: parseInt(formAmount),
         description: formDescription.trim(),
         expense_date: formExpenseDate,
         payment_method: formPaymentMethod || null,
+        receipt_url: receiptUrl || (editMode && selectedExpense ? selectedExpense.receipt_url : null),
       }
 
       let res: Response
@@ -548,6 +625,7 @@ export function ExpensesTab({ onRefresh }: ExpensesTabProps) {
                         <TableHead className="hidden sm:table-cell">Catégorie</TableHead>
                         <TableHead className="text-right">Montant</TableHead>
                         <TableHead className="hidden md:table-cell">Paiement</TableHead>
+                        <TableHead className="hidden lg:table-cell">Reçu</TableHead>
                         <TableHead className="text-right">Actions</TableHead>
                       </TableRow>
                     </TableHeader>
@@ -577,6 +655,21 @@ export function ExpensesTab({ onRefresh }: ExpensesTabProps) {
                           </TableCell>
                           <TableCell className="hidden md:table-cell">
                             {getPaymentMethodBadge(expense.payment_method)}
+                          </TableCell>
+                          <TableCell className="hidden lg:table-cell">
+                            {expense.receipt_url ? (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-7 gap-1 text-amber-600 hover:text-amber-800"
+                                onClick={() => viewExpenseReceipt(expense)}
+                              >
+                                <Paperclip className="h-3.5 w-3.5" />
+                                <span className="text-[10px]">Voir</span>
+                              </Button>
+                            ) : (
+                              <span className="text-muted-foreground text-xs">—</span>
+                            )}
                           </TableCell>
                           <TableCell className="text-right">
                             <div className="flex items-center justify-end gap-1">
@@ -747,6 +840,59 @@ export function ExpensesTab({ onRefresh }: ExpensesTabProps) {
                   ))}
                 </SelectContent>
               </Select>
+            </div>
+
+            {/* Receipt upload */}
+            <div className="space-y-2">
+              <Label>Reçu / Justificatif</Label>
+
+              {/* Show existing receipt if editing */}
+              {editMode && selectedExpense?.receipt_url && !formReceiptFile && (
+                <div className="flex items-center gap-2 rounded-lg border border-gray-200 bg-gray-50 p-3">
+                  <Paperclip className="h-5 w-5 text-amber-600 shrink-0" />
+                  <span className="text-sm text-gray-700 flex-1">Reçu enregistré</span>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-7 text-xs border-amber-200 text-amber-700 hover:bg-amber-50"
+                    onClick={() => viewExpenseReceipt(selectedExpense)}
+                  >
+                    <Eye className="h-3 w-3 mr-1" />
+                    Voir
+                  </Button>
+                </div>
+              )}
+
+              <div className="flex items-center gap-3">
+                <label className="cursor-pointer">
+                  <div className="flex items-center gap-2 rounded-lg border border-dashed border-amber-300 bg-white px-4 py-2 text-sm text-amber-700 hover:bg-amber-50 transition-colors">
+                    <Upload className="h-4 w-4" />
+                    {formReceiptFile ? formReceiptFile.name : editMode ? 'Remplacer le reçu' : 'Télécharger un reçu'}
+                  </div>
+                  <input
+                    type="file"
+                    className="hidden"
+                    accept="image/*,application/pdf"
+                    onChange={(e) => setFormReceiptFile(e.target.files?.[0] || null)}
+                  />
+                </label>
+                {formReceiptFile && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-7 w-7 p-0 text-red-500"
+                    onClick={() => setFormReceiptFile(null)}
+                  >
+                    <X className="h-4 w-4" />
+                  </Button>
+                )}
+              </div>
+              {formReceiptFile && !formReceiptFile.type.startsWith('image/') && (
+                <div className="mt-2 flex items-center gap-2 text-sm text-gray-600">
+                  <FileText className="h-4 w-4" />
+                  {formReceiptFile.name}
+                </div>
+              )}
             </div>
           </div>
 
