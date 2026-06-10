@@ -622,7 +622,7 @@ export function OwnerDashboard({ profile, onLogout, isNewRegistration }: OwnerDa
               <div className="flex items-center justify-between">
                 <span className="text-xs font-medium text-amber-700">Plan {planInfo.name}</span>
                 <Badge className="bg-amber-100 text-amber-700 border-amber-200 hover:bg-amber-100 text-[10px]">
-                  {formatFCFA(planInfo.price_fcfa)}/mois
+                  {formatFCFA(planInfo.price_fcfa)}/an
                 </Badge>
               </div>
             </div>
@@ -1140,7 +1140,7 @@ function OverviewTab({
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-xl font-bold text-gray-900">Plan {planInfo.name}</p>
-                    <p className="text-sm text-muted-foreground">{formatFCFA(planInfo.price_fcfa)}/mois</p>
+                    <p className="text-sm text-muted-foreground">{formatFCFA(planInfo.price_fcfa)}/an</p>
                   </div>
                   {getSubscriptionStatusBadge(subscription.status)}
                 </div>

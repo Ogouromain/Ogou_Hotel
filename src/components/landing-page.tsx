@@ -102,8 +102,8 @@ const FEATURES = [
 const PLANS = [
   {
     name: 'Basique',
-    price: '25 000',
-    period: '/mois',
+    price: '300 000',
+    period: '/an',
     description: 'Idéal pour démarrer',
     features: [
       '1 Administrateur',
@@ -120,8 +120,8 @@ const PLANS = [
   },
   {
     name: 'Standard',
-    price: '50 000',
-    period: '/mois',
+    price: '600 000',
+    period: '/an',
     description: 'Le plus populaire',
     features: [
       '1 Administrateur',
@@ -139,8 +139,8 @@ const PLANS = [
   },
   {
     name: 'Premium',
-    price: '95 000',
-    period: '/mois',
+    price: '1 140 000',
+    period: '/an',
     description: 'Pour les grands établissements',
     features: [
       'Chambres illimitées',
@@ -547,7 +547,7 @@ export function LandingPage({ onLogin, onRegister, onDemo }: LandingPageProps) {
               Des tarifs adaptés à chaque établissement
             </h2>
             <p className="mt-3 text-lg text-gray-600 max-w-2xl mx-auto">
-              Pas de frais cachés. Prix en FCFA, facturation mensuelle transparente.
+              Pas de frais cachés. Prix en FCFA, facturation annuelle transparente.
             </p>
           </div>
 

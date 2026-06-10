@@ -400,7 +400,7 @@ export function RegisterForm({ onSwitchToLogin, onRegistrationSuccess }: Registe
                             </Badge>
                           </div>
                           <p className="text-xs text-emerald-600">
-                            {formatFCFA(verifiedCode.plan.price_fcfa)}/mois
+                            {formatFCFA(verifiedCode.plan.price_fcfa)}/an
                           </p>
                         </div>
                       </div>
@@ -515,7 +515,7 @@ export function RegisterForm({ onSwitchToLogin, onRegistrationSuccess }: Registe
                   {verifiedCode && (
                     <div className="rounded-lg bg-amber-50 border border-amber-200 p-3 dark:bg-amber-950/30 dark:border-amber-900/50">
                       <p className="text-xs text-amber-700 dark:text-amber-400">
-                        <span className="font-semibold">Plan {verifiedCode.plan.name}</span> — {verifiedCode.duration_months} mois — {formatFCFA(verifiedCode.plan.price_fcfa)}/mois
+                        <span className="font-semibold">Plan {verifiedCode.plan.name}</span> — {verifiedCode.duration_months} mois — {formatFCFA(verifiedCode.plan.price_fcfa)}/an
                       </p>
                     </div>
                   )}

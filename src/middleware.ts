@@ -124,16 +124,18 @@ export async function middleware(request: NextRequest) {
     if (pathname !== '/') {
       // API routes should return 401
       if (pathname.startsWith('/api/')) {
-        // Allow auth routes without authentication
-        if (!pathname.startsWith('/api/auth/')) {
-          // Allow setup routes without authentication — they have their own
-          // x-setup-key validation in the route handlers themselves
-          if (!pathname.startsWith('/api/setup/')) {
-            return NextResponse.json(
-              { error: 'Non authentifié. Veuillez vous connecter.' },
-              { status: 401 }
-            )
-          }
+        // Allow public API routes without authentication
+        if (
+          pathname.startsWith('/api/auth/') ||
+          pathname.startsWith('/api/setup/') ||
+          pathname.startsWith('/api/leads')
+        ) {
+          // These routes are publicly accessible
+        } else {
+          return NextResponse.json(
+            { error: 'Non authentifié. Veuillez vous connecter.' },
+            { status: 401 }
+          )
         }
       } else {
         // Page routes redirect to home

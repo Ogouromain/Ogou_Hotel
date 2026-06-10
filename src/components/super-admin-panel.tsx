@@ -891,7 +891,7 @@ function CodesTab() {
                   <SelectContent>
                     {plans.map((plan) => (
                       <SelectItem key={plan.id} value={plan.id}>
-                        {plan.name} — {formatFCFA(plan.price_fcfa)}/mois
+                        {plan.name} — {formatFCFA(plan.price_fcfa)}/an
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -1055,7 +1055,7 @@ function HotelsTab() {
                           <div className="flex flex-col">
                             <span className="text-sm">{hotel.plan_name}</span>
                             {hotel.plan_price && (
-                              <span className="text-xs text-muted-foreground">{formatFCFA(hotel.plan_price)}/mois</span>
+                              <span className="text-xs text-muted-foreground">{formatFCFA(hotel.plan_price)}/an</span>
                             )}
                           </div>
                         ) : (
