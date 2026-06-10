@@ -270,7 +270,7 @@ CREATE TABLE IF NOT EXISTS public.stock_transactions (
 CREATE TABLE IF NOT EXISTS public.audit_logs (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     hotel_id UUID REFERENCES public.hotels(id) ON DELETE CASCADE,
-    profile_id UUID NOT NULL,
+    profile_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE SET NULL,
     action VARCHAR(100) NOT NULL,
     entity_type VARCHAR(100) NOT NULL,
     entity_id UUID NOT NULL,
@@ -280,6 +280,38 @@ CREATE TABLE IF NOT EXISTS public.audit_logs (
     user_agent TEXT,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
+
+-- Enable RLS on audit_logs
+ALTER TABLE public.audit_logs ENABLE ROW LEVEL SECURITY;
+
+-- RLS Policies for audit_logs
+DROP POLICY IF EXISTS "Users can read audit logs of own hotel" ON public.audit_logs;
+CREATE POLICY "Users can read audit logs of own hotel"
+ON public.audit_logs FOR SELECT
+USING (
+  hotel_id = (
+    SELECT p.hotel_id
+    FROM public.profiles p
+    WHERE p.id = auth.uid()
+  )
+);
+
+DROP POLICY IF EXISTS "Users can insert audit logs for own hotel" ON public.audit_logs;
+CREATE POLICY "Users can insert audit logs for own hotel"
+ON public.audit_logs FOR INSERT
+WITH CHECK (
+  hotel_id = (
+    SELECT p.hotel_id
+    FROM public.profiles p
+    WHERE p.id = auth.uid()
+  )
+);
+
+DROP POLICY IF EXISTS "Service role full access on audit_logs" ON public.audit_logs;
+CREATE POLICY "Service role full access on audit_logs"
+ON public.audit_logs FOR ALL
+USING (true)
+WITH CHECK (true);
 
 -- ==================== INDEX DE PERFORMANCE ====================
 CREATE INDEX IF NOT EXISTS idx_profiles_hotel_id ON public.profiles(hotel_id);
@@ -293,6 +325,9 @@ CREATE INDEX IF NOT EXISTS idx_reservations_hotel_id_dates ON public.reservation
 CREATE INDEX IF NOT EXISTS idx_stock_items_hotel_id ON public.stock_items(hotel_id);
 CREATE INDEX IF NOT EXISTS idx_menu_items_hotel_id ON public.menu_items(hotel_id);
 CREATE INDEX IF NOT EXISTS idx_menu_items_category ON public.menu_items(category);
+CREATE INDEX IF NOT EXISTS idx_audit_logs_hotel_id ON public.audit_logs(hotel_id);
+CREATE INDEX IF NOT EXISTS idx_audit_logs_profile_id ON public.audit_logs(profile_id);
+CREATE INDEX IF NOT EXISTS idx_audit_logs_action ON public.audit_logs(action);
 CREATE INDEX IF NOT EXISTS idx_audit_logs_created_at ON public.audit_logs(created_at DESC);
 
 -- ==================== SYNC AUTOMATIQUE DES CUSTOM CLAIMS JWT ====================
@@ -1003,6 +1038,7 @@ USING (
 
 -- Add invoices to Realtime
 ALTER PUBLICATION supabase_realtime ADD TABLE public.invoices;
+ALTER PUBLICATION supabase_realtime ADD TABLE public.audit_logs;
 
 -- Trigger: Notify on new invoice
 CREATE OR REPLACE FUNCTION public.notify_new_invoice()
