@@ -102,7 +102,7 @@ const FEATURES = [
 const PLANS = [
   {
     name: 'Basique',
-    price: '300 000',
+    price: '25 000',
     period: '/an',
     description: 'Idéal pour démarrer',
     features: [
@@ -120,7 +120,7 @@ const PLANS = [
   },
   {
     name: 'Standard',
-    price: '600 000',
+    price: '50 000',
     period: '/an',
     description: 'Le plus populaire',
     features: [
@@ -139,7 +139,7 @@ const PLANS = [
   },
   {
     name: 'Premium',
-    price: '1 140 000',
+    price: '95 000',
     period: '/an',
     description: 'Pour les grands établissements',
     features: [

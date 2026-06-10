@@ -351,9 +351,9 @@ FOR EACH ROW EXECUTE FUNCTION public.sync_profile_metadata_to_auth();
 -- ==================== SEED PLANS D'ABONNEMENT ====================
 INSERT INTO public.subscription_plans (name, price_fcfa, max_rooms, max_receptionists, max_managers, support_type)
 VALUES
-('Basique', 300000.00, 20, 1, 0, 'WhatsApp'),
-('Standard', 600000.00, 50, 3, 1, 'Prioritaire'),
-('Premium', 1140000.00, 9999, 5, 5, 'Dédié 24/7')
+('Basique', 25000.00, 20, 1, 0, 'WhatsApp'),
+('Standard', 50000.00, 50, 3, 1, 'Prioritaire'),
+('Premium', 95000.00, 9999, 5, 5, 'Dédié 24/7')
 ON CONFLICT (name) DO NOTHING;
 
 -- ==================== TRIGGER: VALIDATION DES LIMITES EMPLOYÉS ====================
