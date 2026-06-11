@@ -37,7 +37,7 @@ export async function PATCH(
     // Verify room belongs to this hotel
     const { data: existingRoom } = await adminClient
       .from('rooms')
-      .select('id, room_number')
+      .select('id, room_number, status')
       .eq('id', id)
       .eq('hotel_id', hotelId)
       .maybeSingle()
@@ -62,6 +62,24 @@ export async function PATCH(
       if (!validStatuses.includes(body.status)) {
         return NextResponse.json({ error: 'Statut invalide' }, { status: 400 })
       }
+
+      // Enforce coherent status transitions for owner/manager
+      if (body.status !== existingRoom.status) {
+        const OWNER_TRANSITIONS: Record<string, string[]> = {
+          available: ['occupied', 'cleaning', 'maintenance'],
+          occupied: ['cleaning'],
+          cleaning: ['available', 'maintenance'],
+          maintenance: ['available', 'cleaning'],
+        }
+        const allowed = OWNER_TRANSITIONS[existingRoom.status] || []
+        if (!allowed.includes(body.status)) {
+          return NextResponse.json(
+            { error: `Transition non autorisée : une chambre "${existingRoom.status}" ne peut pas passer directement en "${body.status}".` },
+            { status: 400 }
+          )
+        }
+      }
+
       updateData.status = body.status
     }
 

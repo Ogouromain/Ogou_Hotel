@@ -2161,7 +2161,13 @@ function RoomsTab({
                           {quickStatusLoading === room.id ? (
                             <Loader2 className="h-3.5 w-3.5 animate-spin text-amber-500" />
                           ) : (
-                            ROOM_STATUSES.filter(s => s.value !== room.status).map((s) => (
+                            ROOM_STATUSES.filter(s => {
+                              // Owner has full control, but show coherent transitions
+                              // Hide current status, and for occupied rooms only show cleaning (check-out)
+                              if (s.value === room.status) return false
+                              // Show all other status options for owner (full control)
+                              return true
+                            }).map((s) => (
                               <button
                                 key={s.value}
                                 onClick={() => handleQuickStatusChange(room.id, s.value)}

@@ -13,10 +13,15 @@ interface AuditLogParams {
 /**
  * Log an audit entry for tracking user actions.
  * Uses the admin client to bypass RLS.
+ * Silently skips if Supabase is not configured (demo mode).
  */
 export async function logAudit(params: AuditLogParams): Promise<void> {
   try {
     const adminClient = createAdminClient()
+    if (!adminClient) {
+      // Supabase not configured (demo mode) — skip audit logging
+      return
+    }
     await adminClient.from('audit_logs').insert({
       hotel_id: params.hotel_id,
       profile_id: params.profile_id,

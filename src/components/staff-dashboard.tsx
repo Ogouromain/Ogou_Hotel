@@ -1233,7 +1233,7 @@ function HousekeeperView({ profile, onLogout }: StaffDashboardProps) {
         body: JSON.stringify({ status: newStatus }),
       })
       if (res.ok) {
-        const statusLabel = newStatus === 'available' ? 'propre' : 'en maintenance'
+        const statusLabel = newStatus === 'available' ? 'propre ✅' : 'problème détecté 🔧'
         toast.success(`Chambre ${roomNumber} marquée ${statusLabel}`)
         fetchData()
       } else {
@@ -1532,6 +1532,32 @@ function HousekeeperView({ profile, onLogout }: StaffDashboardProps) {
                 ))}
               </div>
 
+              {/* Priority: rooms needing cleaning */}
+              {priorityRooms.length > 0 && (roomFilter === 'all' || roomFilter === 'cleaning') && (
+                <div className="rounded-2xl border-2 border-amber-300 bg-gradient-to-r from-amber-50 to-orange-50 p-4 shadow-sm">
+                  <div className="flex items-center gap-2 mb-3">
+                    <div className="flex h-8 w-8 items-center justify-center rounded-full bg-amber-500 text-white animate-pulse">
+                      <SprayCan className="h-4 w-4" />
+                    </div>
+                    <h3 className="text-base font-bold text-amber-900">
+                      ⚡ Chambres à nettoyer en priorité ({priorityRooms.length})
+                    </h3>
+                  </div>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2">
+                    {priorityRooms.map((room) => (
+                      <button
+                        key={room.id}
+                        onClick={() => document.getElementById(`room-${room.id}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' })}
+                        className="flex items-center gap-2 rounded-xl bg-white/80 border border-amber-200 px-3 py-2 text-sm font-semibold text-amber-800 hover:bg-amber-100 hover:border-amber-300 transition-all shadow-sm"
+                      >
+                        <SprayCan className="h-3.5 w-3.5 text-amber-600 shrink-0" />
+                        {room.room_number}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
               {loading ? (
                 <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
                   {Array.from({ length: 8 }).map((_, i) => (
@@ -1550,11 +1576,11 @@ function HousekeeperView({ profile, onLogout }: StaffDashboardProps) {
               ) : (
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                   {filteredRooms.map((room) => (
-                    <Card key={room.id} className={`border-2 transition-all hover:shadow-md ${
-                      room.status === 'cleaning' ? 'border-amber-200 bg-amber-50/30' :
+                    <Card key={room.id} id={`room-${room.id}`} className={`border-2 transition-all hover:shadow-md ${
+                      room.status === 'cleaning' ? 'border-amber-300 bg-amber-50/40 ring-1 ring-amber-200' :
                       room.status === 'maintenance' ? 'border-red-200 bg-red-50/30' :
                       room.status === 'available' ? 'border-emerald-200 bg-emerald-50/30' :
-                      'border-sky-200 bg-sky-50/30'
+                      'border-gray-200 bg-gray-50/30'
                     }`}>
                       <CardContent className="p-4">
                         <div className="flex items-center justify-between mb-2">
@@ -1565,40 +1591,50 @@ function HousekeeperView({ profile, onLogout }: StaffDashboardProps) {
 
                         <div className="space-y-2 mt-3 pt-3 border-t border-gray-100">
                           {room.status === 'cleaning' && (
+                            <>
+                              <Button
+                                className="w-full h-11 text-sm font-semibold rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white shadow-md shadow-emerald-600/20"
+                                onClick={() => handleRoomStatus(room.id, 'available', room.room_number)}
+                                disabled={actionLoading === room.id}
+                              >
+                                {actionLoading === room.id ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <CheckCircle2 className="h-4 w-4 mr-2" />}
+                                ✅ Chambre propre
+                              </Button>
+                              <Button
+                                variant="outline"
+                                className="w-full h-10 text-sm font-medium rounded-xl border-red-300 text-red-700 hover:bg-red-50 hover:border-red-400"
+                                onClick={() => handleRoomStatus(room.id, 'maintenance', room.room_number)}
+                                disabled={actionLoading === room.id}
+                              >
+                                <Wrench className="h-4 w-4 mr-2" />
+                                🔧 Problème détecté
+                              </Button>
+                            </>
+                          )}
+                          {room.status === 'maintenance' && (
                             <Button
                               className="w-full h-11 text-sm font-semibold rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white shadow-md shadow-emerald-600/20"
                               onClick={() => handleRoomStatus(room.id, 'available', room.room_number)}
                               disabled={actionLoading === room.id}
                             >
                               {actionLoading === room.id ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <CheckCircle2 className="h-4 w-4 mr-2" />}
-                              Chambre propre
+                              ✅ Chambre propre
                             </Button>
                           )}
-                          {room.status !== 'maintenance' && (
-                            <Button
-                              variant="outline"
-                              className="w-full h-10 text-sm font-medium rounded-xl border-amber-200 text-amber-700 hover:bg-amber-50"
-                              onClick={() => handleRoomStatus(room.id, 'maintenance', room.room_number)}
-                              disabled={actionLoading === room.id}
-                            >
-                              <Wrench className="h-4 w-4 mr-2" />
-                              Maintenance
-                            </Button>
-                          )}
-                          {room.status === 'maintenance' && (
-                            <Button
-                              className="w-full h-11 text-sm font-semibold rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white"
-                              onClick={() => handleRoomStatus(room.id, 'available', room.room_number)}
-                              disabled={actionLoading === room.id}
-                            >
-                              {actionLoading === room.id ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <CheckCircle2 className="h-4 w-4 mr-2" />}
-                              Marquer propre
-                            </Button>
+                          {room.status === 'available' && (
+                            <div className="flex items-center justify-center gap-2 py-2 px-3 rounded-xl bg-emerald-50 border border-emerald-200">
+                              <span className="text-sm font-semibold text-emerald-700">Propre ✅</span>
+                            </div>
                           )}
                           {room.status === 'occupied' && (
-                            <div className="flex items-center gap-1.5 text-sky-600 text-xs font-medium">
-                              <Bed className="h-3 w-3" />
-                              Chambre occupée
+                            <div className="space-y-2">
+                              <div className="flex items-center justify-center gap-2 py-2 px-3 rounded-xl bg-gray-100 border border-gray-200">
+                                <Bed className="h-4 w-4 text-gray-500" />
+                                <span className="text-sm font-semibold text-gray-500">Occupée</span>
+                              </div>
+                              <p className="text-xs text-center text-gray-400 italic">
+                                En attente de check-out par le réceptionniste
+                              </p>
                             </div>
                           )}
                         </div>
@@ -2162,18 +2198,15 @@ function ReceptionistView({ profile, onLogout }: StaffDashboardProps) {
                     const statusActions: { status: string; label: string; icon: React.ReactNode; colorClass: string }[] = []
                     if (room.status === 'available') {
                       statusActions.push(
-                        { status: 'cleaning', label: 'Mettre en nettoyage', icon: <SprayCan className="h-3.5 w-3.5" />, colorClass: 'bg-amber-100 text-amber-700 hover:bg-amber-200 border-amber-200' },
                         { status: 'maintenance', label: 'Mettre en maintenance', icon: <Wrench className="h-3.5 w-3.5" />, colorClass: 'bg-red-100 text-red-700 hover:bg-red-200 border-red-200' },
                       )
-                    } else if (room.status === 'cleaning') {
+                    } else if (room.status === 'occupied') {
                       statusActions.push(
-                        { status: 'available', label: 'Marquer disponible', icon: <CheckCircle2 className="h-3.5 w-3.5" />, colorClass: 'bg-emerald-100 text-emerald-700 hover:bg-emerald-200 border-emerald-200' },
-                        { status: 'maintenance', label: 'Mettre en maintenance', icon: <Wrench className="h-3.5 w-3.5" />, colorClass: 'bg-red-100 text-red-700 hover:bg-red-200 border-red-200' },
+                        { status: 'cleaning', label: 'Check-out → Ménage', icon: <LogOut className="h-3.5 w-3.5" />, colorClass: 'bg-sky-100 text-sky-700 hover:bg-sky-200 border-sky-200' },
                       )
                     } else if (room.status === 'maintenance') {
                       statusActions.push(
-                        { status: 'available', label: 'Marquer disponible', icon: <CheckCircle2 className="h-3.5 w-3.5" />, colorClass: 'bg-emerald-100 text-emerald-700 hover:bg-emerald-200 border-emerald-200' },
-                        { status: 'cleaning', label: 'Mettre en nettoyage', icon: <SprayCan className="h-3.5 w-3.5" />, colorClass: 'bg-amber-100 text-amber-700 hover:bg-amber-200 border-amber-200' },
+                        { status: 'cleaning', label: 'Réparation terminée → Ménage', icon: <SprayCan className="h-3.5 w-3.5" />, colorClass: 'bg-amber-100 text-amber-700 hover:bg-amber-200 border-amber-200' },
                       )
                     }
                     return (
@@ -2195,14 +2228,14 @@ function ReceptionistView({ profile, onLogout }: StaffDashboardProps) {
                               {statusActions.map((action) => (
                                 <button key={action.status} onClick={() => handleRoomStatusChange(room.id, action.status)} disabled={isActionLoading} title={action.label} className={`flex items-center gap-1 rounded-md border px-2 py-1 text-[10px] font-medium transition-colors disabled:opacity-50 ${action.colorClass}`}>
                                   {isActionLoading ? <Loader2 className="h-3 w-3 animate-spin" /> : action.icon}
-                                  {action.status === 'available' ? 'Disponible' : action.status === 'cleaning' ? 'Nettoyage' : 'Maintenance'}
+                                  {action.label}
                                 </button>
                               ))}
                             </div>
                           )}
-                          {room.status === 'occupied' && (
+                          {room.status === 'cleaning' && (
                             <div className="flex items-center gap-1.5 mt-3 pt-3 border-t border-gray-100">
-                              <span className="text-[10px] text-sky-600 font-medium flex items-center gap-1"><Bed className="h-3 w-3" />Chambre occupée — check-out requis</span>
+                              <span className="text-[10px] text-amber-600 font-medium flex items-center gap-1">🧹 En attente de validation par le ménage</span>
                             </div>
                           )}
                         </CardContent>
@@ -2664,18 +2697,15 @@ function ManagerView({ profile, onLogout }: StaffDashboardProps) {
                     const statusActions: { status: string; label: string; icon: React.ReactNode; colorClass: string }[] = []
                     if (room.status === 'available') {
                       statusActions.push(
-                        { status: 'cleaning', label: 'Mettre en nettoyage', icon: <SprayCan className="h-3.5 w-3.5" />, colorClass: 'bg-amber-100 text-amber-700 hover:bg-amber-200 border-amber-200' },
                         { status: 'maintenance', label: 'Mettre en maintenance', icon: <Wrench className="h-3.5 w-3.5" />, colorClass: 'bg-red-100 text-red-700 hover:bg-red-200 border-red-200' },
                       )
-                    } else if (room.status === 'cleaning') {
+                    } else if (room.status === 'occupied') {
                       statusActions.push(
-                        { status: 'available', label: 'Marquer disponible', icon: <CheckCircle2 className="h-3.5 w-3.5" />, colorClass: 'bg-emerald-100 text-emerald-700 hover:bg-emerald-200 border-emerald-200' },
-                        { status: 'maintenance', label: 'Mettre en maintenance', icon: <Wrench className="h-3.5 w-3.5" />, colorClass: 'bg-red-100 text-red-700 hover:bg-red-200 border-red-200' },
+                        { status: 'cleaning', label: 'Check-out → Ménage', icon: <LogOut className="h-3.5 w-3.5" />, colorClass: 'bg-sky-100 text-sky-700 hover:bg-sky-200 border-sky-200' },
                       )
                     } else if (room.status === 'maintenance') {
                       statusActions.push(
-                        { status: 'available', label: 'Marquer disponible', icon: <CheckCircle2 className="h-3.5 w-3.5" />, colorClass: 'bg-emerald-100 text-emerald-700 hover:bg-emerald-200 border-emerald-200' },
-                        { status: 'cleaning', label: 'Mettre en nettoyage', icon: <SprayCan className="h-3.5 w-3.5" />, colorClass: 'bg-amber-100 text-amber-700 hover:bg-amber-200 border-amber-200' },
+                        { status: 'cleaning', label: 'Réparation terminée → Ménage', icon: <SprayCan className="h-3.5 w-3.5" />, colorClass: 'bg-amber-100 text-amber-700 hover:bg-amber-200 border-amber-200' },
                       )
                     }
                     return (
@@ -2697,14 +2727,14 @@ function ManagerView({ profile, onLogout }: StaffDashboardProps) {
                               {statusActions.map((action) => (
                                 <button key={action.status} onClick={() => handleRoomStatusChange(room.id, action.status)} disabled={isActionLoading} title={action.label} className={`flex items-center gap-1 rounded-md border px-2 py-1 text-[10px] font-medium transition-colors disabled:opacity-50 ${action.colorClass}`}>
                                   {isActionLoading ? <Loader2 className="h-3 w-3 animate-spin" /> : action.icon}
-                                  {action.status === 'available' ? 'Disponible' : action.status === 'cleaning' ? 'Nettoyage' : 'Maintenance'}
+                                  {action.label}
                                 </button>
                               ))}
                             </div>
                           )}
-                          {room.status === 'occupied' && (
+                          {room.status === 'cleaning' && (
                             <div className="flex items-center gap-1.5 mt-3 pt-3 border-t border-gray-100">
-                              <span className="text-[10px] text-sky-600 font-medium flex items-center gap-1"><Bed className="h-3 w-3" />Chambre occupée — check-out requis</span>
+                              <span className="text-[10px] text-amber-600 font-medium flex items-center gap-1">🧹 En attente de validation par le ménage</span>
                             </div>
                           )}
                         </CardContent>
