@@ -2235,7 +2235,7 @@ function ReceptionistView({ profile, onLogout }: StaffDashboardProps) {
                           )}
                           {room.status === 'cleaning' && (
                             <div className="flex items-center gap-1.5 mt-3 pt-3 border-t border-gray-100">
-                              <span className="text-[10px] text-amber-600 font-medium flex items-center gap-1">🧹 En attente de validation par le ménage</span>
+                              <span className="text-[10px] text-amber-600 font-medium flex items-center gap-1">🧹 En attente de validation par le ménage — vous ne pouvez pas modifier ce statut</span>
                             </div>
                           )}
                         </CardContent>
@@ -2703,8 +2703,14 @@ function ManagerView({ profile, onLogout }: StaffDashboardProps) {
                       statusActions.push(
                         { status: 'cleaning', label: 'Check-out → Ménage', icon: <LogOut className="h-3.5 w-3.5" />, colorClass: 'bg-sky-100 text-sky-700 hover:bg-sky-200 border-sky-200' },
                       )
+                    } else if (room.status === 'cleaning') {
+                      statusActions.push(
+                        { status: 'available', label: '✅ Valider propre', icon: <CheckCircle2 className="h-3.5 w-3.5" />, colorClass: 'bg-emerald-100 text-emerald-700 hover:bg-emerald-200 border-emerald-200' },
+                        { status: 'maintenance', label: '🔧 Problème détecté', icon: <Wrench className="h-3.5 w-3.5" />, colorClass: 'bg-red-100 text-red-700 hover:bg-red-200 border-red-200' },
+                      )
                     } else if (room.status === 'maintenance') {
                       statusActions.push(
+                        { status: 'available', label: '✅ Nettoyé après réparation', icon: <CheckCircle2 className="h-3.5 w-3.5" />, colorClass: 'bg-emerald-100 text-emerald-700 hover:bg-emerald-200 border-emerald-200' },
                         { status: 'cleaning', label: 'Réparation terminée → Ménage', icon: <SprayCan className="h-3.5 w-3.5" />, colorClass: 'bg-amber-100 text-amber-700 hover:bg-amber-200 border-amber-200' },
                       )
                     }
@@ -2730,11 +2736,6 @@ function ManagerView({ profile, onLogout }: StaffDashboardProps) {
                                   {action.label}
                                 </button>
                               ))}
-                            </div>
-                          )}
-                          {room.status === 'cleaning' && (
-                            <div className="flex items-center gap-1.5 mt-3 pt-3 border-t border-gray-100">
-                              <span className="text-[10px] text-amber-600 font-medium flex items-center gap-1">🧹 En attente de validation par le ménage</span>
                             </div>
                           )}
                         </CardContent>
@@ -2796,38 +2797,43 @@ function ManagerView({ profile, onLogout }: StaffDashboardProps) {
                         <p className="text-sm text-muted-foreground">{room.room_type}</p>
                         <div className="space-y-2 mt-3 pt-3 border-t border-gray-100">
                           {room.status === 'cleaning' && (
+                            <>
+                              <Button
+                                className="w-full h-11 text-sm font-semibold rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white shadow-md shadow-emerald-600/20"
+                                onClick={() => handleHousekeepingRoomStatus(room.id, 'available', room.room_number)}
+                                disabled={housekeepingActionLoading === room.id}
+                              >
+                                {housekeepingActionLoading === room.id ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <CheckCircle2 className="h-4 w-4 mr-2" />}
+                                ✅ Chambre propre
+                              </Button>
+                              <Button
+                                variant="outline"
+                                className="w-full h-10 text-sm font-medium rounded-xl border-red-200 text-red-700 hover:bg-red-50"
+                                onClick={() => handleHousekeepingRoomStatus(room.id, 'maintenance', room.room_number)}
+                                disabled={housekeepingActionLoading === room.id}
+                              >
+                                <Wrench className="h-4 w-4 mr-2" />🔧 Problème détecté
+                              </Button>
+                            </>
+                          )}
+                          {room.status === 'maintenance' && (
                             <Button
                               className="w-full h-11 text-sm font-semibold rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white shadow-md shadow-emerald-600/20"
                               onClick={() => handleHousekeepingRoomStatus(room.id, 'available', room.room_number)}
                               disabled={housekeepingActionLoading === room.id}
                             >
                               {housekeepingActionLoading === room.id ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <CheckCircle2 className="h-4 w-4 mr-2" />}
-                              Chambre propre
+                              ✅ Nettoyé après réparation
                             </Button>
                           )}
-                          {room.status !== 'maintenance' && (
-                            <Button
-                              variant="outline"
-                              className="w-full h-10 text-sm font-medium rounded-xl border-amber-200 text-amber-700 hover:bg-amber-50"
-                              onClick={() => handleHousekeepingRoomStatus(room.id, 'maintenance', room.room_number)}
-                              disabled={housekeepingActionLoading === room.id}
-                            >
-                              <Wrench className="h-4 w-4 mr-2" />Maintenance
-                            </Button>
-                          )}
-                          {room.status === 'maintenance' && (
-                            <Button
-                              className="w-full h-11 text-sm font-semibold rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white"
-                              onClick={() => handleHousekeepingRoomStatus(room.id, 'available', room.room_number)}
-                              disabled={housekeepingActionLoading === room.id}
-                            >
-                              {housekeepingActionLoading === room.id ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <CheckCircle2 className="h-4 w-4 mr-2" />}
-                              Marquer propre
-                            </Button>
+                          {room.status === 'available' && (
+                            <div className="flex items-center gap-1.5 text-emerald-600 text-xs font-medium">
+                              <CheckCircle2 className="h-3.5 w-3.5" />Propre ✅
+                            </div>
                           )}
                           {room.status === 'occupied' && (
                             <div className="flex items-center gap-1.5 text-sky-600 text-xs font-medium">
-                              <Bed className="h-3 w-3" />Chambre occupée
+                              <Bed className="h-3.5 w-3.5" />Occupée — check-out requis
                             </div>
                           )}
                         </div>
