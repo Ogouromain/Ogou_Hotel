@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { isDemoMode, DEMO_RESERVATIONS } from '@/lib/demo-data'
 
 const ALLOWED_ROLES = ['receptionist', 'manager', 'owner']
 
@@ -11,6 +12,36 @@ const ALLOWED_ROLES = ['receptionist', 'manager', 'owner']
  */
 export async function GET() {
   try {
+    // Demo mode: return in-memory data
+    if (isDemoMode()) {
+      const today = new Date()
+      const todayStr = today.toISOString().split('T')[0]
+
+      const allReservations = DEMO_RESERVATIONS
+
+      // Today's check-ins: reservations where check_in_date is today and status is pending or confirmed
+      const checkIns = allReservations.filter(
+        r => r.check_in_date === todayStr && ['pending', 'confirmed'].includes(r.status)
+      )
+
+      // Today's check-outs: reservations where check_out_date is today and status is checked_in
+      const checkOuts = allReservations.filter(
+        r => r.check_out_date === todayStr && r.status === 'checked_in'
+      )
+
+      // Expired stays: checked_in reservations where check_out_date < today
+      const expiredStays = allReservations.filter(
+        r => r.status === 'checked_in' && r.check_out_date < todayStr
+      )
+
+      return NextResponse.json({
+        checkIns,
+        checkOuts,
+        expiredStays,
+        today: todayStr,
+      })
+    }
+
     const supabase = await createClient()
     const { data: { user } } = await supabase.auth.getUser()
 

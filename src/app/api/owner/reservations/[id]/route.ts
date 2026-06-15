@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { logAudit } from '@/lib/audit'
+import { isDemoMode, DEMO_RESERVATIONS, updateDemoReservationStatus } from '@/lib/demo-data'
 
 const ALLOWED_ROLES = ['owner', 'manager', 'receptionist']
 
@@ -14,6 +15,17 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params
+
+    // Demo mode: return in-memory reservation
+    if (isDemoMode()) {
+      const reservation = DEMO_RESERVATIONS.find(r => r.id === id)
+      if (!reservation) {
+        return NextResponse.json({ error: 'Réservation introuvable' }, { status: 404 })
+      }
+      return NextResponse.json({ reservation })
+    }
+
     const supabase = await createClient()
     const { data: { user } } = await supabase.auth.getUser()
 
@@ -31,7 +43,6 @@ export async function GET(
       return NextResponse.json({ error: 'Aucun hôtel associé' }, { status: 404 })
     }
 
-    const { id } = await params
     const adminClient = createAdminClient()
 
     const { data: reservation, error } = await adminClient
@@ -61,6 +72,63 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params
+    const body = await request.json()
+    const action = body.action
+
+    // ─── Demo mode: handle reservation actions in-memory ────────────────
+    if (isDemoMode()) {
+      if (!action) {
+        return NextResponse.json({ error: 'Action requise (check_in, check_out, cancel, update)' }, { status: 400 })
+      }
+
+      const reservation = DEMO_RESERVATIONS.find(r => r.id === id)
+      if (!reservation) {
+        return NextResponse.json({ error: 'Réservation introuvable' }, { status: 404 })
+      }
+
+      if (action === 'check_in') {
+        if (!['pending', 'confirmed'].includes(reservation.status)) {
+          return NextResponse.json(
+            { error: `Enregistrement impossible. La réservation doit être en statut "en attente" ou "confirmée". Statut actuel : ${reservation.status}` },
+            { status: 400 }
+          )
+        }
+        const updated = updateDemoReservationStatus(id, 'checked_in')
+        return NextResponse.json({ reservation: updated })
+      }
+
+      if (action === 'check_out') {
+        if (reservation.status !== 'checked_in') {
+          return NextResponse.json(
+            { error: `Départ impossible. La réservation doit être en statut "enregistrée". Statut actuel : ${reservation.status}` },
+            { status: 400 }
+          )
+        }
+        const updated = updateDemoReservationStatus(id, 'checked_out')
+        return NextResponse.json({ reservation: updated })
+      }
+
+      if (action === 'cancel') {
+        if (!['pending', 'confirmed'].includes(reservation.status)) {
+          return NextResponse.json(
+            { error: `Annulation impossible. Statut actuel : ${reservation.status}` },
+            { status: 400 }
+          )
+        }
+        reservation.status = 'cancelled'
+        reservation.updated_at = new Date().toISOString()
+        return NextResponse.json({ reservation: { ...reservation } })
+      }
+
+      if (action === 'update') {
+        return NextResponse.json({ error: 'Modification non supportée en mode démo' }, { status: 400 })
+      }
+
+      return NextResponse.json({ error: 'Action non supportée en mode démo' }, { status: 400 })
+    }
+
+    // ─── Normal (Supabase) mode ────────────────────────────────────────
     const supabase = await createClient()
     const { data: { user } } = await supabase.auth.getUser()
 
@@ -78,8 +146,6 @@ export async function PATCH(
       return NextResponse.json({ error: 'Aucun hôtel associé' }, { status: 404 })
     }
 
-    const { id } = await params
-    const body = await request.json()
     const adminClient = createAdminClient()
 
     // ─── Fetch existing reservation ────────────────────────────
@@ -93,8 +159,6 @@ export async function PATCH(
     if (fetchError || !existing) {
       return NextResponse.json({ error: 'Réservation introuvable' }, { status: 404 })
     }
-
-    const action = body.action
 
     // Role-based action restrictions
     const userRole = user.app_metadata?.role

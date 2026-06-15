@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { logAudit } from '@/lib/audit'
+import { isDemoMode, DEMO_ROOMS, DEMO_RESERVATIONS } from '@/lib/demo-data'
 
 const ALLOWED_ROLES = ['manager', 'receptionist']
 
@@ -20,6 +21,86 @@ const ALLOWED_ROLES = ['manager', 'receptionist']
  */
 export async function POST(request: NextRequest) {
   try {
+    const body = await request.json()
+    const {
+      customer_id,
+      // New customer fields
+      first_name,
+      last_name,
+      phone,
+      email,
+      identity_document_type,
+      identity_document_number,
+      // Reservation fields
+      room_id,
+      check_out_date,
+    } = body
+
+    // ─── Demo mode: handle walk-in in-memory ──────────────────────────
+    if (isDemoMode()) {
+      if (!room_id) {
+        return NextResponse.json({ error: 'La chambre est requise' }, { status: 400 })
+      }
+      if (!check_out_date) {
+        return NextResponse.json({ error: 'La date de départ est requise' }, { status: 400 })
+      }
+
+      const room = DEMO_ROOMS.find(r => r.id === room_id)
+      if (!room) {
+        return NextResponse.json({ error: 'Chambre introuvable' }, { status: 404 })
+      }
+      if (room.status === 'occupied') {
+        return NextResponse.json(
+          { error: `La chambre ${room.room_number} est actuellement occupée. Veuillez choisir une autre chambre.` },
+          { status: 409 }
+        )
+      }
+      if (room.status === 'maintenance') {
+        return NextResponse.json(
+          { error: `La chambre ${room.room_number} est en maintenance. Veuillez choisir une autre chambre.` },
+          { status: 409 }
+        )
+      }
+
+      const todayStr = new Date().toISOString().split('T')[0]
+      const checkOut = new Date(check_out_date)
+      const diffTime = checkOut.getTime() - new Date().getTime()
+      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
+      const totalPrice = room.price_per_night * diffDays
+
+      const newId = `res-walkin-${Date.now()}`
+      const custFirstName = first_name || 'Client'
+      const custLastName = last_name || 'Walk-in'
+      const custPhone = phone || null
+      const custEmail = email || null
+
+      const newReservation = {
+        id: newId,
+        hotel_id: room.hotel_id,
+        customer_id: customer_id || `cust-walkin-${Date.now()}`,
+        room_id,
+        check_in_date: todayStr,
+        check_out_date,
+        total_price: totalPrice,
+        status: 'checked_in' as const,
+        customers: { first_name: custFirstName, last_name: custLastName, phone: custPhone, email: custEmail },
+        rooms: { id: room.id, room_number: room.room_number, room_type: room.room_type, price_per_night: room.price_per_night, status: 'occupied' },
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      }
+
+      DEMO_RESERVATIONS.push(newReservation)
+
+      // Update room to occupied
+      room.status = 'occupied'
+      room.updated_at = new Date().toISOString()
+
+      return NextResponse.json({
+        reservation: newReservation,
+        walk_in: true,
+      }, { status: 201 })
+    }
+
     const supabase = await createClient()
     const { data: { user } } = await supabase.auth.getUser()
 
@@ -36,21 +117,6 @@ export async function POST(request: NextRequest) {
     if (!hotelId) {
       return NextResponse.json({ error: 'Aucun hôtel associé' }, { status: 404 })
     }
-
-    const body = await request.json()
-    const {
-      customer_id,
-      // New customer fields
-      first_name,
-      last_name,
-      phone,
-      email,
-      identity_document_type,
-      identity_document_number,
-      // Reservation fields
-      room_id,
-      check_out_date,
-    } = body
 
     const adminClient = createAdminClient()
 

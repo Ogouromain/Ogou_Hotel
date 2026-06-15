@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { isDemoMode, DEMO_ROOMS } from '@/lib/demo-data'
 
 // Receptionist can view rooms but not create/modify them
 const ALLOWED_ROLES_GET = ['owner', 'manager', 'receptionist']
@@ -12,6 +13,20 @@ const ALLOWED_ROLES_POST = ['owner', 'manager']
  */
 export async function GET() {
   try {
+    // Demo mode: return in-memory rooms
+    if (isDemoMode()) {
+      const rooms = DEMO_ROOMS.map(r => ({
+        id: r.id,
+        hotel_id: r.hotel_id,
+        room_number: r.room_number,
+        room_type: r.room_type,
+        price_per_night: r.price_per_night,
+        status: r.status,
+        updated_at: r.updated_at,
+      }))
+      return NextResponse.json({ rooms })
+    }
+
     const supabase = await createClient()
     const { data: { user } } = await supabase.auth.getUser()
 
@@ -53,6 +68,11 @@ export async function GET() {
  */
 export async function POST(request: NextRequest) {
   try {
+    // Demo mode: not supported
+    if (isDemoMode()) {
+      return NextResponse.json({ error: 'Création de chambre non supportée en mode démo' }, { status: 400 })
+    }
+
     const supabase = await createClient()
     const { data: { user } } = await supabase.auth.getUser()
 

@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { isDemoMode, DEMO_RESERVATIONS } from '@/lib/demo-data'
 
 const ALLOWED_ROLES = ['owner', 'manager', 'receptionist']
 
@@ -17,6 +18,23 @@ const ALLOWED_ROLES = ['owner', 'manager', 'receptionist']
  */
 export async function GET() {
   try {
+    // Demo mode: return in-memory expired stays
+    if (isDemoMode()) {
+      const today = new Date()
+      const todayStr = today.toISOString().split('T')[0]
+
+      const expiredList = DEMO_RESERVATIONS.filter(
+        r => r.status === 'checked_in' && r.check_out_date < todayStr
+      )
+
+      return NextResponse.json({
+        expiredStays: expiredList,
+        count: expiredList.length,
+        notificationsCreated: 0,
+        today: todayStr,
+      })
+    }
+
     const supabase = await createClient()
     const { data: { user }, error: authError } = await supabase.auth.getUser()
 

@@ -94,6 +94,11 @@ export async function middleware(request: NextRequest) {
     'camera=(), microphone=(), geolocation=()'
   )
 
+  // ---- Demo mode detection ----
+  // When Supabase is not configured, the app runs in demo mode.
+  // In demo mode, there's no real auth — allow all API routes through.
+  const isDemo = !process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY
+
   // ---- 4. Role-based headers for downstream consumption ----
   if (user) {
     const role = user.app_metadata?.role || 'unknown'
@@ -131,6 +136,11 @@ export async function middleware(request: NextRequest) {
           pathname.startsWith('/api/leads')
         ) {
           // These routes are publicly accessible
+        } else if (isDemo) {
+          // In demo mode, allow all API routes through — individual handlers
+          // will use isDemoMode() to serve demo data
+          supabaseResponse.headers.set('x-user-role', 'owner')
+          supabaseResponse.headers.set('x-demo-mode', 'true')
         } else {
           return NextResponse.json(
             { error: 'Non authentifié. Veuillez vous connecter.' },
@@ -138,10 +148,13 @@ export async function middleware(request: NextRequest) {
           )
         }
       } else {
-        // Page routes redirect to home
-        const url = request.nextUrl.clone()
-        url.pathname = '/'
-        return NextResponse.redirect(url)
+        // Page routes: in demo mode, allow access (client shows demo dashboard)
+        // Otherwise redirect to home
+        if (!isDemo) {
+          const url = request.nextUrl.clone()
+          url.pathname = '/'
+          return NextResponse.redirect(url)
+        }
       }
     }
     // Unauthenticated user visiting / — let client-side show login form

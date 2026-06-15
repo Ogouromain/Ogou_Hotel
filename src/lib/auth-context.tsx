@@ -145,8 +145,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     isMountedRef.current = true
     const supabase = supabaseRef.current
 
-    // If Supabase is not configured, skip auth and show login
+    // If Supabase is not configured, set demo profile for demo mode
     if (!supabase) {
+      // Demo mode: provide a demo profile so the app shows the dashboard
+      setUser({ id: 'demo-user-id' } as User)
+      setSession({ access_token: 'demo' } as Session)
+      setProfile({
+        id: 'demo-user-id',
+        hotel_id: 'demo-hotel-0001',
+        first_name: 'Démonstration',
+        last_name: 'OGOU_Hôtel',
+        email: 'demo@ogouhotel.ci',
+        phone: '+225 00 00 00 00',
+        role: 'owner',
+        hotel_name: 'Hôtel OGOU Démo',
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      })
       setIsLoading(false)
       return
     }

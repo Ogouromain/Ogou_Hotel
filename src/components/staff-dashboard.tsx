@@ -1543,6 +1543,17 @@ function HousekeeperView({ profile, onLogout }: StaffDashboardProps) {
           {/* ═══ À nettoyer Tab (DEDICATED CLEANING TAB) ═══ */}
           {activeTab === 'to-clean' && (
             <div className="space-y-6">
+              {/* Workflow explanation banner */}
+              <div className="rounded-xl border border-gray-200 bg-gray-50 p-3">
+                <p className="text-xs text-gray-600 flex items-start gap-2">
+                  <SprayCan className="h-4 w-4 text-gray-400 shrink-0 mt-0.5" />
+                  <span>
+                    <strong className="text-gray-700">Workflow :</strong> Quand un client libère une chambre, elle apparaît ici pour nettoyage.
+                    Les chambres en maintenance nécessitent d&apos;abord une réparation par le manager avant que vous puissiez les nettoyer.
+                  </span>
+                </p>
+              </div>
+
               <div className="flex items-center justify-between flex-wrap gap-3">
                 <div>
                   <h2 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
@@ -1590,7 +1601,7 @@ function HousekeeperView({ profile, onLogout }: StaffDashboardProps) {
                 </div>
               </div>
 
-              {/* Cleaning rooms list - THE MAIN SECTION */}
+              {/* ━━━ NETTOYAGE REQUIS Section ━━━ */}
               {loading ? (
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                   {Array.from({ length: 4 }).map((_, i) => (
@@ -1610,11 +1621,19 @@ function HousekeeperView({ profile, onLogout }: StaffDashboardProps) {
                 </div>
               ) : (
                 <div>
-                  <div className="flex items-center gap-2 mb-4">
-                    <div className="h-1.5 w-1.5 rounded-full bg-amber-500 animate-pulse" />
-                    <h3 className="text-sm font-bold text-amber-800 uppercase tracking-wider">
-                      Chambres à nettoyer maintenant
-                    </h3>
+                  {/* Section header: NETTOYAGE REQUIS */}
+                  <div className="flex items-center gap-3 mb-4">
+                    <div className="flex-1 h-px bg-amber-400" />
+                    <div className="flex items-center gap-2 rounded-lg bg-amber-100 border border-amber-300 px-4 py-1.5">
+                      <SprayCan className="h-4 w-4 text-amber-600" />
+                      <h3 className="text-sm font-bold text-amber-900 uppercase tracking-wider">
+                        NETTOYAGE REQUIS
+                      </h3>
+                      <Badge className="bg-amber-500 text-white border-0 text-[10px] px-1.5 py-0 h-5 min-w-[20px] flex items-center justify-center">
+                        {cleaningRooms.length}
+                      </Badge>
+                    </div>
+                    <div className="flex-1 h-px bg-amber-400" />
                   </div>
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                     {cleaningRooms.map((room) => (
@@ -1656,19 +1675,32 @@ function HousekeeperView({ profile, onLogout }: StaffDashboardProps) {
                 </div>
               )}
 
-              {/* Maintenance rooms section - READ ONLY for housekeeper */}
+              {/* ━━━ EN ATTENTE DE RÉPARATION Section ━━━ */}
               {maintenanceRooms.length > 0 && (
                 <div>
-                  <div className="flex items-center gap-2 mb-4 mt-2">
-                    <div className="h-1.5 w-1.5 rounded-full bg-red-500" />
-                    <h3 className="text-sm font-bold text-red-800 uppercase tracking-wider">
-                      En maintenance — en attente de réparation
-                    </h3>
+                  {/* Visual separator between sections */}
+                  <div className="flex items-center gap-3 my-4">
+                    <div className="flex-1 h-px bg-red-300" />
+                    <div className="flex items-center gap-2 rounded-lg bg-red-100 border border-red-300 px-4 py-1.5">
+                      <Wrench className="h-4 w-4 text-red-600" />
+                      <h3 className="text-sm font-bold text-red-900 uppercase tracking-wider">
+                        EN ATTENTE DE RÉPARATION
+                      </h3>
+                      <Badge className="bg-red-500 text-white border-0 text-[10px] px-1.5 py-0 h-5 min-w-[20px] flex items-center justify-center">
+                        {maintenanceRooms.length}
+                      </Badge>
+                    </div>
+                    <div className="flex-1 h-px bg-red-300" />
                   </div>
-                  <p className="text-xs text-red-600 mb-3">
-                    ⚠️ Ces chambres sont en cours de réparation. Vous ne pouvez pas les nettoyer pour le moment.
-                    Le manager ou le réceptionniste doit marquer la réparation comme terminée pour que la chambre passe en &quot;À nettoyer&quot;.
-                  </p>
+                  <div className="rounded-lg border border-red-200 bg-red-50 p-3 mb-4">
+                    <p className="text-xs text-red-700 flex items-start gap-2">
+                      <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5" />
+                      <span>
+                        <strong>Attention :</strong> Ces chambres sont en cours de réparation. Vous ne pouvez pas les nettoyer pour le moment.
+                        Le manager ou le réceptionniste doit marquer la réparation comme terminée pour que la chambre passe en &quot;À nettoyer&quot;.
+                      </span>
+                    </p>
+                  </div>
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                     {maintenanceRooms.map((room) => (
                       <Card key={room.id} className="border-2 border-red-300 bg-gradient-to-b from-red-50 to-white opacity-80">
@@ -1683,10 +1715,13 @@ function HousekeeperView({ profile, onLogout }: StaffDashboardProps) {
                             Réparation en cours
                           </p>
                           <p className="text-xs text-gray-500 mb-3">{room.room_type}</p>
-                          <div className="rounded-lg bg-red-50 border border-red-200 p-3">
-                            <p className="text-xs text-red-700 flex items-center gap-1.5">
+                          <div className="rounded-lg bg-white border border-red-200 p-3">
+                            <p className="text-xs text-red-600 flex items-center gap-1.5 font-medium">
                               <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
-                              ⏳ En attente de réparation — vous serez notifié quand la chambre sera prête à être nettoyée
+                              ⏳ Action impossible — réparation requise avant nettoyage
+                            </p>
+                            <p className="text-[10px] text-red-500 mt-1 pl-5">
+                              Vous serez notifié quand la chambre sera prête à être nettoyée
                             </p>
                           </div>
                         </CardContent>

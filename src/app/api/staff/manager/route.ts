@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { isDemoMode, DEMO_ROOMS, DEMO_RESERVATIONS } from '@/lib/demo-data'
 
 const ALLOWED_ROLES = ['manager', 'owner']
 
@@ -19,6 +20,51 @@ const ALLOWED_ROLES = ['manager', 'owner']
  */
 export async function GET(request: NextRequest) {
   try {
+    // Demo mode: return in-memory stats
+    if (isDemoMode()) {
+      const today = new Date()
+      const todayStr = today.toISOString().split('T')[0]
+
+      const roomStats = {
+        total: DEMO_ROOMS.length,
+        available: DEMO_ROOMS.filter(r => r.status === 'available').length,
+        occupied: DEMO_ROOMS.filter(r => r.status === 'occupied').length,
+        cleaning: DEMO_ROOMS.filter(r => r.status === 'cleaning').length,
+        maintenance: DEMO_ROOMS.filter(r => r.status === 'maintenance').length,
+      }
+
+      const todayCheckIns = DEMO_RESERVATIONS.filter(
+        r => r.check_in_date === todayStr && ['pending', 'confirmed'].includes(r.status)
+      ).length
+
+      const todayCheckOuts = DEMO_RESERVATIONS.filter(
+        r => r.check_out_date === todayStr && r.status === 'checked_in'
+      ).length
+
+      const expiredStays = DEMO_RESERVATIONS.filter(
+        r => r.status === 'checked_in' && r.check_out_date < todayStr
+      ).length
+
+      const activeReservations = DEMO_RESERVATIONS.filter(
+        r => ['pending', 'confirmed', 'checked_in'].includes(r.status)
+      ).length
+
+      return NextResponse.json({
+        rooms: roomStats,
+        todayCheckIns,
+        todayCheckOuts,
+        expiredStays,
+        orders: {
+          pending: 0,
+          preparing: 0,
+          served: 0,
+        },
+        todayRevenue: 0,
+        activeReservations,
+        totalCustomers: 6, // number of demo customers
+      })
+    }
+
     // ── Auth verification (defense-in-depth) ──────────────────────────────
     const supabase = await createClient()
     const { data: { user } } = await supabase.auth.getUser()

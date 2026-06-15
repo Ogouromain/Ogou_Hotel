@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { logAudit } from '@/lib/audit'
+import { isDemoMode, DEMO_RESERVATIONS } from '@/lib/demo-data'
 
 const ALLOWED_ROLES = ['owner', 'manager', 'receptionist']
 
@@ -12,6 +13,27 @@ const ALLOWED_ROLES = ['owner', 'manager', 'receptionist']
  */
 export async function GET(request: NextRequest) {
   try {
+    // Demo mode: return in-memory reservations
+    if (isDemoMode()) {
+      const { searchParams } = new URL(request.url)
+      const status = searchParams.get('status')
+
+      let results = [...DEMO_RESERVATIONS]
+
+      if (status) {
+        const validStatuses = ['pending', 'confirmed', 'checked_in', 'checked_out', 'cancelled']
+        if (!validStatuses.includes(status)) {
+          return NextResponse.json(
+            { error: `Statut invalide. Statuts autorisés : ${validStatuses.join(', ')}` },
+            { status: 400 }
+          )
+        }
+        results = results.filter(r => r.status === status)
+      }
+
+      return NextResponse.json({ reservations: results })
+    }
+
     const supabase = await createClient()
     const { data: { user } } = await supabase.auth.getUser()
 

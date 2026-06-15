@@ -1,21 +1,33 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { validateSetupKey } from '@/lib/setup-auth'
+import { isDemoMode } from '@/lib/demo-data'
 
 export async function GET(request: NextRequest) {
+  // In demo mode, setup is always ready
+  if (isDemoMode()) {
+    return NextResponse.json({
+      tablesExist: true,
+      adminExists: true,
+      plansSeeded: true,
+      ready: true,
+      supabaseNotConfigured: true,
+    })
+  }
+
   const authError = validateSetupKey(request)
   if (authError) return authError
 
   try {
     const supabase = createAdminClient()
 
-    // If Supabase is not configured, return setup not ready
+    // If Supabase is not configured, we're in demo mode — treat as ready
     if (!supabase) {
       return NextResponse.json({
-        tablesExist: false,
-        adminExists: false,
-        plansSeeded: false,
-        ready: false,
+        tablesExist: true,
+        adminExists: true,
+        plansSeeded: true,
+        ready: true,
         supabaseNotConfigured: true,
       })
     }
