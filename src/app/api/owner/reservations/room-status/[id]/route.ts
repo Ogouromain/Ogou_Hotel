@@ -8,11 +8,12 @@ import { isDemoMode, DEMO_ROOMS, updateDemoRoomStatus } from '@/lib/demo-data'
  * PATCH /api/owner/reservations/room-status/[id]
  * Quick room status update for owner/manager/receptionist.
  *
- * Coherent workflow:
- *   - Réceptionniste: available→maintenance, occupied→cleaning (check-out), maintenance→cleaning
- *     CANNOT mark cleaning→available (that's the housekeeper's job!)
- *   - Manager: all transitions except available→occupied (use check-in instead)
- *   - Owner: full control
+ * Workflow cohérent :
+ *   - Réceptionniste : available→maintenance, occupied→cleaning (check-out), maintenance→cleaning
+ *     NE PEUT PAS : cleaning→available (c'est le travail du ménage !)
+ *   - Manager : available→maintenance, occupied→cleaning, cleaning→available/maintenance, maintenance→cleaning
+ *     Après une maintenance, la chambre DOIT passer par le nettoyage avant d'être disponible
+ *   - Owner : contrôle total
  */
 
 // ─── Role-based transition rules ─────────────────────────────
@@ -27,7 +28,7 @@ const ROLE_TRANSITIONS: Record<string, Record<string, string[]>> = {
     available: ['maintenance'],
     occupied: ['cleaning'],
     cleaning: ['available', 'maintenance'],
-    maintenance: ['available', 'cleaning'],
+    maintenance: ['cleaning'],
   },
   owner: {
     available: ['occupied', 'cleaning', 'maintenance'],
@@ -147,6 +148,13 @@ export async function PATCH(
       if (role === 'receptionist' && currentStatus === 'cleaning' && newStatus === 'available') {
         return NextResponse.json(
           { error: 'Seul le personnel de ménage peut valider qu\'une chambre est propre après nettoyage.' },
+          { status: 400 }
+        )
+      }
+
+      if (role === 'manager' && currentStatus === 'maintenance' && newStatus === 'available') {
+        return NextResponse.json(
+          { error: 'Après une maintenance, la chambre doit d\'abord être nettoyée. Veuillez la passer en "Nettoyage" pour que le ménage puisse intervenir.' },
           { status: 400 }
         )
       }

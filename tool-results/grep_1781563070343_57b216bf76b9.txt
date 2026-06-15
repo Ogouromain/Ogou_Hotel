@@ -1,0 +1,252 @@
+/home/z/my-project/src/components/reservation-dialog.tsx:114:  const [checkOutDate, setCheckOutDate] = useState('')
+/home/z/my-project/src/components/reservation-dialog.tsx:149:        setCheckOutDate('')
+/home/z/my-project/src/components/reservation-dialog.tsx:152:        setCheckOutDate('')
+/home/z/my-project/src/components/reservation-dialog.tsx:205:    checkInDate && checkOutDate ? differenceInDays(parseISO(checkOutDate), parseISO(checkInDate)) : 0
+/home/z/my-project/src/components/reservation-dialog.tsx:215:    selectedRoomId && checkInDate && checkOutDate && numberOfNights > 0
+/home/z/my-project/src/components/reservation-dialog.tsx:271:          check_out_date: checkOutDate,
+/home/z/my-project/src/components/reservation-dialog.tsx:280:            `Conflit avec la réservation de ${data.conflict.customer} du ${formatDateShort(data.conflict.check_in_date)} au ${formatDateShort(data.conflict.check_out_date)}`
+/home/z/my-project/src/components/reservation-dialog.tsx:621:                <Label htmlFor="check-out">Date de départ *</Label>
+/home/z/my-project/src/components/reservation-dialog.tsx:623:                  id="check-out"
+/home/z/my-project/src/components/reservation-dialog.tsx:625:                  value={checkOutDate}
+/home/z/my-project/src/components/reservation-dialog.tsx:626:                  onChange={(e) => setCheckOutDate(e.target.value)}
+/home/z/my-project/src/components/reservation-dialog.tsx:633:            {selectedRoom && checkInDate && checkOutDate && numberOfNights > 0 && (
+/home/z/my-project/src/components/reservation-dialog.tsx:652:            {checkInDate && checkOutDate && numberOfNights <= 0 && (
+/home/z/my-project/src/components/reservation-dialog.tsx:654:                La date de départ doit être postérieure à la date d&apos;arrivée
+/home/z/my-project/src/components/reservation-dialog.tsx:710:                  {checkInDate && formatDateShort(checkInDate)} → {checkOutDate && formatDateShort(checkOutDate)}
+/home/z/my-project/src/components/expired-stay-alert.tsx:46:  check_out_date: string
+/home/z/my-project/src/components/expired-stay-alert.tsx:54:  /** Called when a check-out is performed so the parent can refresh data */
+/home/z/my-project/src/components/expired-stay-alert.tsx:55:  onCheckOut?: (reservationId: string) => Promise<void>
+/home/z/my-project/src/components/expired-stay-alert.tsx:98:function getDaysOverdue(checkOutDate: string): number {
+/home/z/my-project/src/components/expired-stay-alert.tsx:100:  const checkOut = new Date(checkOutDate)
+/home/z/my-project/src/components/expired-stay-alert.tsx:101:  const diffMs = today.getTime() - checkOut.getTime()
+/home/z/my-project/src/components/expired-stay-alert.tsx:113:export function ExpiredStayAlert({ onCheckOut, onNavigateToReservations }: ExpiredStayAlertProps) {
+/home/z/my-project/src/components/expired-stay-alert.tsx:155:  const handleCheckOut = async (reservationId: string) => {
+/home/z/my-project/src/components/expired-stay-alert.tsx:161:        body: JSON.stringify({ action: 'check_out' }),
+/home/z/my-project/src/components/expired-stay-alert.tsx:164:        toast.success('Check-out effectué — Ménage requis')
+/home/z/my-project/src/components/expired-stay-alert.tsx:169:        if (onCheckOut) {
+/home/z/my-project/src/components/expired-stay-alert.tsx:170:          await onCheckOut(reservationId)
+/home/z/my-project/src/components/expired-stay-alert.tsx:174:        toast.error(data.error || 'Erreur lors du check-out')
+/home/z/my-project/src/components/expired-stay-alert.tsx:202:  const urgentCount = expiredStays.filter(s => getUrgencyLevel(getDaysOverdue(s.check_out_date)) === 'urgent').length
+/home/z/my-project/src/components/expired-stay-alert.tsx:203:  const criticalCount = expiredStays.filter(s => getUrgencyLevel(getDaysOverdue(s.check_out_date)) === 'critical').length
+/home/z/my-project/src/components/expired-stay-alert.tsx:204:  const warningCount = expiredStays.filter(s => getUrgencyLevel(getDaysOverdue(s.check_out_date)) === 'warning').length
+/home/z/my-project/src/components/expired-stay-alert.tsx:227:                Veuillez procéder au check-out ou prolonger le séjour.
+/home/z/my-project/src/components/expired-stay-alert.tsx:281:                  const daysOverdue = getDaysOverdue(stay.check_out_date)
+/home/z/my-project/src/components/expired-stay-alert.tsx:331:                                <span>Départ prévu : <strong className="text-red-700">{formatDateFR(stay.check_out_date)}</strong></span>
+/home/z/my-project/src/components/expired-stay-alert.tsx:351:                              onClick={() => handleCheckOut(stay.id)}
+/home/z/my-project/src/components/expired-stay-alert.tsx:359:                              Check-out
+/home/z/my-project/src/components/walk-in-dialog.tsx:91:  // Step 2: Room + checkout date
+/home/z/my-project/src/components/walk-in-dialog.tsx:93:  const [checkOutDate, setCheckOutDate] = useState('')
+/home/z/my-project/src/components/walk-in-dialog.tsx:115:      setCheckOutDate('')
+/home/z/my-project/src/components/walk-in-dialog.tsx:153:    checkOutDate ? Math.ceil((new Date(checkOutDate).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24)) : 0
+/home/z/my-project/src/components/walk-in-dialog.tsx:168:    selectedRoomId && checkOutDate && numberOfNights > 0
+/home/z/my-project/src/components/walk-in-dialog.tsx:176:        check_out_date: checkOutDate,
+/home/z/my-project/src/components/walk-in-dialog.tsx:448:        {/* ─── Step 2: Chambre & Date de départ ──────────────────────── */}
+/home/z/my-project/src/components/walk-in-dialog.tsx:451:            <Label className="text-base font-semibold">Chambre & Date de départ</Label>
+/home/z/my-project/src/components/walk-in-dialog.tsx:491:            {/* Check-out date */}
+/home/z/my-project/src/components/walk-in-dialog.tsx:493:              <Label htmlFor="walkin-check-out">Date de départ *</Label>
+/home/z/my-project/src/components/walk-in-dialog.tsx:495:                id="walkin-check-out"
+/home/z/my-project/src/components/walk-in-dialog.tsx:497:                value={checkOutDate}
+/home/z/my-project/src/components/walk-in-dialog.tsx:498:                onChange={(e) => setCheckOutDate(e.target.value)}
+/home/z/my-project/src/components/walk-in-dialog.tsx:504:            {selectedRoom && checkOutDate && numberOfNights > 0 && (
+/home/z/my-project/src/components/walk-in-dialog.tsx:565:                      {formatDateShort(today)} → {formatDateShort(checkOutDate)}
+/home/z/my-project/src/components/walk-in-dialog.tsx:602:            {checkOutDate && numberOfNights <= 0 && (
+/home/z/my-project/src/components/walk-in-dialog.tsx:604:                La date de départ doit être postérieure à demain
+/home/z/my-project/src/components/dashboard.tsx:114:  check_out: string
+/home/z/my-project/src/components/dashboard.tsx:233:      return <Badge className="bg-gray-100 text-gray-600 border-gray-200 hover:bg-gray-100">Check-out</Badge>
+/home/z/my-project/src/components/dashboard.tsx:382:                    <TableHead>Départ</TableHead>
+/home/z/my-project/src/components/dashboard.tsx:397:                      <TableCell>{formatDate(res.check_out)}</TableCell>
+/home/z/my-project/src/components/dashboard.tsx:904:                    <TableHead>Départ</TableHead>
+/home/z/my-project/src/components/dashboard.tsx:919:                      <TableCell>{formatDate(res.check_out)}</TableCell>
+/home/z/my-project/src/components/landing-page.tsx:66:    description: 'Agenda interactif, réservations en ligne, check-in/check-out simplifiés et suivi des occupants.',
+/home/z/my-project/src/components/planning-grid.tsx:51:    check_out_date: string
+/home/z/my-project/src/components/planning-grid.tsx:171:        const checkOut = parseISO(res.check_out_date)
+/home/z/my-project/src/components/planning-grid.tsx:174:          !isBefore(checkOut, viewStart) && !isAfter(checkIn, viewEnd)
+/home/z/my-project/src/components/planning-grid.tsx:185:      const checkOut = parseISO(res.check_out_date)
+/home/z/my-project/src/components/planning-grid.tsx:193:      // A reservation from Jan 5 to Jan 8 means check-in Jan 5, check-out Jan 8
+/home/z/my-project/src/components/planning-grid.tsx:195:      // The checkout day (Jan 8) is NOT a stay day, but we show it as the boundary
+/home/z/my-project/src/components/planning-grid.tsx:196:      const dayBeforeCheckout = addDays(checkOut, -1)
+/home/z/my-project/src/components/planning-grid.tsx:198:      const effectiveEnd = isAfter(dayBeforeCheckout, viewEnd)
+/home/z/my-project/src/components/planning-grid.tsx:200:        : dayBeforeCheckout
+/home/z/my-project/src/components/planning-grid.tsx:424:                        const checkOut = parseISO(res.check_out_date)
+/home/z/my-project/src/components/planning-grid.tsx:425:                        const dayBeforeCheckout = addDays(checkOut, -1)
+/home/z/my-project/src/components/planning-grid.tsx:429:                            end: dayBeforeCheckout,
+/home/z/my-project/src/components/planning-grid.tsx:430:                          }) || isSameDay(day, checkIn) || isSameDay(day, dayBeforeCheckout)
+/home/z/my-project/src/components/planning-grid.tsx:500:                            {format(parseISO(res.check_in_date), 'dd/MM')} → {format(parseISO(res.check_out_date), 'dd/MM')}
+/home/z/my-project/src/components/invoices-tab.tsx:117:  check_out_date: string
+/home/z/my-project/src/components/invoices-tab.tsx:1074:                                    <p className="text-[9px] font-bold text-orange-600 uppercase tracking-wider">Départ</p>
+/home/z/my-project/src/components/invoices-tab.tsx:1075:                                    <p className="text-xs font-bold text-orange-800 mt-0.5">{formatDateShort(reservation.check_out_date as string)}</p>
+/home/z/my-project/src/components/invoices-tab.tsx:1339:                            Ch. {roomNum} — {formatDateShort(r.check_in_date)} au {formatDateShort(r.check_out_date)}
+/home/z/my-project/src/components/activity-log-tab.tsx:96:  check_out: 'Check-out',
+/home/z/my-project/src/components/activity-log-tab.tsx:106:  check_out: 'Check-out effectué',
+/home/z/my-project/src/components/activity-log-tab.tsx:140:  check_out: 'bg-sky-500',
+/home/z/my-project/src/components/activity-log-tab.tsx:150:  check_out: 'bg-sky-100 text-sky-700 border-sky-200',
+/home/z/my-project/src/components/activity-log-tab.tsx:226:    check_out_date: 'Date de départ',
+/home/z/my-project/src/components/customers-tab.tsx:164:    reservations: Array<{ id: string; check_in_date: string; check_out_date: string; total_price: number; status: string; rooms: { room_number: string; room_type: string } | null }>
+/home/z/my-project/src/components/customers-tab.tsx:844:                              <span>Départ</span>
+/home/z/my-project/src/components/customers-tab.tsx:845:                              <span>{new Date(res.check_out_date).toLocaleDateString('fr-FR')}</span>
+/home/z/my-project/src/components/notification-panel.tsx:78:    id: 'depart_expire',
+/home/z/my-project/src/components/notification-panel.tsx:79:    label: 'Rappel départ expiré',
+/home/z/my-project/src/components/notification-panel.tsx:80:    message: 'Bonjour, votre séjour est arrivé à échéance. Merci de vous présenter à la réception pour le check-out. — OGOU_Hôtel',
+/home/z/my-project/src/components/staff-dashboard.tsx:179:  check_out_date: string
+/home/z/my-project/src/components/staff-dashboard.tsx:189:  todayCheckOuts: number
+/home/z/my-project/src/components/staff-dashboard.tsx:749:              <ExpiredStayAlert onCheckOut={async () => {}} onNavigateToReservations={() => {}} />
+/home/z/my-project/src/components/staff-dashboard.tsx:1434:                onCheckOut={async () => {}}
+/home/z/my-project/src/components/staff-dashboard.tsx:1737:                                  🛏️ Occupée — en attente de check-out
+/home/z/my-project/src/components/staff-dashboard.tsx:1779:  const [checkOuts, setCheckOuts] = useState<ReservationInfo[]>([])
+/home/z/my-project/src/components/staff-dashboard.tsx:1799:        setCheckOuts(data.checkOuts || [])
+/home/z/my-project/src/components/staff-dashboard.tsx:1839:  const handleCheckOut = async (reservationId: string, _roomId: string) => {
+/home/z/my-project/src/components/staff-dashboard.tsx:1845:        body: JSON.stringify({ action: 'check_out' }),
+/home/z/my-project/src/components/staff-dashboard.tsx:1848:        toast.success('Check-out effectué — Ménage requis')
+/home/z/my-project/src/components/staff-dashboard.tsx:1852:        toast.error(data.error || 'Erreur lors du check-out')
+/home/z/my-project/src/components/staff-dashboard.tsx:1888:  const renderReservationCard = (reservation: ReservationInfo, type: 'check-in' | 'check-out') => {
+/home/z/my-project/src/components/staff-dashboard.tsx:1914:                    : `Départ : ${formatDateFR(reservation.check_out_date)}`
+/home/z/my-project/src/components/staff-dashboard.tsx:1924:              ) : isCheckedIn && type === 'check-out' ? (
+/home/z/my-project/src/components/staff-dashboard.tsx:1954:          {type === 'check-out' && isCheckedIn && (
+/home/z/my-project/src/components/staff-dashboard.tsx:1957:              onClick={() => handleCheckOut(reservation.id, reservation.room_id)}
+/home/z/my-project/src/components/staff-dashboard.tsx:1961:              Check-out
+/home/z/my-project/src/components/staff-dashboard.tsx:1964:          {type === 'check-out' && isCheckedOut && (
+/home/z/my-project/src/components/staff-dashboard.tsx:1967:              <span className="text-sm font-medium">Départ effectué</span>
+/home/z/my-project/src/components/staff-dashboard.tsx:2125:                onCheckOut={async (reservationId) => { await handleCheckOut(reservationId, ''); fetchAllData() }}
+/home/z/my-project/src/components/staff-dashboard.tsx:2143:                      <span className="text-3xl font-bold text-amber-700">{checkOuts.length}</span>
+/home/z/my-project/src/components/staff-dashboard.tsx:2145:                    <p className="text-sm font-medium text-amber-800 mt-2">Départs aujourd&apos;hui</p>
+/home/z/my-project/src/components/staff-dashboard.tsx:2185:              {(checkIns.length > 0 || checkOuts.length > 0 || roomStats.cleaning > 0) && (
+/home/z/my-project/src/components/staff-dashboard.tsx:2201:                      {checkOuts.length > 0 && (
+/home/z/my-project/src/components/staff-dashboard.tsx:2204:                          <div><p className="text-sm font-semibold text-amber-800">{checkOuts.length} départ{checkOuts.length > 1 ? 's' : ''}</p><p className="text-xs text-amber-600">Check-out à effectuer</p></div>
+/home/z/my-project/src/components/staff-dashboard.tsx:2236:                  <h3 className="text-base font-bold text-gray-900">Check-outs du jour</h3>
+/home/z/my-project/src/components/staff-dashboard.tsx:2237:                  {checkOuts.length > 0 && <Badge className="bg-amber-100 text-amber-700 border-amber-200 hover:bg-amber-100 text-xs">{checkOuts.length}</Badge>}
+/home/z/my-project/src/components/staff-dashboard.tsx:2241:                ) : checkOuts.length === 0 ? (
+/home/z/my-project/src/components/staff-dashboard.tsx:2242:                  <Card className="border-amber-200/40"><CardContent className="p-6 text-center"><p className="text-sm text-muted-foreground">Aucun check-out prévu aujourd&apos;hui</p></CardContent></Card>
+/home/z/my-project/src/components/staff-dashboard.tsx:2244:                  <div className="space-y-3">{checkOuts.map((res) => renderReservationCard(res, 'check-out'))}</div>
+/home/z/my-project/src/components/staff-dashboard.tsx:2320:                        { status: 'cleaning', label: 'Check-out → Ménage', icon: <LogOut className="h-3.5 w-3.5" />, colorClass: 'bg-sky-100 text-sky-700 hover:bg-sky-200 border-sky-200' },
+/home/z/my-project/src/components/staff-dashboard.tsx:2386:  const [checkOuts, setCheckOuts] = useState<ReservationInfo[]>([])
+/home/z/my-project/src/components/staff-dashboard.tsx:2417:        setCheckOuts(data.checkOuts || [])
+/home/z/my-project/src/components/staff-dashboard.tsx:2457:  const handleCheckOut = async (reservationId: string, _roomId: string) => {
+/home/z/my-project/src/components/staff-dashboard.tsx:2463:        body: JSON.stringify({ action: 'check_out' }),
+/home/z/my-project/src/components/staff-dashboard.tsx:2466:        toast.success('Check-out effectué — Ménage requis')
+/home/z/my-project/src/components/staff-dashboard.tsx:2470:        toast.error(data.error || 'Erreur lors du check-out')
+/home/z/my-project/src/components/staff-dashboard.tsx:2675:                onCheckOut={async (reservationId) => { await handleCheckOut(reservationId, ''); fetchAllData() }}
+/home/z/my-project/src/components/staff-dashboard.tsx:2706:                      <span className="text-3xl font-bold text-amber-700">{managerStats?.todayCheckOuts ?? checkOuts.length}</span>
+/home/z/my-project/src/components/staff-dashboard.tsx:2708:                    <p className="text-sm font-medium text-amber-800 mt-2">Départs aujourd&apos;hui</p>
+/home/z/my-project/src/components/staff-dashboard.tsx:2819:                        { status: 'cleaning', label: 'Check-out → Ménage', icon: <LogOut className="h-3.5 w-3.5" />, colorClass: 'bg-sky-100 text-sky-700 hover:bg-sky-200 border-sky-200' },
+/home/z/my-project/src/components/staff-dashboard.tsx:2951:                              <Bed className="h-3.5 w-3.5" />Occupée — check-out requis
+/home/z/my-project/src/components/owner-dashboard.tsx:451:  const [todayCheckOuts, setTodayCheckOuts] = useState<Record<string, unknown>[]>([])
+/home/z/my-project/src/components/owner-dashboard.tsx:515:        if (data.checkOuts) setTodayCheckOuts(data.checkOuts)
+/home/z/my-project/src/components/owner-dashboard.tsx:848:              todayCheckOuts={todayCheckOuts}
+/home/z/my-project/src/components/owner-dashboard.tsx:1042:  todayCheckOuts,
+/home/z/my-project/src/components/owner-dashboard.tsx:1058:  todayCheckOuts: Record<string, unknown>[]
+/home/z/my-project/src/components/owner-dashboard.tsx:1224:                  <p className="text-xs font-medium text-amber-700">Départs aujourd&apos;hui</p>
+/home/z/my-project/src/components/owner-dashboard.tsx:1225:                  <p className="text-2xl font-bold text-amber-800">{loading ? '—' : todayCheckOuts.length}</p>
+/home/z/my-project/src/components/owner-dashboard.tsx:1269:          {/* Departures list */}
+/home/z/my-project/src/components/owner-dashboard.tsx:1270:          {todayCheckOuts.length > 0 && (
+/home/z/my-project/src/components/owner-dashboard.tsx:1274:                Départs prévus
+/home/z/my-project/src/components/owner-dashboard.tsx:1277:                {todayCheckOuts.map((res) => {
+/home/z/my-project/src/components/owner-dashboard.tsx:1282:                  const checkOutDate = (res.check_out_date as string) || ''
+/home/z/my-project/src/components/owner-dashboard.tsx:1290:                        {checkOutDate && <span className="text-xs text-muted-foreground">{checkOutDate}</span>}
+/home/z/my-project/src/components/owner-dashboard.tsx:1301:          {!loading && todayCheckIns.length === 0 && todayCheckOuts.length === 0 && (
+/home/z/my-project/src/components/owner-dashboard.tsx:1476:              <p className="text-xs text-amber-700 font-medium">Check-outs</p>
+/home/z/my-project/src/components/owner-dashboard.tsx:1478:              <p className="text-sm text-amber-600">{todayCheckOuts.length} prévu{todayCheckOuts.length !== 1 ? 's' : ''}</p>
+/home/z/my-project/src/components/owner-dashboard.tsx:1653:          content: 'Depuis l\'onglet Réservations, cliquez sur "Nouvelle réservation". Sélectionnez le client (ou créez-en un nouveau), choisissez la chambre, les dates d\'arrivée et de départ. Le système calcule automatiquement le montant total.',
+/home/z/my-project/src/components/owner-dashboard.tsx:1656:          subtitle: 'Check-in et Check-out',
+/home/z/my-project/src/components/owner-dashboard.tsx:1657:          content: 'Le jour de l\'arrivée, effectuez le check-in depuis la fiche de réservation. Le statut de la chambre passe automatiquement à "Occupée". Au départ, effectuez le check-out : la chambre passe en "Nettoyage" puis redevient "Disponible".',
+/home/z/my-project/src/components/owner-dashboard.tsx:1682:          content: 'Les consommations du restaurant peuvent être ajoutées à la facture de la chambre du client pour un règlement unique au départ, ou facturées séparément.',
+/home/z/my-project/src/components/owner-dashboard.tsx:2166:                              // Hide current status, and for occupied rooms only show cleaning (check-out)
+/home/z/my-project/src/components/reservations-tab.tsx:62:  check_out_date: string
+/home/z/my-project/src/components/reservations-tab.tsx:433:                        const checkOut = parseISO(res.check_out_date)
+/home/z/my-project/src/components/reservations-tab.tsx:435:                          (checkOut.getTime() - checkIn.getTime()) / (1000 * 60 * 60 * 24)
+/home/z/my-project/src/components/reservations-tab.tsx:474:                                  {format(checkOut, 'dd/MM', { locale: fr })}
+/home/z/my-project/src/components/reservation-detail-sheet.tsx:53:    check_out_date: string
+/home/z/my-project/src/components/reservation-detail-sheet.tsx:141:      return 'Terminé (Check-Out effectué)'
+/home/z/my-project/src/components/reservation-detail-sheet.tsx:186:  const checkOut = parseISO(reservation.check_out_date)
+/home/z/my-project/src/components/reservation-detail-sheet.tsx:187:  const nights = differenceInDays(checkOut, checkIn)
+/home/z/my-project/src/components/reservation-detail-sheet.tsx:197:          : action === 'check_out'
+/home/z/my-project/src/components/reservation-detail-sheet.tsx:198:            ? 'Départ validé avec succès !'
+/home/z/my-project/src/components/reservation-detail-sheet.tsx:356:                      Départ
+/home/z/my-project/src/components/reservation-detail-sheet.tsx:359:                      {formatDateFR(reservation.check_out_date)}
+/home/z/my-project/src/components/reservation-detail-sheet.tsx:455:                  {/* Check-Out Button */}
+/home/z/my-project/src/components/reservation-detail-sheet.tsx:460:                      onClick={() => handleAction('check_out')}
+/home/z/my-project/src/components/reservation-detail-sheet.tsx:462:                      {actionLoading === 'check_out' ? (
+/home/z/my-project/src/components/reservation-detail-sheet.tsx:467:                      Valider le Départ (Check-Out & Ménage requis)
+/home/z/my-project/src/components/reservation-detail-sheet.tsx:505:              {format(checkOut, 'dd/MM/yyyy')}) sera annulée.
+/home/z/my-project/src/hooks/use-realtime.ts:170:          else if (status === 'checked_out') { title = 'Check-out'; message = 'Un client a effectué son check-out' }
+/home/z/my-project/src/lib/types.ts:116:  check_out_date: string
+/home/z/my-project/src/lib/export-utils.ts:109:  check_out_date: string
+/home/z/my-project/src/lib/export-utils.ts:125:  { key: 'check_out_date', label: 'Date de départ', format: (v) => formatDateFR(String(v)) },
+/home/z/my-project/src/lib/export-utils.ts:225:  'checked_out': 'Départ',
+/home/z/my-project/src/lib/sql-script.ts:178:    check_out_date DATE NOT NULL,
+/home/z/my-project/src/lib/sql-script.ts:183:    CONSTRAINT chk_dates CHECK (check_out_date > check_in_date)
+/home/z/my-project/src/lib/sql-script.ts:324:CREATE INDEX IF NOT EXISTS idx_reservations_hotel_id_dates ON public.reservations(hotel_id, check_in_date, check_out_date);
+/home/z/my-project/src/lib/sql-script.ts:821:  SELECT COALESCE(AVG(total_price / GREATEST(EXTRACT(DAY FROM (check_out_date - check_in_date)), 1)), 0)
+/home/z/my-project/src/app/api/owner/reservations/route.ts:59:      // Overlap logic: reservation overlaps if check_in_date < dateTo AND check_out_date > dateFrom
+/home/z/my-project/src/app/api/owner/reservations/route.ts:60:      query = query.lt('check_in_date', dateTo).gt('check_out_date', dateFrom)
+/home/z/my-project/src/app/api/owner/reservations/route.ts:62:      query = query.gte('check_out_date', dateFrom)
+/home/z/my-project/src/app/api/owner/reservations/route.ts:81:      query = query.lt('check_in_date', nextMonth).gt('check_out_date', monthStart)
+/home/z/my-project/src/app/api/owner/reservations/route.ts:123:    const { customer_id, room_id, check_in_date, check_out_date } = body
+/home/z/my-project/src/app/api/owner/reservations/route.ts:126:    if (!customer_id || !room_id || !check_in_date || !check_out_date) {
+/home/z/my-project/src/app/api/owner/reservations/route.ts:128:        { error: 'client, chambre, date d\'arrivée et date de départ sont requis' },
+/home/z/my-project/src/app/api/owner/reservations/route.ts:135:    if (!dateRegex.test(check_in_date) || !dateRegex.test(check_out_date)) {
+/home/z/my-project/src/app/api/owner/reservations/route.ts:143:    const checkOut = new Date(check_out_date)
+/home/z/my-project/src/app/api/owner/reservations/route.ts:145:    if (isNaN(checkIn.getTime()) || isNaN(checkOut.getTime())) {
+/home/z/my-project/src/app/api/owner/reservations/route.ts:149:    if (checkOut <= checkIn) {
+/home/z/my-project/src/app/api/owner/reservations/route.ts:151:        { error: 'La date de départ doit être postérieure à la date d\'arrivée' },
+/home/z/my-project/src/app/api/owner/reservations/route.ts:190:    // existing.check_in_date < new.check_out_date AND existing.check_out_date > new.check_in_date
+/home/z/my-project/src/app/api/owner/reservations/route.ts:194:      .select('id, check_in_date, check_out_date, status, customers(first_name, last_name)')
+/home/z/my-project/src/app/api/owner/reservations/route.ts:197:      .lt('check_in_date', check_out_date)
+/home/z/my-project/src/app/api/owner/reservations/route.ts:198:      .gt('check_out_date', check_in_date)
+/home/z/my-project/src/app/api/owner/reservations/route.ts:212:            check_out_date: conflict.check_out_date,
+/home/z/my-project/src/app/api/owner/reservations/route.ts:222:    const diffTime = checkOut.getTime() - checkIn.getTime()
+/home/z/my-project/src/app/api/owner/reservations/route.ts:234:        check_out_date,
+/home/z/my-project/src/app/api/owner/reservations/route.ts:256:        check_out_date,
+/home/z/my-project/src/app/api/owner/reservations/room-status/[id]/route.ts:12: *   - Réceptionniste: available→maintenance, occupied→cleaning (check-out), maintenance→cleaning
+/home/z/my-project/src/app/api/owner/reservations/room-status/[id]/route.ts:128:          { error: `Les chambres occupées ne peuvent être modifiées que via un check-out (statut → Nettoyage).` },
+/home/z/my-project/src/app/api/owner/reservations/walk-in/route.ts:18: *   - check_out_date (required, YYYY-MM-DD)
+/home/z/my-project/src/app/api/owner/reservations/walk-in/route.ts:52:      check_out_date,
+/home/z/my-project/src/app/api/owner/reservations/walk-in/route.ts:65:    if (!check_out_date) {
+/home/z/my-project/src/app/api/owner/reservations/walk-in/route.ts:67:        { error: 'La date de départ est requise' },
+/home/z/my-project/src/app/api/owner/reservations/walk-in/route.ts:74:    if (!dateRegex.test(check_out_date)) {
+/home/z/my-project/src/app/api/owner/reservations/walk-in/route.ts:76:        { error: 'Format de date de départ invalide. Utilisez YYYY-MM-DD' },
+/home/z/my-project/src/app/api/owner/reservations/walk-in/route.ts:84:    const checkOut = new Date(check_out_date)
+/home/z/my-project/src/app/api/owner/reservations/walk-in/route.ts:86:    if (isNaN(checkOut.getTime())) {
+/home/z/my-project/src/app/api/owner/reservations/walk-in/route.ts:87:      return NextResponse.json({ error: 'Date de départ invalide' }, { status: 400 })
+/home/z/my-project/src/app/api/owner/reservations/walk-in/route.ts:90:    if (checkOut <= today) {
+/home/z/my-project/src/app/api/owner/reservations/walk-in/route.ts:92:        { error: 'La date de départ doit être postérieure à aujourd\'hui' },
+/home/z/my-project/src/app/api/owner/reservations/walk-in/route.ts:203:      .select('id, check_in_date, check_out_date, status, customers(first_name, last_name)')
+/home/z/my-project/src/app/api/owner/reservations/walk-in/route.ts:206:      .lt('check_in_date', check_out_date)
+/home/z/my-project/src/app/api/owner/reservations/walk-in/route.ts:207:      .gt('check_out_date', checkInDate)
+/home/z/my-project/src/app/api/owner/reservations/walk-in/route.ts:221:            check_out_date: conflict.check_out_date,
+/home/z/my-project/src/app/api/owner/reservations/walk-in/route.ts:231:    const diffTime = checkOut.getTime() - today.getTime()
+/home/z/my-project/src/app/api/owner/reservations/walk-in/route.ts:243:        check_out_date,
+/home/z/my-project/src/app/api/owner/reservations/walk-in/route.ts:271:        check_out_date,
+/home/z/my-project/src/app/api/owner/invoices/route.ts:48:      .select('*, customers(id, first_name, last_name, phone), reservations(id, check_in_date, check_out_date, room_id), invoice_items(*)')
+/home/z/my-project/src/app/api/owner/invoices/route.ts:330:      .select('*, customers(id, first_name, last_name, phone), reservations(id, check_in_date, check_out_date, room_id), invoice_items(*)')
+/home/z/my-project/src/app/api/owner/reservations/[id]/route.ts:57: * Handle status transitions (check_in, check_out, cancel) and date/customer updates.
+/home/z/my-project/src/app/api/owner/reservations/[id]/route.ts:104:    // Receptionist can only perform operational actions (check_in, check_out, update)
+/home/z/my-project/src/app/api/owner/reservations/[id]/route.ts:115:      return NextResponse.json({ error: 'Action requise (check_in, check_out, cancel, update)' }, { status: 400 })
+/home/z/my-project/src/app/api/owner/reservations/[id]/route.ts:171:    // ACTION: check_out
+/home/z/my-project/src/app/api/owner/reservations/[id]/route.ts:173:    if (action === 'check_out') {
+/home/z/my-project/src/app/api/owner/reservations/[id]/route.ts:176:          { error: `Départ impossible. La réservation doit être en statut "enregistrée". Statut actuel : ${existing.status}` },
+/home/z/my-project/src/app/api/owner/reservations/[id]/route.ts:203:        action: 'check_out',
+/home/z/my-project/src/app/api/owner/reservations/[id]/route.ts:288:      const newCheckOut = body.check_out_date || existing.check_out_date
+/home/z/my-project/src/app/api/owner/reservations/[id]/route.ts:290:      const datesChanged = body.check_in_date || body.check_out_date
+/home/z/my-project/src/app/api/owner/reservations/[id]/route.ts:294:      if (body.check_in_date || body.check_out_date) {
+/home/z/my-project/src/app/api/owner/reservations/[id]/route.ts:299:        if (body.check_out_date && !dateRegex.test(body.check_out_date)) {
+/home/z/my-project/src/app/api/owner/reservations/[id]/route.ts:300:          return NextResponse.json({ error: 'Format de date de départ invalide' }, { status: 400 })
+/home/z/my-project/src/app/api/owner/reservations/[id]/route.ts:304:        const checkOut = new Date(newCheckOut)
+/home/z/my-project/src/app/api/owner/reservations/[id]/route.ts:306:        if (checkOut <= checkIn) {
+/home/z/my-project/src/app/api/owner/reservations/[id]/route.ts:308:            { error: 'La date de départ doit être postérieure à la date d\'arrivée' },
+/home/z/my-project/src/app/api/owner/reservations/[id]/route.ts:353:          .select('id, check_in_date, check_out_date, status, customers(first_name, last_name)')
+/home/z/my-project/src/app/api/owner/reservations/[id]/route.ts:357:          .lt('check_in_date', newCheckOut)
+/home/z/my-project/src/app/api/owner/reservations/[id]/route.ts:358:          .gt('check_out_date', newCheckIn)
+/home/z/my-project/src/app/api/owner/reservations/[id]/route.ts:372:                check_out_date: conflict.check_out_date,
+/home/z/my-project/src/app/api/owner/reservations/[id]/route.ts:385:        const checkOut = new Date(newCheckOut)
+/home/z/my-project/src/app/api/owner/reservations/[id]/route.ts:386:        const diffTime = checkOut.getTime() - checkIn.getTime()
+/home/z/my-project/src/app/api/owner/reservations/[id]/route.ts:403:        updateData.check_out_date = newCheckOut
+/home/z/my-project/src/app/api/owner/reservations/[id]/route.ts:436:          check_out_date: existing.check_out_date,
+/home/z/my-project/src/app/api/owner/reservations/[id]/route.ts:449:      { error: 'Action non reconnue. Actions autorisées : check_in, check_out, cancel, update' },
+/home/z/my-project/src/app/api/owner/invoices/pdf/[id]/route.ts:44:      .select('*, customers(*), reservations(id, check_in_date, check_out_date, rooms(id, room_number, room_type)), invoice_items(*)')
+/home/z/my-project/src/app/api/owner/invoices/[id]/route.ts:44:      .select('*, customers(*), reservations(id, check_in_date, check_out_date, rooms(id, room_number, room_type)), invoice_items(*)')
+/home/z/my-project/src/app/api/owner/invoices/[id]/route.ts:162:      .select('*, customers(id, first_name, last_name, phone), reservations(id, check_in_date, check_out_date, rooms(id, room_number, room_type)), invoice_items(*)')
+/home/z/my-project/src/app/api/setup/step8/route.ts:215:  SELECT COALESCE(AVG(total_price / GREATEST(EXTRACT(DAY FROM (check_out_date - check_in_date)), 1)), 0)
+/home/z/my-project/src/app/api/owner/alerts/expired-stays/route.ts:11: * - status = 'checked_in' AND check_out_date < today
+/home/z/my-project/src/app/api/owner/alerts/expired-stays/route.ts:43:    // Find all checked-in reservations where check_out_date < today
+
+[Showing results with pagination = limit: 250]

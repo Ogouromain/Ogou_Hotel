@@ -216,7 +216,7 @@ interface StockItem {
 
 type ReceptionistTabId = 'overview' | 'rooms' | 'reservations' | 'customers' | 'invoices' | 'notifications'
 type RestaurantStaffTabId = 'overview' | 'orders' | 'menu' | 'stocks' | 'notifications'
-type HousekeeperTabId = 'overview' | 'rooms' | 'notifications'
+type HousekeeperTabId = 'overview' | 'to-clean' | 'rooms' | 'notifications'
 type ManagerTabId = 'overview' | 'rooms' | 'reservations' | 'customers' | 'invoices' | 'expenses' | 'restaurant' | 'housekeeping' | 'stocks' | 'notifications'
 
 const RECEPTIONIST_NAV_ITEMS: { id: ReceptionistTabId; label: string; icon: React.ReactNode }[] = [
@@ -238,7 +238,8 @@ const RESTAURANT_NAV_ITEMS: { id: RestaurantStaffTabId; label: string; icon: Rea
 
 const HOUSEKEEPER_NAV_ITEMS: { id: HousekeeperTabId; label: string; icon: React.ReactNode }[] = [
   { id: 'overview', label: 'Accueil', icon: <BarChart3 className="h-4 w-4" /> },
-  { id: 'rooms', label: 'Chambres', icon: <Bed className="h-4 w-4" /> },
+  { id: 'to-clean', label: 'À nettoyer', icon: <SprayCan className="h-4 w-4" /> },
+  { id: 'rooms', label: 'Toutes les chambres', icon: <Bed className="h-4 w-4" /> },
   { id: 'notifications', label: 'Notifications', icon: <Bell className="h-4 w-4" /> },
 ]
 
@@ -1269,6 +1270,8 @@ function HousekeeperView({ profile, onLogout }: StaffDashboardProps) {
 
   const filteredRooms = rooms.filter(r => roomFilter === 'all' || r.status === roomFilter)
   const priorityRooms = rooms.filter(r => r.status === 'cleaning')
+  const cleaningRooms = rooms.filter(r => r.status === 'cleaning')
+  const maintenanceRooms = rooms.filter(r => r.status === 'maintenance')
 
   const sidebarContent = (
     <div className="flex h-full flex-col bg-gradient-to-b from-emerald-50 to-green-50">
@@ -1297,6 +1300,11 @@ function HousekeeperView({ profile, onLogout }: StaffDashboardProps) {
             >
               {item.icon}
               <span className="truncate flex-1">{item.label}</span>
+              {item.id === 'to-clean' && (stats?.cleaning ?? 0) > 0 && (
+                <span className="flex h-5 w-5 items-center justify-center rounded-full bg-amber-500 text-[10px] font-bold text-white shrink-0">
+                  {stats?.cleaning ?? 0}
+                </span>
+              )}
               {item.id === 'overview' && <ExpiredStayBadge />}
             </button>
           )
@@ -1392,6 +1400,11 @@ function HousekeeperView({ profile, onLogout }: StaffDashboardProps) {
             >
               {item.icon}
               {item.label}
+              {item.id === 'to-clean' && (stats?.cleaning ?? 0) > 0 && (
+                <span className="flex h-4 w-4 items-center justify-center rounded-full bg-amber-500 text-[9px] font-bold text-white">
+                  {stats?.cleaning ?? 0}
+                </span>
+              )}
               {item.id === 'overview' && <ExpiredStayBadge />}
             </button>
           ))}
@@ -1439,7 +1452,7 @@ function HousekeeperView({ profile, onLogout }: StaffDashboardProps) {
               {(stats?.cleaning ?? 0) > 0 && (
                 <div
                   className="rounded-2xl border-2 border-amber-400 bg-gradient-to-r from-amber-50 via-amber-100 to-orange-50 p-5 shadow-lg shadow-amber-200/30 cursor-pointer hover:shadow-xl transition-shadow animate-pulse-subtle"
-                  onClick={() => { setActiveTab('rooms'); setRoomFilter('cleaning') }}
+                  onClick={() => { setActiveTab('to-clean') }}
                 >
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-4">
@@ -1465,7 +1478,7 @@ function HousekeeperView({ profile, onLogout }: StaffDashboardProps) {
 
               {/* Stats Grid */}
               <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-                <Card className="border-amber-200/50 bg-gradient-to-br from-amber-50 to-amber-100/50 cursor-pointer hover:shadow-md transition-shadow" onClick={() => { setActiveTab('rooms'); setRoomFilter('cleaning') }}>
+                <Card className="border-amber-200/50 bg-gradient-to-br from-amber-50 to-amber-100/50 cursor-pointer hover:shadow-md transition-shadow" onClick={() => { setActiveTab('to-clean') }}>
                   <CardContent className="p-4">
                     <div className="flex items-center justify-between">
                       <span className="text-2xl">🧹</span>
@@ -1508,7 +1521,7 @@ function HousekeeperView({ profile, onLogout }: StaffDashboardProps) {
                 <h3 className="text-base font-bold text-gray-900 mb-3">Actions rapides</h3>
                 <div className={`grid ${(stats?.cleaning ?? 0) > 0 ? 'grid-cols-2' : 'grid-cols-1 sm:grid-cols-2'} gap-3`}>
                   {(stats?.cleaning ?? 0) > 0 && (
-                    <Card className="border-amber-300/60 bg-gradient-to-br from-amber-50 to-orange-50 cursor-pointer hover:shadow-md transition-shadow" onClick={() => { setActiveTab('rooms'); setRoomFilter('cleaning') }}>
+                    <Card className="border-amber-300/60 bg-gradient-to-br from-amber-50 to-orange-50 cursor-pointer hover:shadow-md transition-shadow" onClick={() => { setActiveTab('to-clean') }}>
                       <CardContent className="p-4 flex flex-col items-center text-center gap-2">
                         <SprayCan className="h-7 w-7 text-amber-600" />
                         <span className="text-sm font-bold text-amber-900">Chambres à nettoyer</span>
@@ -1524,6 +1537,164 @@ function HousekeeperView({ profile, onLogout }: StaffDashboardProps) {
                   </Card>
                 </div>
               </div>
+            </div>
+          )}
+
+          {/* ═══ À nettoyer Tab (DEDICATED CLEANING TAB) ═══ */}
+          {activeTab === 'to-clean' && (
+            <div className="space-y-6">
+              <div className="flex items-center justify-between flex-wrap gap-3">
+                <div>
+                  <h2 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
+                    <SprayCan className="h-6 w-6 text-amber-600" />
+                    À nettoyer
+                  </h2>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    Chambres nécessitant un nettoyage après le départ d&apos;un client ou après une réparation
+                  </p>
+                </div>
+                <div className="flex items-center gap-3">
+                  {lastRefresh && (
+                    <span className="text-xs text-gray-400">
+                      Mise à jour il y a {secondsSinceRefresh}s
+                    </span>
+                  )}
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={fetchData}
+                    disabled={loading}
+                    className="border-emerald-200 text-emerald-700 hover:bg-emerald-50"
+                  >
+                    <RefreshCw className={`h-4 w-4 mr-1.5 ${loading ? 'animate-spin' : ''}`} />
+                    Actualiser
+                  </Button>
+                </div>
+              </div>
+
+              {/* Cleaning count summary */}
+              <div className="flex flex-wrap gap-3">
+                <div className="flex items-center gap-2 rounded-xl bg-amber-100 border border-amber-300 px-4 py-2.5">
+                  <SprayCan className="h-5 w-5 text-amber-600" />
+                  <div>
+                    <p className="text-lg font-bold text-amber-800">{cleaningRooms.length}</p>
+                    <p className="text-xs text-amber-600">Chambre{cleaningRooms.length > 1 ? 's' : ''} à nettoyer</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2 rounded-xl bg-red-100 border border-red-300 px-4 py-2.5">
+                  <Wrench className="h-5 w-5 text-red-600" />
+                  <div>
+                    <p className="text-lg font-bold text-red-800">{maintenanceRooms.length}</p>
+                    <p className="text-xs text-red-600">En maintenance</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Cleaning rooms list - THE MAIN SECTION */}
+              {loading ? (
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {Array.from({ length: 4 }).map((_, i) => (
+                    <Card key={i}><CardContent className="p-5"><Skeleton className="h-40 w-full" /></CardContent></Card>
+                  ))}
+                </div>
+              ) : cleaningRooms.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-20 text-center">
+                  <div className="flex h-20 w-20 items-center justify-center rounded-full bg-emerald-100 text-emerald-500 mb-4">
+                    <CheckCircle2 className="h-10 w-10" />
+                  </div>
+                  <h3 className="text-xl font-bold text-emerald-800">Tout est propre ! 🎉</h3>
+                  <p className="text-sm text-emerald-600 mt-2 max-w-md">
+                    Aucune chambre ne nécessite de nettoyage pour le moment.
+                    Vous serez notifié dès qu&apos;un client libère une chambre.
+                  </p>
+                </div>
+              ) : (
+                <div>
+                  <div className="flex items-center gap-2 mb-4">
+                    <div className="h-1.5 w-1.5 rounded-full bg-amber-500 animate-pulse" />
+                    <h3 className="text-sm font-bold text-amber-800 uppercase tracking-wider">
+                      Chambres à nettoyer maintenant
+                    </h3>
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {cleaningRooms.map((room) => (
+                      <Card key={room.id} id={`room-${room.id}`} className="border-2 border-amber-400 bg-gradient-to-b from-amber-50 to-white ring-2 ring-amber-200/50 transition-all hover:shadow-lg shadow-amber-100/50">
+                        <CardContent className="p-5">
+                          <div className="flex items-center justify-between mb-2">
+                            <h3 className="text-xl font-bold text-amber-900">
+                              Chambre {room.room_number}
+                            </h3>
+                            <Badge className="bg-amber-200 text-amber-800 border-amber-300 text-xs animate-pulse">🧹 À nettoyer</Badge>
+                          </div>
+                          <p className="text-sm text-amber-700 font-medium mb-1">
+                            Client parti — nettoyage requis
+                          </p>
+                          <p className="text-xs text-gray-500 mb-4">{room.room_type} — {formatFCFA(room.price_per_night)}/nuit</p>
+                          <div className="space-y-2 pt-3 border-t border-amber-200">
+                            <Button
+                              className="w-full h-12 text-sm font-bold rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white shadow-lg shadow-emerald-600/20"
+                              onClick={() => handleRoomStatus(room.id, 'available', room.room_number)}
+                              disabled={actionLoading === room.id}
+                            >
+                              {actionLoading === room.id ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <CheckCircle2 className="h-5 w-5 mr-2" />}
+                              ✅ Chambre propre — Valider
+                            </Button>
+                            <Button
+                              variant="outline"
+                              className="w-full h-10 text-xs font-medium rounded-xl border-red-300 text-red-700 hover:bg-red-50 hover:border-red-400"
+                              onClick={() => handleRoomStatus(room.id, 'maintenance', room.room_number)}
+                              disabled={actionLoading === room.id}
+                            >
+                              <Wrench className="h-3.5 w-3.5 mr-1.5" />
+                              🔧 Problème détecté — Signaler
+                            </Button>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Maintenance rooms section - READ ONLY for housekeeper */}
+              {maintenanceRooms.length > 0 && (
+                <div>
+                  <div className="flex items-center gap-2 mb-4 mt-2">
+                    <div className="h-1.5 w-1.5 rounded-full bg-red-500" />
+                    <h3 className="text-sm font-bold text-red-800 uppercase tracking-wider">
+                      En maintenance — en attente de réparation
+                    </h3>
+                  </div>
+                  <p className="text-xs text-red-600 mb-3">
+                    ⚠️ Ces chambres sont en cours de réparation. Vous ne pouvez pas les nettoyer pour le moment.
+                    Le manager ou le réceptionniste doit marquer la réparation comme terminée pour que la chambre passe en &quot;À nettoyer&quot;.
+                  </p>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {maintenanceRooms.map((room) => (
+                      <Card key={room.id} className="border-2 border-red-300 bg-gradient-to-b from-red-50 to-white opacity-80">
+                        <CardContent className="p-5">
+                          <div className="flex items-center justify-between mb-2">
+                            <h3 className="text-lg font-bold text-red-900">
+                              Chambre {room.room_number}
+                            </h3>
+                            <Badge className="bg-red-200 text-red-800 border-red-300 text-xs">🔧 Maintenance</Badge>
+                          </div>
+                          <p className="text-sm text-red-700 font-medium mb-1">
+                            Réparation en cours
+                          </p>
+                          <p className="text-xs text-gray-500 mb-3">{room.room_type}</p>
+                          <div className="rounded-lg bg-red-50 border border-red-200 p-3">
+                            <p className="text-xs text-red-700 flex items-center gap-1.5">
+                              <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
+                              ⏳ En attente de réparation — vous serez notifié quand la chambre sera prête à être nettoyée
+                            </p>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           )}
 
@@ -1654,39 +1825,26 @@ function HousekeeperView({ profile, onLogout }: StaffDashboardProps) {
                       )
                     }
 
-                    // Maintenance status card — RED border
+                    // Maintenance status card — RED border — READ ONLY (housekeeper cannot clean maintenance rooms)
                     if (room.status === 'maintenance') {
                       return (
-                        <Card key={room.id} id={`room-${room.id}`} className="border-2 border-red-300 bg-gradient-to-b from-red-50 to-white transition-all hover:shadow-md">
+                        <Card key={room.id} id={`room-${room.id}`} className="border-2 border-red-300 bg-gradient-to-b from-red-50 to-white opacity-80">
                           <CardContent className="p-5">
                             <div className="flex items-center justify-between mb-1">
                               <h3 className="text-lg font-bold text-red-900">
                                 Chambre {room.room_number}
                               </h3>
-                              <Badge className="bg-red-200 text-red-800 border-red-300 text-xs">En maintenance</Badge>
+                              <Badge className="bg-red-200 text-red-800 border-red-300 text-xs">🔧 Maintenance</Badge>
                             </div>
                             <p className="text-sm text-red-700 font-medium mb-1">
-                              🔧 Chambre {room.room_number} — En maintenance
-                            </p>
-                            <p className="text-xs text-red-600 mb-2">
                               Réparation en cours
                             </p>
-                            <div className="rounded-lg bg-red-50 border border-red-200 p-2.5 mb-3">
+                            <p className="text-xs text-gray-500 mb-3">{room.room_type}</p>
+                            <div className="rounded-lg bg-red-50 border border-red-200 p-3">
                               <p className="text-xs text-red-700 flex items-center gap-1.5">
                                 <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
-                                ⚠️ Signaler au responsable
+                                ⏳ En attente de réparation — le manager doit marquer la réparation comme terminée
                               </p>
-                            </div>
-                            <p className="text-xs text-gray-400 mb-3">{room.room_type}</p>
-                            <div className="pt-3 border-t border-red-200">
-                              <Button
-                                className="w-full h-11 text-sm font-semibold rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white shadow-md shadow-emerald-600/20"
-                                onClick={() => handleRoomStatus(room.id, 'available', room.room_number)}
-                                disabled={actionLoading === room.id}
-                              >
-                                {actionLoading === room.id ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <CheckCircle2 className="h-4 w-4 mr-2" />}
-                                ✅ Nettoyé après réparation
-                              </Button>
                             </div>
                           </CardContent>
                         </Card>
@@ -2508,7 +2666,7 @@ function ManagerView({ profile, onLogout }: StaffDashboardProps) {
         body: JSON.stringify({ status: newStatus }),
       })
       if (res.ok) {
-        const statusLabel = newStatus === 'available' ? 'propre' : 'en maintenance'
+        const statusLabel = newStatus === 'available' ? 'propre ✅' : newStatus === 'cleaning' ? 'à nettoyer 🧹' : 'en maintenance 🔧'
         toast.success(`Chambre ${roomNumber} marquée ${statusLabel}`)
         fetchAllData()
       } else {
@@ -2825,8 +2983,7 @@ function ManagerView({ profile, onLogout }: StaffDashboardProps) {
                       )
                     } else if (room.status === 'maintenance') {
                       statusActions.push(
-                        { status: 'available', label: '✅ Nettoyé après réparation', icon: <CheckCircle2 className="h-3.5 w-3.5" />, colorClass: 'bg-emerald-100 text-emerald-700 hover:bg-emerald-200 border-emerald-200' },
-                        { status: 'cleaning', label: 'Réparation terminée → Ménage', icon: <SprayCan className="h-3.5 w-3.5" />, colorClass: 'bg-amber-100 text-amber-700 hover:bg-amber-200 border-amber-200' },
+                        { status: 'cleaning', label: '🔧 Réparation terminée → Ménage', icon: <SprayCan className="h-3.5 w-3.5" />, colorClass: 'bg-amber-100 text-amber-700 hover:bg-amber-200 border-amber-200' },
                       )
                     }
                     return (
@@ -2933,12 +3090,12 @@ function ManagerView({ profile, onLogout }: StaffDashboardProps) {
                           )}
                           {room.status === 'maintenance' && (
                             <Button
-                              className="w-full h-11 text-sm font-semibold rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white shadow-md shadow-emerald-600/20"
-                              onClick={() => handleHousekeepingRoomStatus(room.id, 'available', room.room_number)}
+                              className="w-full h-11 text-sm font-semibold rounded-xl bg-amber-600 hover:bg-amber-700 text-white shadow-md shadow-amber-600/20"
+                              onClick={() => handleHousekeepingRoomStatus(room.id, 'cleaning', room.room_number)}
                               disabled={housekeepingActionLoading === room.id}
                             >
-                              {housekeepingActionLoading === room.id ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <CheckCircle2 className="h-4 w-4 mr-2" />}
-                              ✅ Nettoyé après réparation
+                              {housekeepingActionLoading === room.id ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <SprayCan className="h-4 w-4 mr-2" />}
+                              🔧 Réparation terminée → Ménage requis
                             </Button>
                           )}
                           {room.status === 'available' && (

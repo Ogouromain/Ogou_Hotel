@@ -45,10 +45,24 @@ export async function PATCH(
     }
 
     // ─── Role-based transition rules ─────────────────────────────
+    // Workflow coherent :
+    //   Available → Occupied   (check-in : réceptionniste, manager)
+    //   Occupied → Cleaning    (check-out : réceptionniste, manager → la chambre nécessite un nettoyage)
+    //   Cleaning → Available   (ménage valide que la chambre est propre : ménage, manager)
+    //   Cleaning → Maintenance (ménage trouve un problème : ménage, manager)
+    //   Available → Maintenance (propriétaire, manager, réceptionniste)
+    //   Maintenance → Cleaning (réparation terminée, nécessite nettoyage : owner, manager, réceptionniste)
+    //
+    // Règles clés :
+    //   - Le MÉNAGE ne PEUT QUE : cleaning→available, cleaning→maintenance
+    //     Il NE PEUT PAS : maintenance→available (il faut d'abord passer par cleaning)
+    //   - Le RÉCEPTIONNISTE peut : available→maintenance, occupied→cleaning (check-out), maintenance→cleaning
+    //     Il NE PEUT PAS : cleaning→available (c'est le travail du ménage)
+    //   - Le Manager peut faire toutes les transitions
     const ROLE_TRANSITIONS: Record<string, Record<string, string[]>> = {
       housekeeper: {
         cleaning: ['available', 'maintenance'],
-        maintenance: ['available'],
+        maintenance: [],
         available: [],
         occupied: [],
       },
@@ -62,7 +76,7 @@ export async function PATCH(
         available: ['maintenance'],
         occupied: ['cleaning'],
         cleaning: ['available', 'maintenance'],
-        maintenance: ['available', 'cleaning'],
+        maintenance: ['cleaning'],
       },
       owner: {
         available: ['occupied', 'cleaning', 'maintenance'],
@@ -160,6 +174,20 @@ export async function PATCH(
       if (role === 'housekeeper' && existing.status === 'occupied') {
         return NextResponse.json(
           { error: 'Les chambres occupées ne peuvent être modifiées. Le check-out doit être effectué par le réceptionniste ou le manager.' },
+          { status: 400 }
+        )
+      }
+
+      if (role === 'housekeeper' && existing.status === 'maintenance') {
+        return NextResponse.json(
+          { error: 'Les chambres en maintenance nécessitent d\'abord une réparation. Le manager ou le réceptionniste doit marquer la réparation comme terminée avant que vous puissiez nettoyer.' },
+          { status: 400 }
+        )
+      }
+
+      if (role === 'manager' && existing.status === 'maintenance' && newStatus === 'available') {
+        return NextResponse.json(
+          { error: 'Après une maintenance, la chambre doit d\'abord être nettoyée. Veuillez la passer en "Nettoyage" pour que le ménage puisse intervenir.' },
           { status: 400 }
         )
       }
