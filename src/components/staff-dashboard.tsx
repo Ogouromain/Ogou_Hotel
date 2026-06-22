@@ -1247,6 +1247,11 @@ function HousekeeperView({ profile, onLogout }: StaffDashboardProps) {
 
   const handleRoomStatus = async (roomId: string, newStatus: string, roomNumber: string) => {
     setActionLoading(roomId)
+    // Optimistic UI update: immediately update the room status in the local state
+    // so the action buttons disappear before the API response arrives.
+    // This prevents double-clicks and race conditions.
+    const previousRooms = rooms
+    setRooms(prev => prev.map(r => r.id === roomId ? { ...r, status: newStatus as RoomInfo['status'] } : r))
     try {
       const res = await fetch(`/api/staff/room-status/${roomId}`, {
         method: 'PATCH',
@@ -1254,14 +1259,23 @@ function HousekeeperView({ profile, onLogout }: StaffDashboardProps) {
         body: JSON.stringify({ status: newStatus }),
       })
       if (res.ok) {
-        const statusLabel = newStatus === 'available' ? 'propre ✅' : 'problème détecté 🔧'
-        toast.success(`Chambre ${roomNumber} marquée ${statusLabel}`)
+        const data = await res.json()
+        if (data.message) {
+          toast.info(data.message)
+        } else {
+          const statusLabel = newStatus === 'available' ? 'propre ✅' : 'problème détecté 🔧'
+          toast.success(`Chambre ${roomNumber} marquée ${statusLabel}`)
+        }
         fetchData()
       } else {
+        // Revert optimistic update on error
+        setRooms(previousRooms)
         const data = await res.json()
         toast.error(data.error || 'Erreur lors de la mise à jour')
       }
     } catch {
+      // Revert optimistic update on error
+      setRooms(previousRooms)
       toast.error('Erreur de connexion')
     } finally {
       setActionLoading(null)
@@ -2053,6 +2067,11 @@ function ReceptionistView({ profile, onLogout }: StaffDashboardProps) {
 
   const handleRoomStatusChange = async (roomId: string, newStatus: string) => {
     setRoomActionLoading(roomId)
+    // Optimistic UI update: immediately update the room status in the local state
+    // so the action buttons disappear before the API response arrives.
+    // This prevents double-clicks and race conditions.
+    const previousRooms = rooms
+    setRooms(prev => prev.map(r => r.id === roomId ? { ...r, status: newStatus as RoomInfo['status'] } : r))
     try {
       const res = await fetch(`/api/owner/reservations/room-status/${roomId}`, {
         method: 'PATCH',
@@ -2060,18 +2079,28 @@ function ReceptionistView({ profile, onLogout }: StaffDashboardProps) {
         body: JSON.stringify({ status: newStatus }),
       })
       if (res.ok) {
-        const statusLabels: Record<string, string> = {
-          available: 'Disponible',
-          cleaning: 'Nettoyage',
-          maintenance: 'Maintenance',
+        const data = await res.json()
+        // If the API says the room was already in this status, show an info toast
+        if (data.message) {
+          toast.info(data.message)
+        } else {
+          const statusLabels: Record<string, string> = {
+            available: 'Disponible',
+            cleaning: 'Nettoyage',
+            maintenance: 'Maintenance',
+          }
+          toast.success(`Statut changé en "${statusLabels[newStatus] || newStatus}"`)
         }
-        toast.success(`Statut changé en "${statusLabels[newStatus] || newStatus}"`)
         fetchAllData()
       } else {
+        // Revert optimistic update on error
+        setRooms(previousRooms)
         const data = await res.json()
         toast.error(data.error || 'Erreur lors du changement de statut')
       }
     } catch {
+      // Revert optimistic update on error
+      setRooms(previousRooms)
       toast.error('Erreur de connexion')
     } finally {
       setRoomActionLoading(null)
@@ -2671,6 +2700,11 @@ function ManagerView({ profile, onLogout }: StaffDashboardProps) {
 
   const handleRoomStatusChange = async (roomId: string, newStatus: string) => {
     setRoomActionLoading(roomId)
+    // Optimistic UI update: immediately update the room status in the local state
+    // so the action buttons disappear before the API response arrives.
+    // This prevents double-clicks and race conditions.
+    const previousRooms = rooms
+    setRooms(prev => prev.map(r => r.id === roomId ? { ...r, status: newStatus as RoomInfo['status'] } : r))
     try {
       const res = await fetch(`/api/owner/reservations/room-status/${roomId}`, {
         method: 'PATCH',
@@ -2678,14 +2712,23 @@ function ManagerView({ profile, onLogout }: StaffDashboardProps) {
         body: JSON.stringify({ status: newStatus }),
       })
       if (res.ok) {
-        const statusLabels: Record<string, string> = { available: 'Disponible', cleaning: 'Nettoyage', maintenance: 'Maintenance' }
-        toast.success(`Statut changé en "${statusLabels[newStatus] || newStatus}"`)
+        const data = await res.json()
+        if (data.message) {
+          toast.info(data.message)
+        } else {
+          const statusLabels: Record<string, string> = { available: 'Disponible', cleaning: 'Nettoyage', maintenance: 'Maintenance' }
+          toast.success(`Statut changé en "${statusLabels[newStatus] || newStatus}"`)
+        }
         fetchAllData()
       } else {
+        // Revert optimistic update on error
+        setRooms(previousRooms)
         const data = await res.json()
         toast.error(data.error || 'Erreur lors du changement de statut')
       }
     } catch {
+      // Revert optimistic update on error
+      setRooms(previousRooms)
       toast.error('Erreur de connexion')
     } finally {
       setRoomActionLoading(null)
@@ -2694,6 +2737,9 @@ function ManagerView({ profile, onLogout }: StaffDashboardProps) {
 
   const handleHousekeepingRoomStatus = async (roomId: string, newStatus: string, roomNumber: string) => {
     setHousekeepingActionLoading(roomId)
+    // Optimistic UI update: immediately update the room status in the local state
+    const previousRooms = rooms
+    setRooms(prev => prev.map(r => r.id === roomId ? { ...r, status: newStatus as RoomInfo['status'] } : r))
     try {
       const res = await fetch(`/api/staff/room-status/${roomId}`, {
         method: 'PATCH',
@@ -2701,14 +2747,23 @@ function ManagerView({ profile, onLogout }: StaffDashboardProps) {
         body: JSON.stringify({ status: newStatus }),
       })
       if (res.ok) {
-        const statusLabel = newStatus === 'available' ? 'propre ✅' : newStatus === 'cleaning' ? 'à nettoyer 🧹' : 'en maintenance 🔧'
-        toast.success(`Chambre ${roomNumber} marquée ${statusLabel}`)
+        const data = await res.json()
+        if (data.message) {
+          toast.info(data.message)
+        } else {
+          const statusLabel = newStatus === 'available' ? 'propre ✅' : newStatus === 'cleaning' ? 'à nettoyer 🧹' : 'en maintenance 🔧'
+          toast.success(`Chambre ${roomNumber} marquée ${statusLabel}`)
+        }
         fetchAllData()
       } else {
+        // Revert optimistic update on error
+        setRooms(previousRooms)
         const data = await res.json()
         toast.error(data.error || 'Erreur')
       }
     } catch {
+      // Revert optimistic update on error
+      setRooms(previousRooms)
       toast.error('Erreur de connexion')
     } finally {
       setHousekeepingActionLoading(null)

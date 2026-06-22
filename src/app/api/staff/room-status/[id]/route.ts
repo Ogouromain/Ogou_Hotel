@@ -93,6 +93,12 @@ export async function PATCH(
         return NextResponse.json({ error: 'Chambre introuvable' }, { status: 404 })
       }
 
+      // Idempotent: if the room is already in the desired status, return success
+      // (handles race conditions where the user clicks twice)
+      if (existing.status === newStatus) {
+        return NextResponse.json({ room: { ...existing }, message: 'La chambre est déjà dans ce statut' })
+      }
+
       // For demo, we don't strictly enforce role transitions but we do validate the transition exists
       const allowedTransitions = ROLE_TRANSITIONS['owner']?.[existing.status] || []
       if (!allowedTransitions.includes(newStatus)) {
@@ -139,6 +145,12 @@ export async function PATCH(
 
     if (!existing) {
       return NextResponse.json({ error: 'Chambre introuvable' }, { status: 404 })
+    }
+
+    // Idempotent: if the room is already in the desired status, return success
+    // (handles race conditions where the user clicks twice before the UI refreshes)
+    if (existing.status === newStatus) {
+      return NextResponse.json({ room: existing, message: 'La chambre est déjà dans ce statut' })
     }
 
     const allowedTransitions = ROLE_TRANSITIONS[role]?.[existing.status] || []
