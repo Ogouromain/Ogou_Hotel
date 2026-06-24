@@ -629,12 +629,18 @@ export function OwnerDashboard({ profile, onLogout, isNewRegistration }: OwnerDa
           </div>
         )}
 
-        {/* WhatsApp Support Button */}
+        {/* WhatsApp Support Button — reserved for the hotel owner only.
+            Sends a pre-filled WhatsApp message to the Super Admin. */}
         <div className="px-4 py-2 border-t border-amber-200/50">
           <a
-            href="https://wa.me/2250576103277"
+            href={`https://wa.me/2250576103277?text=${encodeURIComponent(
+              `Bonjour Super Admin, je suis ${profile.first_name} ${profile.last_name}` +
+              `${hotelInfo?.name ? `, propriétaire de l'hôtel « ${hotelInfo.name} »` : ', propriétaire d\'hôtel'}` +
+              `. J'ai besoin d'assistance concernant OGOU_Hôtel.`
+            )}`}
             target="_blank"
             rel="noopener noreferrer"
+            title="Envoyer un message WhatsApp au Super Admin"
             className="flex items-center gap-2 rounded-lg bg-emerald-50 border border-emerald-200 px-3 py-2.5 text-sm font-medium text-emerald-700 hover:bg-emerald-100 transition-colors w-full"
           >
             <MessageSquare className="h-4 w-4 text-emerald-600 shrink-0" />

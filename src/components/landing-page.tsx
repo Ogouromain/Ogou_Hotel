@@ -709,10 +709,6 @@ export function LandingPage({ onLogin, onRegister, onDemo }: LandingPageProps) {
                   <a href="tel:+2250576103277" className="hover:text-amber-400 transition-colors">+225 05 76 10 32 77</a>
                 </li>
                 <li className="flex items-center gap-2">
-                  <MessageSquare className="h-3.5 w-3.5" />
-                  <a href="https://wa.me/2250576103277" target="_blank" rel="noopener noreferrer" className="hover:text-amber-400 transition-colors">WhatsApp Support</a>
-                </li>
-                <li className="flex items-center gap-2">
                   <Mail className="h-3.5 w-3.5" />
                   <a href="mailto:omouitsi@gmail.com" className="hover:text-amber-400 transition-colors">omouitsi@gmail.com</a>
                 </li>

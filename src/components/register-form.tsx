@@ -17,7 +17,6 @@ import {
   Phone,
   Building2,
   Mail,
-  MessageSquare,
 } from 'lucide-react'
 import Image from 'next/image'
 import {
@@ -407,19 +406,10 @@ export function RegisterForm({ onSwitchToLogin, onRegistrationSuccess }: Registe
                     </div>
                   )}
 
-                  {/* Support help for code issues */}
+                  {/* Support help for code issues — WhatsApp to Super Admin is reserved for authenticated hotel owners */}
                   <div className="rounded-lg border border-amber-200 bg-amber-50 p-3">
                     <p className="text-xs font-medium text-amber-800 mb-1.5">Besoin d&apos;aide pour obtenir un code ?</p>
                     <div className="flex flex-col gap-1.5">
-                      <a
-                        href="https://wa.me/2250576103277?text=Bonjour%2C%20j%27ai%20besoin%20d%27un%20code%20d%27activation%20H%C3%B4telCI"
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="inline-flex items-center gap-1.5 text-xs text-emerald-700 hover:text-emerald-800 font-medium"
-                      >
-                        <MessageSquare className="h-3.5 w-3.5" />
-                        WhatsApp : +225 05 76 10 32 77
-                      </a>
                       <a
                         href="mailto:omouitsi@gmail.com?subject=Code%20d%27activation%20H%C3%B4telCI"
                         className="inline-flex items-center gap-1.5 text-xs text-amber-700 hover:text-amber-800 font-medium"
@@ -427,6 +417,10 @@ export function RegisterForm({ onSwitchToLogin, onRegistrationSuccess }: Registe
                         <Mail className="h-3.5 w-3.5" />
                         omouitsi@gmail.com
                       </a>
+                      <p className="inline-flex items-center gap-1.5 text-xs text-muted-foreground">
+                        <Phone className="h-3.5 w-3.5" />
+                        +225 05 76 10 32 77
+                      </p>
                     </div>
                   </div>
                 </div>

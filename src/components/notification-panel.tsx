@@ -11,6 +11,7 @@ import {
   AlertTriangle,
   Send,
   Phone,
+  Mail,
   Check,
   CheckCheck,
   Filter,
@@ -606,12 +607,10 @@ export function NotificationPanel({ onRefresh, planName }: NotificationPanelProp
                   L&apos;envoi de SMS et WhatsApp est disponible à partir du plan Standard. Contactez-nous pour mettre à niveau votre abonnement.
                 </p>
                 <a
-                  href="https://wa.me/2250576103277?text=Bonjour%2C%20je%20souhaite%20mettre%20%C3%A0%20niveau%20mon%20abonnement%20OGOU_H%C3%B4tel"
-                  target="_blank"
-                  rel="noopener noreferrer"
+                  href="mailto:omouitsi@gmail.com?subject=Mettre%20%C3%A0%20niveau%20mon%20abonnement%20OGOU_H%C3%B4tel"
                   className="inline-flex items-center gap-1 mt-2 text-xs font-medium text-amber-700 hover:text-amber-900 underline underline-offset-2"
                 >
-                  <MessageSquare className="h-3 w-3" />
+                  <Mail className="h-3 w-3" />
                   Mettre à niveau
                 </a>
               </div>
