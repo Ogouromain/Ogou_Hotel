@@ -572,10 +572,10 @@ export function OwnerDashboard({ profile, onLogout, isNewRegistration }: OwnerDa
       {/* Real-time visual feedback */}
       <RealtimeRefreshPulse />
 
-      {/* ─── Sidebar ────────────────────────────────────────────────────── */}
-      <aside className="hidden lg:flex w-64 flex-col border-r border-amber-200/50 bg-gradient-to-b from-amber-50 to-orange-50 shrink-0">
+      {/* ─── Sidebar — dark slate + emerald accents (adapté au style DataThis) ─ */}
+      <aside className="hidden lg:flex w-64 flex-col border-r border-slate-700 bg-slate-800 shrink-0">
         {/* Logo */}
-        <div className="flex items-center gap-3 px-6 py-6 border-b border-amber-200/50">
+        <div className="flex items-center gap-3 px-6 py-6 border-b border-slate-700">
           <Image
             src="/logo.svg"
             alt="OGOU_Hôtel"
@@ -585,16 +585,16 @@ export function OwnerDashboard({ profile, onLogout, isNewRegistration }: OwnerDa
             priority
           />
           <div className="flex-1 min-w-0">
-            <h1 className="text-lg font-bold bg-gradient-to-r from-emerald-600 to-green-500 bg-clip-text text-transparent">OGOU_Hôtel</h1>
+            <h1 className="text-lg font-bold bg-gradient-to-r from-emerald-400 to-green-400 bg-clip-text text-transparent">OGOU_Hôtel</h1>
             <div className="flex items-center gap-2">
-              <p className="text-[10px] uppercase tracking-wider text-amber-600 font-semibold">Propriétaire</p>
+              <p className="text-[10px] uppercase tracking-wider text-emerald-400 font-semibold">Propriétaire</p>
               <RealtimeIndicator compact />
             </div>
           </div>
         </div>
 
         {/* Navigation */}
-        <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
+        <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto scrollbar-thin">
           {visibleNavItems.map((item) => {
             const isActive = activeTab === item.id
             return (
@@ -603,8 +603,8 @@ export function OwnerDashboard({ profile, onLogout, isNewRegistration }: OwnerDa
                 onClick={() => setActiveTab(item.id)}
                 className={`w-full flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all ${
                   isActive
-                    ? 'bg-amber-100 text-amber-900 shadow-sm'
-                    : 'text-amber-800/70 hover:bg-amber-100/50 hover:text-amber-900'
+                    ? 'bg-emerald-600 text-white shadow-sm'
+                    : 'text-slate-300 hover:bg-slate-700/60 hover:text-white'
                 }`}
               >
                 {item.icon}
@@ -617,11 +617,11 @@ export function OwnerDashboard({ profile, onLogout, isNewRegistration }: OwnerDa
 
         {/* Subscription Badge */}
         {planInfo && (
-          <div className="px-4 py-3 border-t border-amber-200/50">
-            <div className="rounded-lg bg-white/60 border border-amber-200/50 px-3 py-2">
+          <div className="px-4 py-3 border-t border-slate-700">
+            <div className="rounded-lg bg-slate-700/50 border border-slate-600 px-3 py-2">
               <div className="flex items-center justify-between">
-                <span className="text-xs font-medium text-amber-700">Plan {planInfo.name}</span>
-                <Badge className="bg-amber-100 text-amber-700 border-amber-200 hover:bg-amber-100 text-[10px]">
+                <span className="text-xs font-medium text-slate-200">Plan {planInfo.name}</span>
+                <Badge className="bg-emerald-500/20 text-emerald-300 border-emerald-500/30 hover:bg-emerald-500/20 text-[10px]">
                   {formatFCFA(planInfo.price_fcfa)}/an
                 </Badge>
               </div>
@@ -631,7 +631,7 @@ export function OwnerDashboard({ profile, onLogout, isNewRegistration }: OwnerDa
 
         {/* WhatsApp Support Button — reserved for the hotel owner only.
             Sends a pre-filled WhatsApp message to the Super Admin. */}
-        <div className="px-4 py-2 border-t border-amber-200/50">
+        <div className="px-4 py-2 border-t border-slate-700">
           <a
             href={`https://wa.me/2250576103277?text=${encodeURIComponent(
               `Bonjour Super Admin, je suis ${profile.first_name} ${profile.last_name}` +
@@ -641,29 +641,29 @@ export function OwnerDashboard({ profile, onLogout, isNewRegistration }: OwnerDa
             target="_blank"
             rel="noopener noreferrer"
             title="Envoyer un message WhatsApp au Super Admin"
-            className="flex items-center gap-2 rounded-lg bg-emerald-50 border border-emerald-200 px-3 py-2.5 text-sm font-medium text-emerald-700 hover:bg-emerald-100 transition-colors w-full"
+            className="flex items-center gap-2 rounded-lg bg-emerald-500/20 border border-emerald-500/40 px-3 py-2.5 text-sm font-medium text-emerald-300 hover:bg-emerald-500/30 transition-colors w-full"
           >
-            <MessageSquare className="h-4 w-4 text-emerald-600 shrink-0" />
+            <MessageSquare className="h-4 w-4 text-emerald-400 shrink-0" />
             <span className="truncate">Support WhatsApp</span>
           </a>
           <a
             href="mailto:omouitsi@gmail.com"
-            className="flex items-center gap-2 rounded-lg bg-amber-50 border border-amber-200 px-3 py-2.5 text-sm font-medium text-amber-700 hover:bg-amber-100 transition-colors w-full mt-2"
+            className="flex items-center gap-2 rounded-lg bg-slate-700/50 border border-slate-600 px-3 py-2.5 text-sm font-medium text-slate-200 hover:bg-slate-700 transition-colors w-full mt-2"
           >
-            <Mail className="h-4 w-4 text-amber-600 shrink-0" />
+            <Mail className="h-4 w-4 text-slate-400 shrink-0" />
             <span className="truncate">omouitsi@gmail.com</span>
           </a>
         </div>
 
         {/* User Info */}
-        <div className="border-t border-amber-200/50 px-4 py-4">
+        <div className="border-t border-slate-700 px-4 py-4">
           <div className="flex items-center gap-3 mb-3">
-            <div className="flex h-9 w-9 items-center justify-center rounded-full bg-amber-200 text-amber-800 text-xs font-bold shrink-0">
+            <div className="flex h-9 w-9 items-center justify-center rounded-full bg-emerald-500/20 text-emerald-300 text-xs font-bold shrink-0">
               {profile.first_name.charAt(0)}{profile.last_name.charAt(0)}
             </div>
             <div className="min-w-0">
-              <p className="text-sm font-medium text-amber-900 truncate">{profile.first_name} {profile.last_name}</p>
-              <p className="text-xs text-amber-600 flex items-center gap-1">
+              <p className="text-sm font-medium text-white truncate">{profile.first_name} {profile.last_name}</p>
+              <p className="text-xs text-emerald-400 flex items-center gap-1">
                 <Shield className="h-3 w-3" />
                 Propriétaire
               </p>
@@ -674,8 +674,8 @@ export function OwnerDashboard({ profile, onLogout, isNewRegistration }: OwnerDa
                 className="relative shrink-0 ml-1"
                 title="Notifications non lues"
               >
-                <Bell className="h-4 w-4 text-amber-600 hover:text-amber-800 transition-colors" />
-                <span className="absolute -top-1.5 -right-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-amber-500 text-[9px] font-bold text-white">
+                <Bell className="h-4 w-4 text-emerald-400 hover:text-emerald-300 transition-colors" />
+                <span className="absolute -top-1.5 -right-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-emerald-500 text-[9px] font-bold text-white">
                   {recentChanges.length > 9 ? '9+' : recentChanges.length}
                 </span>
               </button>
@@ -684,7 +684,7 @@ export function OwnerDashboard({ profile, onLogout, isNewRegistration }: OwnerDa
           <Button
             variant="outline"
             size="sm"
-            className="w-full border-amber-200 text-amber-700 hover:bg-amber-100 hover:text-amber-900"
+            className="w-full border-slate-600 text-slate-200 hover:bg-slate-700 hover:text-white"
             onClick={onLogout}
           >
             <LogOut className="h-4 w-4 mr-2" />
@@ -708,13 +708,13 @@ export function OwnerDashboard({ profile, onLogout, isNewRegistration }: OwnerDa
                 <SheetHeader className="sr-only">
                   <SheetTitle>Navigation</SheetTitle>
                 </SheetHeader>
-                <div className="flex h-full flex-col bg-gradient-to-b from-amber-50 to-orange-50">
-                  <div className="flex items-center gap-3 px-6 py-6 border-b border-amber-200/50">
+                <div className="flex h-full flex-col bg-slate-800">
+                  <div className="flex items-center gap-3 px-6 py-6 border-b border-slate-700">
                     <Image src="/logo.svg" alt="OGOU_Hôtel" height={36} width={36} className="object-contain" />
                     <div className="flex-1 min-w-0">
-                      <h1 className="text-lg font-bold bg-gradient-to-r from-emerald-600 to-green-500 bg-clip-text text-transparent">OGOU_Hôtel</h1>
+                      <h1 className="text-lg font-bold bg-gradient-to-r from-emerald-400 to-green-400 bg-clip-text text-transparent">OGOU_Hôtel</h1>
                       <div className="flex items-center gap-2">
-                        <p className="text-[10px] uppercase tracking-wider text-amber-600 font-semibold">Propriétaire</p>
+                        <p className="text-[10px] uppercase tracking-wider text-emerald-400 font-semibold">Propriétaire</p>
                         <RealtimeIndicator compact />
                       </div>
                     </div>
@@ -726,8 +726,8 @@ export function OwnerDashboard({ profile, onLogout, isNewRegistration }: OwnerDa
                         onClick={() => setActiveTab(item.id)}
                         className={`w-full flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all ${
                           activeTab === item.id
-                            ? 'bg-amber-100 text-amber-900 shadow-sm'
-                            : 'text-amber-800/70 hover:bg-amber-100/50'
+                            ? 'bg-emerald-600 text-white shadow-sm'
+                            : 'text-slate-300 hover:bg-slate-700/60 hover:text-white'
                         }`}
                       >
                         {item.icon}
@@ -736,8 +736,8 @@ export function OwnerDashboard({ profile, onLogout, isNewRegistration }: OwnerDa
                       </button>
                     ))}
                   </nav>
-                  <div className="border-t border-amber-200/50 px-4 py-4">
-                    <Button variant="outline" size="sm" className="w-full border-amber-200 text-amber-700" onClick={onLogout}>
+                  <div className="border-t border-slate-700 px-4 py-4">
+                    <Button variant="outline" size="sm" className="w-full border-slate-600 text-slate-200 hover:bg-slate-700 hover:text-white" onClick={onLogout}>
                       <LogOut className="h-4 w-4 mr-2" />
                       Déconnexion
                     </Button>
@@ -764,7 +764,7 @@ export function OwnerDashboard({ profile, onLogout, isNewRegistration }: OwnerDa
               onClick={() => setActiveTab(item.id)}
               className={`flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium whitespace-nowrap transition-colors ${
                 activeTab === item.id
-                  ? 'bg-amber-100 text-amber-900'
+                  ? 'bg-emerald-600 text-white'
                   : 'text-gray-500 hover:bg-gray-100'
               }`}
             >
@@ -1082,6 +1082,51 @@ function OverviewTab({
 
   return (
     <div className="space-y-6">
+      {/* ── Carte de bienvenue « Bonjour! » (style DataThis) ──────────────── */}
+      <div className="rounded-2xl border border-emerald-200 bg-gradient-to-br from-emerald-50 to-green-50 p-6 sm:p-8">
+        <div className="flex flex-col sm:flex-row items-start gap-5">
+          <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-emerald-100 text-emerald-600">
+            <Building2 className="h-7 w-7" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <h2 className="text-2xl font-bold text-emerald-800">
+              Bonjour{hotelInfo?.name ? `, ${hotelInfo.name}` : ' !'}
+            </h2>
+            <p className="text-sm text-emerald-700 mt-1">
+              Bienvenue dans votre espace de gestion hôtelière. Voici un aperçu de votre activité.
+            </p>
+            <div className="flex flex-wrap gap-2 mt-4">
+              <Button
+                size="sm"
+                onClick={onNavigateToRooms}
+                className="bg-emerald-600 text-white hover:bg-emerald-700"
+              >
+                <Bed className="h-4 w-4 mr-1.5" />
+                Gérer les chambres
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={onNavigateToReservations}
+                className="border-emerald-300 text-emerald-700 hover:bg-emerald-100"
+              >
+                <Calendar className="h-4 w-4 mr-1.5" />
+                Nouvelle réservation
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={onNavigateToTeam}
+                className="border-emerald-300 text-emerald-700 hover:bg-emerald-100"
+              >
+                <Users className="h-4 w-4 mr-1.5" />
+                Mon équipe
+              </Button>
+            </div>
+          </div>
+        </div>
+      </div>
+
       {/* Expired Stay Alerts */}
       <ExpiredStayAlert
         onNavigateToReservations={onNavigateToReservations}
