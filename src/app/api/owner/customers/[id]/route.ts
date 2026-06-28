@@ -141,13 +141,28 @@ export async function PATCH(
     }
 
     // ─── Update customer record ───────────────────────────────
-    const { data: customer, error: updateError } = await adminClient
+    const selectFields = 'id, hotel_id, first_name, last_name, email, phone, identity_document_type, identity_document_number, created_at, updated_at'
+    let { data: customer, error: updateError } = await adminClient
       .from('customers')
       .update(updateData)
       .eq('id', id)
       .eq('hotel_id', hotelId)
-      .select('id, hotel_id, first_name, last_name, email, phone, identity_document_type, identity_document_number, created_at, updated_at')
+      .select(selectFields)
       .single()
+
+    // If 'notes' column doesn't exist yet, retry without it
+    if (updateError && updateError.message && updateError.message.includes('notes')) {
+      delete updateData.notes
+      const retry = await adminClient
+        .from('customers')
+        .update(updateData)
+        .eq('id', id)
+        .eq('hotel_id', hotelId)
+        .select(selectFields)
+        .single()
+      customer = retry.data
+      updateError = retry.error
+    }
 
     if (updateError) {
       return NextResponse.json({ error: updateError.message }, { status: 500 })

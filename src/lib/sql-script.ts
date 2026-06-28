@@ -164,6 +164,7 @@ CREATE TABLE IF NOT EXISTS public.customers (
     phone VARCHAR(50) NOT NULL,
     identity_document_type VARCHAR(100),
     identity_document_number VARCHAR(100),
+    notes TEXT,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
@@ -495,6 +496,9 @@ USING (
 
 ALTER TABLE public.customers
 ADD COLUMN IF NOT EXISTS identity_document_path TEXT;
+
+ALTER TABLE public.customers
+ADD COLUMN IF NOT EXISTS notes TEXT;
 
 -- ==================== MENU_ITEMS RLS ====================
 ALTER TABLE public.menu_items ENABLE ROW LEVEL SECURITY;

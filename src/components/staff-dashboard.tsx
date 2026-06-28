@@ -2357,6 +2357,19 @@ function ReceptionistView({ profile, onLogout }: StaffDashboardProps) {
                 </Card>
               </div>
 
+              <Card className="border-2 border-emerald-300 bg-gradient-to-r from-emerald-50 to-teal-50 cursor-pointer hover:shadow-lg transition-all" onClick={() => setWalkInOpen(true)}>
+                <CardContent className="p-5 flex items-center gap-4">
+                  <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 shadow-lg shadow-emerald-500/30">
+                    <DoorOpen className="h-6 w-6 text-white" />
+                  </div>
+                  <div className="flex-1">
+                    <p className="text-base font-bold text-emerald-900">Enregistrement Direct</p>
+                    <p className="text-sm text-emerald-700">Client sans réservation ? Enregistrez-le et attribuez une chambre immédiatement</p>
+                  </div>
+                  <Plus className="h-6 w-6 text-emerald-500 shrink-0" />
+                </CardContent>
+              </Card>
+
               <Card className="border-amber-200/40">
                 <CardHeader className="pb-3">
                   <CardTitle className="text-base flex items-center gap-2">
@@ -2436,19 +2449,6 @@ function ReceptionistView({ profile, onLogout }: StaffDashboardProps) {
                   <div className="space-y-3">{checkOuts.map((res) => renderReservationCard(res, 'check-out'))}</div>
                 )}
               </div>
-
-              <Card className="border-2 border-emerald-300 bg-gradient-to-r from-emerald-50 to-teal-50 cursor-pointer hover:shadow-lg transition-all" onClick={() => setWalkInOpen(true)}>
-                <CardContent className="p-5 flex items-center gap-4">
-                  <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 shadow-lg shadow-emerald-500/30">
-                    <DoorOpen className="h-6 w-6 text-white" />
-                  </div>
-                  <div className="flex-1">
-                    <p className="text-base font-bold text-emerald-900">Enregistrement Direct</p>
-                    <p className="text-sm text-emerald-700">Client sans réservation ? Enregistrez-le et attribuez une chambre immédiatement</p>
-                  </div>
-                  <Plus className="h-6 w-6 text-emerald-500 shrink-0" />
-                </CardContent>
-              </Card>
 
               <div>
                 <h3 className="text-base font-bold text-gray-900 mb-3">Actions rapides</h3>

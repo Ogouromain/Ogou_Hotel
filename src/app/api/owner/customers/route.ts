@@ -66,7 +66,7 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url)
     const search = searchParams.get('search')?.trim()
 
-    // Try selecting with identity_document_path first; fall back without it if column doesn't exist yet
+    // Try selecting with all optional columns first; fall back without them if they don't exist yet
     let selectFields = 'id, hotel_id, first_name, last_name, email, phone, identity_document_type, identity_document_number, identity_document_path, notes, created_at, updated_at'
     let query = adminClient
       .from('customers')
@@ -83,9 +83,9 @@ export async function GET(request: NextRequest) {
 
     let { data: customers, error } = await query
 
-    // If identity_document_path column doesn't exist yet, retry without it
-    if (error && error.message && error.message.includes('identity_document_path')) {
-      selectFields = 'id, hotel_id, first_name, last_name, email, phone, identity_document_type, identity_document_number, notes, created_at, updated_at'
+    // If optional columns (identity_document_path, notes) don't exist yet, retry without them
+    if (error && error.message && (error.message.includes('identity_document_path') || error.message.includes('notes'))) {
+      selectFields = 'id, hotel_id, first_name, last_name, email, phone, identity_document_type, identity_document_number, created_at, updated_at'
       let retryQuery = adminClient
         .from('customers')
         .select(selectFields)
@@ -179,22 +179,38 @@ export async function POST(request: NextRequest) {
     const adminClient = createAdminClient()
 
     // ─── Insert customer record ───────────────────────────────
-    // Use select without identity_document_path in case column doesn't exist yet
+    // Build insert object — only include columns that exist in the schema.
+    // 'notes' and 'identity_document_path' may not exist yet on older DBs,
+    // so we try with them first and fall back without.
     const selectFields = 'id, hotel_id, first_name, last_name, email, phone, identity_document_type, identity_document_number, created_at, updated_at'
-    const { data: customer, error: insertError } = await adminClient
+    const insertData: Record<string, unknown> = {
+      hotel_id: hotelId,
+      first_name: first_name.trim(),
+      last_name: last_name.trim(),
+      email: email?.trim() || null,
+      phone: phone.trim(),
+      identity_document_type: identity_document_type || null,
+      identity_document_number: identity_document_number?.trim() || null,
+      notes: notes?.trim() || null,
+    }
+
+    let { data: customer, error: insertError } = await adminClient
       .from('customers')
-      .insert({
-        hotel_id: hotelId,
-        first_name: first_name.trim(),
-        last_name: last_name.trim(),
-        email: email?.trim() || null,
-        phone: phone.trim(),
-        identity_document_type: identity_document_type || null,
-        identity_document_number: identity_document_number?.trim() || null,
-        notes: notes?.trim() || null,
-      })
+      .insert(insertData)
       .select(selectFields)
       .single()
+
+    // If 'notes' column doesn't exist yet, retry without it
+    if (insertError && insertError.message && insertError.message.includes('notes')) {
+      delete insertData.notes
+      const retry = await adminClient
+        .from('customers')
+        .insert(insertData)
+        .select(selectFields)
+        .single()
+      customer = retry.data
+      insertError = retry.error
+    }
 
     if (insertError) {
       return NextResponse.json(
