@@ -2,7 +2,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { logAudit } from '@/lib/audit'
-import { isDemoMode, DEMO_RESERVATIONS, updateDemoReservationStatus } from '@/lib/demo-data'
+import { isDemoMode, DEMO_RESERVATIONS, updateDemoReservationStatus, generateDemoInvoiceFromReservation } from '@/lib/demo-data'
+import { calculateDynamicPrice } from '@/lib/pricing'
 
 const ALLOWED_ROLES = ['owner', 'manager', 'receptionist']
 
@@ -95,7 +96,16 @@ export async function PATCH(
           )
         }
         const updated = updateDemoReservationStatus(id, 'checked_in')
-        return NextResponse.json({ reservation: updated })
+
+        // Auto-generate invoice for check-in
+        let invoice = null
+        const paymentMethod = body.payment_method || 'Espèces'
+        const invoiceStatus = body.invoice_status || 'paid'
+        if (updated) {
+          invoice = generateDemoInvoiceFromReservation(updated, paymentMethod, invoiceStatus as 'paid' | 'pending')
+        }
+
+        return NextResponse.json({ reservation: updated, invoice: invoice || undefined })
       }
 
       if (action === 'check_out') {
@@ -109,6 +119,18 @@ export async function PATCH(
         return NextResponse.json({ reservation: updated })
       }
 
+      if (action === 'confirm') {
+        if (reservation.status !== 'pending') {
+          return NextResponse.json(
+            { error: `Confirmation impossible. La réservation doit être en statut "en attente". Statut actuel : ${reservation.status}` },
+            { status: 400 }
+          )
+        }
+        reservation.status = 'confirmed'
+        reservation.updated_at = new Date().toISOString()
+        return NextResponse.json({ reservation: { ...reservation } })
+      }
+
       if (action === 'cancel') {
         if (!['pending', 'confirmed'].includes(reservation.status)) {
           return NextResponse.json(
@@ -116,8 +138,19 @@ export async function PATCH(
             { status: 400 }
           )
         }
+        const oldRoomId = reservation.room_id
         reservation.status = 'cancelled'
         reservation.updated_at = new Date().toISOString()
+        // Update room status back to available if it was occupied or reserved for this
+        const room = DEMO_ROOMS.find(r => r.id === oldRoomId)
+        if (room && (room.status === 'occupied' || room.status === 'reserved')) {
+          // Only set available if no other checked_in reservations for this room
+          const otherActiveRes = DEMO_RESERVATIONS.filter(r => r.room_id === oldRoomId && r.id !== id && r.status === 'checked_in')
+          if (otherActiveRes.length === 0) {
+            room.status = 'available'
+            room.updated_at = new Date().toISOString()
+          }
+        }
         return NextResponse.json({ reservation: { ...reservation } })
       }
 
@@ -210,6 +243,127 @@ export async function PATCH(
         .update({ status: 'occupied', updated_at: new Date().toISOString() })
         .eq('id', existing.room_id)
 
+      // ─── Auto-generate invoice on check-in ────────────────────
+      let generatedInvoice = null
+      // Check if invoice already exists for this reservation
+      const { data: existingInvoice } = await adminClient
+        .from('invoices')
+        .select('id, invoice_number')
+        .eq('reservation_id', id)
+        .eq('hotel_id', hotelId)
+        .neq('status', 'cancelled')
+        .maybeSingle()
+
+      if (!existingInvoice) {
+        const paymentMethod = body.payment_method || 'Espèces'
+        const invoiceStatus = body.invoice_status || 'paid'
+        const VALID_PAYMENT_METHODS = ['OM', 'MTN', 'Wave', 'Espèces', 'Chèque', 'Carte'] as const
+        const invPaymentMethod = VALID_PAYMENT_METHODS.includes(paymentMethod as typeof VALID_PAYMENT_METHODS[number]) ? paymentMethod : 'Espèces'
+        const invStatus = invoiceStatus === 'pending' ? 'pending' : 'paid'
+
+        const nights = Math.max(1, Math.ceil((new Date(existing.check_out_date).getTime() - new Date(existing.check_in_date).getTime()) / (1000 * 60 * 60 * 24)))
+        const roomData = existing.rooms as Record<string, unknown> | null
+        const pricePerNight = Math.round(Number(existing.total_price) / nights)
+        const invSubtotal = Math.round(Number(existing.total_price) / 1.18)
+        const invVat = Number(existing.total_price) - invSubtotal
+
+        const now = new Date()
+        const year = now.getFullYear()
+        const month = String(now.getMonth() + 1).padStart(2, '0')
+        const invPrefix = `FACT-${year}-${month}-`
+
+        const { data: lastInv } = await adminClient
+          .from('invoices')
+          .select('invoice_number')
+          .eq('hotel_id', hotelId)
+          .like('invoice_number', `${invPrefix}%`)
+          .order('invoice_number', { ascending: false })
+          .limit(1)
+          .maybeSingle()
+
+        let nextCounter = 1
+        if (lastInv?.invoice_number) {
+          const lastCounterStr = lastInv.invoice_number.substring(invPrefix.length)
+          const lastCounter = parseInt(lastCounterStr, 10)
+          if (!isNaN(lastCounter)) {
+            nextCounter = lastCounter + 1
+          }
+        }
+        const invoiceNumber = `${invPrefix}${String(nextCounter).padStart(4, '0')}`
+
+        let receiptNumber: string | null = null
+        if (invStatus === 'paid') {
+          const recPrefix = `REC-${year}-${month}-`
+          const { data: lastReceipt } = await adminClient
+            .from('invoices')
+            .select('receipt_number')
+            .eq('hotel_id', hotelId)
+            .like('receipt_number', `${recPrefix}%`)
+            .order('receipt_number', { ascending: false })
+            .limit(1)
+            .maybeSingle()
+
+          let recCounter = 1
+          if (lastReceipt?.receipt_number) {
+            const lastCounterStr = lastReceipt.receipt_number.substring(recPrefix.length)
+            const lastCounter = parseInt(lastCounterStr, 10)
+            if (!isNaN(lastCounter)) {
+              recCounter = lastCounter + 1
+            }
+          }
+          receiptNumber = `${recPrefix}${String(recCounter).padStart(4, '0')}`
+        }
+
+        const { data: invoice } = await adminClient
+          .from('invoices')
+          .insert({
+            hotel_id: hotelId,
+            invoice_number: invoiceNumber,
+            customer_id: existing.customer_id,
+            reservation_id: id,
+            subtotal: invSubtotal,
+            tourist_tax: 0,
+            vat: invVat,
+            total_amount: Number(existing.total_price),
+            payment_method: invPaymentMethod,
+            status: invStatus,
+            receipt_number: receiptNumber,
+            paid_at: invStatus === 'paid' ? new Date().toISOString() : null,
+            notes: invStatus === 'paid' ? 'Facture auto-générée (Check-in)' : 'Facture auto-générée (En attente de paiement)',
+          })
+          .select()
+          .single()
+
+        if (invoice) {
+          await adminClient.from('invoice_items').insert({
+            invoice_id: invoice.id,
+            description: `Chambre ${roomData?.room_number || '?'} (${roomData?.room_type || '?'}) — Nuitée`,
+            quantity: nights,
+            unit_price: pricePerNight,
+            total: Number(existing.total_price),
+          })
+          generatedInvoice = invoice
+
+          await logAudit({
+            hotel_id: hotelId,
+            profile_id: user.id,
+            action: 'auto_create_invoice',
+            entity_type: 'invoice',
+            entity_id: invoice.id,
+            new_values: {
+              invoice_number: invoiceNumber,
+              customer_id: existing.customer_id,
+              reservation_id: id,
+              total_amount: Number(existing.total_price),
+              payment_method: invPaymentMethod,
+              status: invStatus,
+              receipt_number: receiptNumber,
+              source: 'check_in',
+            },
+          })
+        }
+      }
+
       // Audit log
       await logAudit({
         hotel_id: hotelId,
@@ -228,9 +382,8 @@ export async function PATCH(
         .eq('id', id)
         .single()
 
-      return NextResponse.json({ reservation: refreshedReservation || reservation })
+      return NextResponse.json({ reservation: refreshedReservation || reservation, invoice: generatedInvoice || undefined })
     }
-
     // ═══════════════════════════════════════════════════════════
     // ACTION: check_out
     // ═══════════════════════════════════════════════════════════
@@ -331,6 +484,42 @@ export async function PATCH(
         entity_id: id,
         old_values: { status: oldStatus },
         new_values: { status: 'cancelled', room_status: 'available' },
+      })
+
+      return NextResponse.json({ reservation })
+    }
+
+    // ═══════════════════════════════════════════════════════════
+    // ACTION: confirm (pending → confirmed)
+    // ═══════════════════════════════════════════════════════════
+    if (action === 'confirm') {
+      if (existing.status !== 'pending') {
+        return NextResponse.json(
+          { error: `Confirmation impossible. La réservation doit être en statut "en attente". Statut actuel : ${existing.status}` },
+          { status: 400 }
+        )
+      }
+
+      const { data: reservation, error: updateError } = await adminClient
+        .from('reservations')
+        .update({ status: 'confirmed', updated_at: new Date().toISOString() })
+        .eq('id', id)
+        .select('*, customers(*), rooms(id, room_number, room_type, price_per_night, status)')
+        .single()
+
+      if (updateError) {
+        return NextResponse.json({ error: updateError.message }, { status: 500 })
+      }
+
+      // Audit log
+      await logAudit({
+        hotel_id: hotelId,
+        profile_id: user.id,
+        action: 'confirm',
+        entity_type: 'reservation',
+        entity_id: id,
+        old_values: { status: 'pending' },
+        new_values: { status: 'confirmed' },
       })
 
       return NextResponse.json({ reservation })
@@ -443,26 +632,35 @@ export async function PATCH(
         }
       }
 
-      // Recalculate total_price if dates or room changed
+      // Recalculate total_price if dates or room changed (tarification dynamique)
       if (datesChanged || roomChanged) {
-        const checkIn = new Date(newCheckIn)
-        const checkOut = new Date(newCheckOut)
-        const diffTime = checkOut.getTime() - checkIn.getTime()
-        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
+        // Fetch room pricing (use new room if room changed)
+        const targetRoomId = roomChanged ? body.room_id : (existing.rooms as Record<string, unknown>)?.id as string
+        const { data: pricingRoom } = await adminClient
+          .from('rooms')
+          .select('id, price_per_night, weekend_price, weekend_days')
+          .eq('id', targetRoomId)
+          .eq('hotel_id', hotelId)
+          .single()
 
-        // Fetch room price (use new room price if room changed)
-        let pricePerNight = (existing.rooms as Record<string, unknown>)?.price_per_night as number
-        if (roomChanged) {
-          const { data: newRoom } = await adminClient
-            .from('rooms')
-            .select('price_per_night')
-            .eq('id', body.room_id)
-            .eq('hotel_id', hotelId)
-            .single()
-          pricePerNight = newRoom?.price_per_night ?? pricePerNight
-        }
+        const roomPricing = pricingRoom || { price_per_night: (existing.rooms as Record<string, unknown>)?.price_per_night as number, weekend_price: null, weekend_days: '5,6' }
 
-        updateData.total_price = pricePerNight * diffDays
+        // Récupérer les tarifs saisonniers
+        const { data: seasonalRates } = await adminClient
+          .from('room_rates')
+          .select('id, price_per_night, start_date, end_date, priority')
+          .eq('room_id', targetRoomId)
+
+        updateData.total_price = calculateDynamicPrice(
+          {
+            price_per_night: roomPricing.price_per_night,
+            weekend_price: roomPricing.weekend_price,
+            weekend_days: roomPricing.weekend_days || '5,6',
+          },
+          (seasonalRates || []) as { id: string; price_per_night: number; start_date: string; end_date: string; priority: number }[],
+          newCheckIn,
+          newCheckOut
+        )
         updateData.check_in_date = newCheckIn
         updateData.check_out_date = newCheckOut
         if (roomChanged) {

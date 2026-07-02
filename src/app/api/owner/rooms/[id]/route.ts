@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { isDemoMode, DEMO_ROOMS, updateDemoRoomStatus } from '@/lib/demo-data'
 
 const ALLOWED_ROLES = ['owner', 'manager']
 
@@ -13,6 +14,46 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params
+    const body = await request.json()
+
+    // ─── Demo mode ────────────────────────────────────────────
+    if (isDemoMode()) {
+      const existing = DEMO_ROOMS.find(r => r.id === id)
+      if (!existing) {
+        return NextResponse.json({ error: 'Chambre introuvable' }, { status: 404 })
+      }
+
+      if (body.status !== undefined) {
+        const validStatuses = ['available', 'occupied', 'cleaning', 'maintenance']
+        if (!validStatuses.includes(body.status)) {
+          return NextResponse.json({ error: 'Statut invalide' }, { status: 400 })
+        }
+
+        if (body.status !== existing.status) {
+          const OWNER_TRANSITIONS: Record<string, string[]> = {
+            available: ['occupied', 'cleaning', 'maintenance'],
+            occupied: ['cleaning'],
+            cleaning: ['available', 'maintenance'],
+            maintenance: ['available', 'cleaning'],
+          }
+          const allowed = OWNER_TRANSITIONS[existing.status] || []
+          if (!allowed.includes(body.status)) {
+            return NextResponse.json(
+              { error: `Transition non autorisée : une chambre "${existing.status}" ne peut pas passer directement en "${body.status}".` },
+              { status: 400 }
+            )
+          }
+        }
+
+        const room = updateDemoRoomStatus(id, body.status)
+        return NextResponse.json({ room })
+      }
+
+      // Other updates not supported in demo
+      return NextResponse.json({ error: 'Seul le changement de statut est supporté en mode démo' }, { status: 400 })
+    }
+
     const supabase = await createClient()
     const { data: { user } } = await supabase.auth.getUser()
 
@@ -30,8 +71,6 @@ export async function PATCH(
       return NextResponse.json({ error: 'Aucun hôtel associé' }, { status: 404 })
     }
 
-    const { id } = await params
-    const body = await request.json()
     const adminClient = createAdminClient()
 
     // Verify room belongs to this hotel
@@ -56,6 +95,22 @@ export async function PATCH(
         return NextResponse.json({ error: 'Le prix par nuit doit être un nombre positif' }, { status: 400 })
       }
       updateData.price_per_night = price
+    }
+    // Prix weekend (optionnel - peut être null pour supprimer)
+    if (body.weekend_price !== undefined) {
+      if (body.weekend_price === null || body.weekend_price === '') {
+        updateData.weekend_price = null
+      } else {
+        const wp = parseFloat(body.weekend_price)
+        if (isNaN(wp) || wp <= 0) {
+          return NextResponse.json({ error: 'Le prix weekend doit être un nombre positif' }, { status: 400 })
+        }
+        updateData.weekend_price = wp
+      }
+    }
+    // Jours weekend (optionnel)
+    if (body.weekend_days !== undefined) {
+      updateData.weekend_days = body.weekend_days
     }
     if (body.status !== undefined) {
       const validStatuses = ['available', 'occupied', 'cleaning', 'maintenance']

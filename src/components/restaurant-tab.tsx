@@ -20,6 +20,7 @@ import {
   X,
   Minus,
   ArrowRight,
+  ClipboardList,
 } from 'lucide-react'
 
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -543,7 +544,7 @@ export function RestaurantTab({ onRefresh }: RestaurantTabProps) {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-2xl font-bold tracking-tight">🍽️ Restaurant</h2>
+          <h2 className="text-2xl font-bold tracking-tight flex items-center gap-2"><UtensilsCrossed className="h-6 w-6 text-orange-600" /> Restaurant</h2>
           <p className="text-muted-foreground">
             {menuItems.length} article{menuItems.length !== 1 ? 's' : ''} au menu • {orderStats.pending} commande{orderStats.pending !== 1 ? 's' : ''} en attente
           </p>
@@ -559,11 +560,11 @@ export function RestaurantTab({ onRefresh }: RestaurantTabProps) {
       {/* Sub-tabs */}
       <Tabs value={subTab} onValueChange={(v) => setSubTab(v as SubTab)}>
         <TabsList className="bg-amber-50 border border-amber-200/60">
-          <TabsTrigger value="menu" className="data-[state=active]:bg-amber-600 data-[state=active]:text-white">
-            🍴 Menu
+          <TabsTrigger value="menu" className="data-[state=active]:bg-amber-600 data-[state=active]:text-white flex items-center gap-1.5">
+            <UtensilsCrossed className="h-4 w-4" /> Menu
           </TabsTrigger>
-          <TabsTrigger value="orders" className="data-[state=active]:bg-amber-600 data-[state=active]:text-white">
-            📋 Commandes
+          <TabsTrigger value="orders" className="data-[state=active]:bg-amber-600 data-[state=active]:text-white flex items-center gap-1.5">
+            <ClipboardList className="h-4 w-4" /> Commandes
             {orderStats.pending > 0 && (
               <Badge className="ml-2 h-5 w-5 p-0 flex items-center justify-center bg-red-500 text-white text-[10px]">
                 {orderStats.pending}
@@ -830,7 +831,7 @@ export function RestaurantTab({ onRefresh }: RestaurantTabProps) {
 
       {/* ─── Menu Create/Edit Dialog ──────────────────────────────────── */}
       <Dialog open={menuDialogOpen} onOpenChange={setMenuDialogOpen}>
-        <DialogContent className="max-w-lg">
+        <DialogContent className="sm:max-w-lg">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               {editMode ? (
@@ -1074,7 +1075,7 @@ export function RestaurantTab({ onRefresh }: RestaurantTabProps) {
 
       {/* ─── Create Order Dialog ──────────────────────────────────────── */}
       <Dialog open={createOrderOpen} onOpenChange={setCreateOrderOpen}>
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-track]:bg-gray-100 [&::-webkit-scrollbar-thumb]:bg-gray-300 [&::-webkit-scrollbar-thumb]:rounded-full">
+        <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-track]:bg-gray-100 [&::-webkit-scrollbar-thumb]:bg-gray-300 [&::-webkit-scrollbar-thumb]:rounded-full">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Plus className="h-5 w-5 text-amber-600" />

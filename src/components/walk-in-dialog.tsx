@@ -13,6 +13,8 @@ import {
   Bed,
   DoorOpen,
   X,
+  FileText,
+  CreditCard,
 } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
@@ -36,7 +38,7 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 
-// ─── Types ───────────────────────────────────────────────────────────────────
+import { Checkbox } from '@/components/ui/checkbox'
 
 interface WalkInDialogProps {
   open: boolean
@@ -92,8 +94,14 @@ export function WalkInDialog({
   const [selectedRoomId, setSelectedRoomId] = useState('')
   const [checkOutDate, setCheckOutDate] = useState('')
 
+  // Invoice options
+  const [generateInvoice, setGenerateInvoice] = useState(true)
+  const [paymentMethod, setPaymentMethod] = useState('Espèces')
+  const [invoiceStatus, setInvoiceStatus] = useState<'paid' | 'pending'>('paid')
+
   // Submit
   const [submitting, setSubmitting] = useState(false)
+  const [generatedInvoiceId, setGeneratedInvoiceId] = useState<string | null>(null)
 
   const searchTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
@@ -114,6 +122,10 @@ export function WalkInDialog({
       setSelectedRoomId('')
       setCheckOutDate('')
       setSubmitting(false)
+      setGenerateInvoice(true)
+      setPaymentMethod('Espèces')
+      setInvoiceStatus('paid')
+      setGeneratedInvoiceId(null)
     }
   }, [open])
 
@@ -174,6 +186,9 @@ export function WalkInDialog({
       const payload: Record<string, unknown> = {
         room_id: selectedRoomId,
         check_out_date: checkOutDate,
+        generate_invoice: generateInvoice,
+        payment_method: paymentMethod,
+        invoice_status: invoiceStatus,
       }
 
       if (selectedCustomer) {
@@ -212,7 +227,17 @@ export function WalkInDialog({
         : `${newFirstName} ${newLastName}`
       const roomNumber = selectedRoom?.room_number || ''
 
-      toast.success(`${customerName} enregistré(e) en chambre ${roomNumber} !`)
+      const data = await res.json()
+
+      if (generateInvoice && data.invoice) {
+        setGeneratedInvoiceId(data.invoice.id)
+        toast.success(`${customerName} enregistré(e) en chambre ${roomNumber} ! Facture ${data.invoice.invoice_number} créée.`, {
+          duration: 6000,
+        })
+      } else {
+        toast.success(`${customerName} enregistré(e) en chambre ${roomNumber} !`)
+      }
+
       onSuccess()
       onOpenChange(false)
     } catch {
@@ -232,10 +257,12 @@ export function WalkInDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-track]:bg-gray-100 [&::-webkit-scrollbar-thumb]:bg-gray-300 [&::-webkit-scrollbar-thumb]:rounded-full">
+      <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-track]:bg-gray-100 [&::-webkit-scrollbar-thumb]:bg-gray-300 [&::-webkit-scrollbar-thumb]:rounded-full">
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2 text-emerald-700">
-            <DoorOpen className="h-5 w-5" />
+          <DialogTitle className="flex items-center gap-2">
+            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-100">
+              <DoorOpen className="h-4 w-4 text-emerald-600" />
+            </div>
             Enregistrement Direct (Walk-In)
           </DialogTitle>
           <DialogDescription>
@@ -595,6 +622,65 @@ export function WalkInDialog({
                   <span className="text-xs font-medium text-emerald-800">
                     Le client sera immédiatement enregistré (check-in) et la chambre marquée occupée
                   </span>
+                </div>
+
+                <Separator />
+
+                {/* Invoice Options */}
+                <div className="space-y-3">
+                  <div className="flex items-center space-x-2">
+                    <Checkbox
+                      id="generate-invoice"
+                      checked={generateInvoice}
+                      onCheckedChange={(checked) => setGenerateInvoice(checked === true)}
+                    />
+                    <Label htmlFor="generate-invoice" className="text-sm font-medium cursor-pointer flex items-center gap-1.5">
+                      <FileText className="h-3.5 w-3.5 text-amber-600" />
+                      Générer une facture automatiquement
+                    </Label>
+                  </div>
+
+                  {generateInvoice && (
+                    <div className="space-y-3 pl-6 border-l-2 border-amber-200">
+                      <div className="space-y-1.5">
+                        <Label className="text-xs">Mode de paiement</Label>
+                        <Select value={paymentMethod} onValueChange={setPaymentMethod}>
+                          <SelectTrigger className="h-9">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="Espèces">💵 Espèces</SelectItem>
+                            <SelectItem value="OM">📱 Orange Money</SelectItem>
+                            <SelectItem value="MTN">📱 MTN Money</SelectItem>
+                            <SelectItem value="Wave">📱 Wave</SelectItem>
+                            <SelectItem value="Carte">💳 Carte bancaire</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label className="text-xs">Statut de la facture</Label>
+                        <Select value={invoiceStatus} onValueChange={(v) => setInvoiceStatus(v as 'paid' | 'pending')}>
+                          <SelectTrigger className="h-9">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="paid">
+                              <span className="flex items-center gap-2">
+                                <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" />
+                                Payée (le client paie maintenant)
+                              </span>
+                            </SelectItem>
+                            <SelectItem value="pending">
+                              <span className="flex items-center gap-2">
+                                <CreditCard className="h-3.5 w-3.5 text-amber-600" />
+                                En attente (à payer plus tard)
+                              </span>
+                            </SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
             )}

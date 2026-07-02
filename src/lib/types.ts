@@ -197,7 +197,7 @@ export interface AuditLog {
 
 export type ExpenseCategoryType = 'operating' | 'payroll' | 'maintenance' | 'supply' | 'utility' | 'marketing' | 'other'
 export type ExpensePaymentMethod = 'OM' | 'MTN' | 'Wave' | 'Espèces' | 'Chèque' | 'Carte' | 'Virement'
-export type InvoiceStatus = 'paid' | 'refund' | 'cancelled'
+export type InvoiceStatus = 'paid' | 'pending' | 'refund' | 'cancelled'
 export type PaymentMethod = 'OM' | 'MTN' | 'Wave' | 'Espèces' | 'Chèque' | 'Carte'
 
 export interface InvoiceItem {
@@ -221,6 +221,8 @@ export interface Invoice {
   total_amount: number
   payment_method: PaymentMethod
   status: InvoiceStatus
+  receipt_number: string | null
+  paid_at: string | null
   notes: string | null
   created_at: string
   // Joined data (from API, not DB columns)

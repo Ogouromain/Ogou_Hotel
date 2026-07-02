@@ -84,7 +84,7 @@ interface ReservationInfo {
 }
 
 type DisplayMode = 'grid' | 'list'
-type FilterStatus = 'all' | 'pending' | 'checked_in' | 'checked_out' | 'cancelled'
+type FilterStatus = 'all' | 'pending' | 'confirmed' | 'checked_in' | 'checked_out' | 'cancelled'
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -195,6 +195,7 @@ export function ReservationsTab({ rooms, onRefresh }: ReservationsTabProps) {
   const stats = {
     total: reservations.length,
     pending: reservations.filter((r) => r.status === 'pending').length,
+    confirmed: reservations.filter((r) => r.status === 'confirmed').length,
     checkedIn: reservations.filter((r) => r.status === 'checked_in').length,
     checkedOut: reservations.filter((r) => r.status === 'checked_out').length,
     cancelled: reservations.filter((r) => r.status === 'cancelled').length,
@@ -246,9 +247,9 @@ export function ReservationsTab({ rooms, onRefresh }: ReservationsTabProps) {
         {/* ─── Header ────────────────────────────────────────────────────── */}
         <div className="flex items-center justify-between">
           <div>
-            <h2 className="text-2xl font-bold tracking-tight">📅 Réservations</h2>
+            <h2 className="text-2xl font-bold tracking-tight flex items-center gap-2"><Calendar className="h-6 w-6 text-orange-600" /> Réservations</h2>
             <p className="text-muted-foreground">
-              {stats.total} réservation{stats.total !== 1 ? 's' : ''} • {stats.pending} en attente • {stats.checkedIn} en cours
+              {stats.total} réservation{stats.total !== 1 ? 's' : ''} • {stats.pending} en attente • {stats.confirmed} confirmée{stats.confirmed !== 1 ? 's' : ''} • {stats.checkedIn} en cours
             </p>
           </div>
           <div className="flex items-center gap-2">
@@ -279,28 +280,21 @@ export function ReservationsTab({ rooms, onRefresh }: ReservationsTabProps) {
         </div>
 
         {/* ─── Quick Stats ───────────────────────────────────────────────── */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
           {[
-            { label: 'En attente', count: stats.pending, color: 'bg-amber-50 text-amber-700 border-amber-200' },
-            { label: 'Enregistrés', count: stats.checkedIn, color: 'bg-emerald-50 text-emerald-700 border-emerald-200' },
-            { label: 'Terminés', count: stats.checkedOut, color: 'bg-gray-50 text-gray-600 border-gray-200' },
-            { label: 'Annulées', count: stats.cancelled, color: 'bg-red-50 text-red-600 border-red-200' },
+            { label: 'En attente', count: stats.pending, color: 'bg-amber-50 text-amber-700 border-amber-200', filter: 'pending' },
+            { label: 'Confirmées', count: stats.confirmed, color: 'bg-sky-50 text-sky-700 border-sky-200', filter: 'confirmed' },
+            { label: 'Enregistrés', count: stats.checkedIn, color: 'bg-emerald-50 text-emerald-700 border-emerald-200', filter: 'checked_in' },
+            { label: 'Terminés', count: stats.checkedOut, color: 'bg-gray-50 text-gray-600 border-gray-200', filter: 'checked_out' },
+            { label: 'Annulées', count: stats.cancelled, color: 'bg-red-50 text-red-600 border-red-200', filter: 'cancelled' },
           ].map((s) => (
             <button
               key={s.label}
               onClick={() => setFilterStatus(
-                filterStatus === s.label.toLowerCase().replace('é', 'e').replace('è', 'e').replace('enregistrés', 'checked_in').replace('en attente', 'pending').replace('terminés', 'checked_out').replace('annulées', 'cancelled')
-                  ? 'all'
-                  : s.label === 'En attente' ? 'pending'
-                    : s.label === 'Enregistrés' ? 'checked_in'
-                      : s.label === 'Terminés' ? 'checked_out'
-                        : 'cancelled'
+                filterStatus === s.filter ? 'all' : s.filter as FilterStatus
               )}
               className={`rounded-lg border p-3 text-center transition-all hover:shadow-sm ${s.color} ${
-                (s.label === 'En attente' && filterStatus === 'pending') ||
-                (s.label === 'Enregistrés' && filterStatus === 'checked_in') ||
-                (s.label === 'Terminés' && filterStatus === 'checked_out') ||
-                (s.label === 'Annulées' && filterStatus === 'cancelled')
+                filterStatus === s.filter
                   ? 'ring-2 ring-offset-1 ring-amber-400'
                   : ''
               }`}

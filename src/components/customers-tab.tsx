@@ -414,7 +414,7 @@ export function CustomersTab({ onRefresh }: CustomersTabProps) {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-2xl font-bold tracking-tight">👥 Gestion des Clients</h2>
+          <h2 className="text-2xl font-bold tracking-tight flex items-center gap-2"><Users className="h-6 w-6 text-emerald-600" /> Gestion des Clients</h2>
           <p className="text-muted-foreground">
             {customers.length} client{customers.length !== 1 ? 's' : ''} enregistré{customers.length !== 1 ? 's' : ''}
           </p>
@@ -562,7 +562,7 @@ export function CustomersTab({ onRefresh }: CustomersTabProps) {
 
       {/* ─── Create/Edit Dialog ─────────────────────────────────────────── */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-track]:bg-gray-100 [&::-webkit-scrollbar-thumb]:bg-gray-300 [&::-webkit-scrollbar-thumb]:rounded-full">
+        <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-track]:bg-gray-100 [&::-webkit-scrollbar-thumb]:bg-gray-300 [&::-webkit-scrollbar-thumb]:rounded-full">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               {editMode ? (

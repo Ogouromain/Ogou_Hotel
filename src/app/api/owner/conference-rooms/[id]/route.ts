@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { isDemoMode, DEMO_CONFERENCE_ROOMS, DEMO_CONFERENCE_BOOKINGS } from '@/lib/demo-data'
 
 const WRITE_ROLES = ['owner', 'manager']
 
@@ -13,38 +14,8 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const supabase = await createClient()
-    const { data: { user } } = await supabase.auth.getUser()
-
-    if (!user) {
-      return NextResponse.json({ error: 'Non authentifié' }, { status: 401 })
-    }
-
-    const role = user.app_metadata?.role
-    if (!WRITE_ROLES.includes(role)) {
-      return NextResponse.json({ error: 'Accès non autorisé. Seuls le propriétaire et le manager peuvent modifier les salles de conférence.' }, { status: 403 })
-    }
-
-    const hotelId = user.app_metadata?.hotel_id
-    if (!hotelId) {
-      return NextResponse.json({ error: 'Aucun hôtel associé' }, { status: 404 })
-    }
-
     const { id } = await params
     const body = await request.json()
-    const adminClient = createAdminClient()
-
-    // Verify room belongs to this hotel
-    const { data: existing } = await adminClient
-      .from('conference_rooms')
-      .select('id, name')
-      .eq('id', id)
-      .eq('hotel_id', hotelId)
-      .maybeSingle()
-
-    if (!existing) {
-      return NextResponse.json({ error: 'Salle de conférence introuvable' }, { status: 404 })
-    }
 
     // Build update object
     const updateData: Record<string, unknown> = {}
@@ -76,6 +47,63 @@ export async function PATCH(
 
     if (Object.keys(updateData).length === 0) {
       return NextResponse.json({ error: 'Aucune donnée à mettre à jour' }, { status: 400 })
+    }
+
+    // Mode démo : mettre à jour en mémoire
+    if (isDemoMode()) {
+      const room = DEMO_CONFERENCE_ROOMS.find(r => r.id === id)
+      if (!room) {
+        return NextResponse.json({ error: 'Salle de conférence introuvable' }, { status: 404 })
+      }
+
+      // Check duplicate name if changing
+      if (updateData.name && updateData.name !== room.name) {
+        if (DEMO_CONFERENCE_ROOMS.some(r => r.name === updateData.name)) {
+          return NextResponse.json(
+            { error: `Une salle de conférence nommée "${updateData.name}" existe déjà` },
+            { status: 409 }
+          )
+        }
+      }
+
+      if (updateData.name) room.name = updateData.name as string
+      if (updateData.capacity) room.capacity = updateData.capacity as number
+      if (updateData.price_per_hour) room.price_per_hour = updateData.price_per_hour as number
+      if (updateData.status) room.status = updateData.status as 'available' | 'occupied' | 'maintenance'
+      room.updated_at = new Date().toISOString()
+
+      return NextResponse.json({ room })
+    }
+
+    const supabase = await createClient()
+    const { data: { user } } = await supabase.auth.getUser()
+
+    if (!user) {
+      return NextResponse.json({ error: 'Non authentifié' }, { status: 401 })
+    }
+
+    const role = user.app_metadata?.role
+    if (!WRITE_ROLES.includes(role)) {
+      return NextResponse.json({ error: 'Accès non autorisé. Seuls le propriétaire et le manager peuvent modifier les salles de conférence.' }, { status: 403 })
+    }
+
+    const hotelId = user.app_metadata?.hotel_id
+    if (!hotelId) {
+      return NextResponse.json({ error: 'Aucun hôtel associé' }, { status: 404 })
+    }
+
+    const adminClient = createAdminClient()
+
+    // Verify room belongs to this hotel
+    const { data: existing } = await adminClient
+      .from('conference_rooms')
+      .select('id, name')
+      .eq('id', id)
+      .eq('hotel_id', hotelId)
+      .maybeSingle()
+
+    if (!existing) {
+      return NextResponse.json({ error: 'Salle de conférence introuvable' }, { status: 404 })
     }
 
     // Check duplicate name if changing
@@ -126,6 +154,30 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params
+
+    // Mode démo : supprimer en mémoire
+    if (isDemoMode()) {
+      const idx = DEMO_CONFERENCE_ROOMS.findIndex(r => r.id === id)
+      if (idx === -1) {
+        return NextResponse.json({ error: 'Salle de conférence introuvable' }, { status: 404 })
+      }
+
+      // Vérifier les réservations actives
+      const activeBookings = DEMO_CONFERENCE_BOOKINGS.filter(
+        b => b.conference_room_id === id && b.status === 'confirmed'
+      )
+      if (activeBookings.length > 0) {
+        return NextResponse.json(
+          { error: 'Impossible de supprimer cette salle car des réservations confirmées y sont associées' },
+          { status: 400 }
+        )
+      }
+
+      DEMO_CONFERENCE_ROOMS.splice(idx, 1)
+      return NextResponse.json({ success: true })
+    }
+
     const supabase = await createClient()
     const { data: { user } } = await supabase.auth.getUser()
 
@@ -143,7 +195,6 @@ export async function DELETE(
       return NextResponse.json({ error: 'Aucun hôtel associé' }, { status: 404 })
     }
 
-    const { id } = await params
     const adminClient = createAdminClient()
 
     // Verify room belongs to this hotel

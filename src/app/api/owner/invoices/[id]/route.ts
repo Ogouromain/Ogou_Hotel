@@ -2,10 +2,11 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { logAudit } from '@/lib/audit'
+import { isDemoMode, DEMO_INVOICES } from '@/lib/demo-data'
 
 const ALLOWED_ROLES_GET = ['owner', 'manager', 'receptionist']
 const ALLOWED_ROLES_PATCH = ['owner', 'manager'] // receptionist cannot modify invoices
-const VALID_STATUSES = ['refund', 'cancelled'] as const
+const VALID_STATUSES = ['paid', 'pending', 'refund', 'cancelled'] as const
 
 /**
  * GET /api/owner/invoices/[id]
@@ -16,6 +17,17 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params
+
+    // ─── Demo mode ──────────────────────────────────────────────
+    if (isDemoMode()) {
+      const invoice = DEMO_INVOICES.find(i => i.id === id)
+      if (!invoice) {
+        return NextResponse.json({ error: 'Facture introuvable' }, { status: 404 })
+      }
+      return NextResponse.json({ invoice })
+    }
+
     const supabase = await createClient()
     const { data: { user } } = await supabase.auth.getUser()
 
@@ -33,7 +45,6 @@ export async function GET(
       return NextResponse.json({ error: 'Aucun hôtel associé' }, { status: 404 })
     }
 
-    const { id } = await params
     const adminClient = createAdminClient()
     if (!adminClient) {
       return NextResponse.json({ error: 'Service indisponible' }, { status: 503 })
@@ -67,6 +78,60 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params
+    const body = await request.json()
+
+    // ─── Demo mode ──────────────────────────────────────────────
+    if (isDemoMode()) {
+      const invoice = DEMO_INVOICES.find(i => i.id === id)
+      if (!invoice) {
+        return NextResponse.json({ error: 'Facture introuvable' }, { status: 404 })
+      }
+
+      if (body.status !== undefined) {
+        if (body.status === 'cancelled' && invoice.status === 'cancelled') {
+          return NextResponse.json({ error: 'La facture est déjà annulée' }, { status: 400 })
+        }
+        if (body.status === 'paid' && invoice.status === 'paid') {
+          return NextResponse.json({ error: 'La facture est déjà payée' }, { status: 400 })
+        }
+
+        invoice.status = body.status
+        invoice.updated_at = new Date().toISOString()
+
+        // Auto-generate receipt when marking as paid
+        if (body.status === 'paid' && !invoice.receipt_number) {
+          const now = new Date()
+          const year = now.getFullYear()
+          const month = String(now.getMonth() + 1).padStart(2, '0')
+          const recPrefix = `REC-${year}-${month}-`
+          const lastRec = DEMO_INVOICES
+            .filter(i => i.receipt_number && i.receipt_number.startsWith(recPrefix))
+            .sort((a, b) => (b.receipt_number || '').localeCompare(a.receipt_number || ''))[0]
+          let recCounter = 1
+          if (lastRec?.receipt_number) {
+            const lastCounterStr = lastRec.receipt_number.substring(recPrefix.length)
+            const lastCounter = parseInt(lastCounterStr, 10)
+            if (!isNaN(lastCounter)) {
+              recCounter = lastCounter + 1
+            }
+          }
+          invoice.receipt_number = `${recPrefix}${String(recCounter).padStart(4, '0')}`
+          invoice.paid_at = new Date().toISOString()
+        }
+
+        if (body.payment_method) {
+          invoice.payment_method = body.payment_method
+        }
+      }
+
+      if (body.notes !== undefined) {
+        invoice.notes = body.notes?.trim() || null
+      }
+
+      return NextResponse.json({ invoice })
+    }
+
     const supabase = await createClient()
     const { data: { user } } = await supabase.auth.getUser()
 
@@ -84,8 +149,6 @@ export async function PATCH(
       return NextResponse.json({ error: 'Aucun hôtel associé' }, { status: 404 })
     }
 
-    const { id } = await params
-    const body = await request.json()
     const adminClient = createAdminClient()
     if (!adminClient) {
       return NextResponse.json({ error: 'Service indisponible' }, { status: 503 })
@@ -115,7 +178,7 @@ export async function PATCH(
         )
       }
 
-      // Cannot change from cancelled or refund back to paid
+      // Cannot change from cancelled to anything
       if (existing.status === 'cancelled') {
         return NextResponse.json(
           { error: 'Impossible de modifier une facture annulée' },
@@ -123,15 +186,69 @@ export async function PATCH(
         )
       }
 
-      if (existing.status === 'refund' && body.status === 'refund') {
+      // Cannot change from refund back to paid or pending
+      if (existing.status === 'refund' && (body.status === 'paid' || body.status === 'pending')) {
         return NextResponse.json(
-          { error: 'La facture est déjà en statut remboursé' },
+          { error: 'Impossible de repasser une facture remboursée en payée ou en attente' },
+          { status: 400 }
+        )
+      }
+
+      // Cannot change from paid back to pending
+      if (existing.status === 'paid' && body.status === 'pending') {
+        return NextResponse.json(
+          { error: 'Impossible de repasser une facture payée en attente' },
+          { status: 400 }
+        )
+      }
+
+      // Already same status
+      if (existing.status === body.status) {
+        return NextResponse.json(
+          { error: `La facture est déjà en statut "${body.status}"` },
           { status: 400 }
         )
       }
 
       oldValues.status = existing.status
       updateData.status = body.status
+
+      // When marking as paid: generate receipt_number and set paid_at
+      if (body.status === 'paid' && existing.status !== 'paid') {
+        const now = new Date()
+        const year = now.getFullYear()
+        const month = String(now.getMonth() + 1).padStart(2, '0')
+        const recPrefix = `REC-${year}-${month}-`
+
+        const { data: lastReceipt } = await adminClient
+          .from('invoices')
+          .select('receipt_number')
+          .eq('hotel_id', hotelId)
+          .like('receipt_number', `${recPrefix}%`)
+          .order('receipt_number', { ascending: false })
+          .limit(1)
+          .maybeSingle()
+
+        let recCounter = 1
+        if (lastReceipt?.receipt_number) {
+          const lastCounterStr = lastReceipt.receipt_number.substring(recPrefix.length)
+          const lastCounter = parseInt(lastCounterStr, 10)
+          if (!isNaN(lastCounter)) {
+            recCounter = lastCounter + 1
+          }
+        }
+        updateData.receipt_number = `${recPrefix}${String(recCounter).padStart(4, '0')}`
+        updateData.paid_at = now.toISOString()
+
+        // Allow payment_method change when marking as paid
+        if (body.payment_method) {
+          const VALID_PAYMENT_METHODS = ['OM', 'MTN', 'Wave', 'Espèces', 'Chèque', 'Carte'] as const
+          if (VALID_PAYMENT_METHODS.includes(body.payment_method as typeof VALID_PAYMENT_METHODS[number])) {
+            oldValues.payment_method = existing.payment_method
+            updateData.payment_method = body.payment_method
+          }
+        }
+      }
     }
 
     if (body.notes !== undefined) {

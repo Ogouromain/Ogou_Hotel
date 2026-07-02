@@ -21,6 +21,8 @@ export async function GET() {
         room_number: r.room_number,
         room_type: r.room_type,
         price_per_night: r.price_per_night,
+        weekend_price: r.weekend_price,
+        weekend_days: r.weekend_days,
         status: r.status,
         updated_at: r.updated_at,
       }))
@@ -91,7 +93,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json()
-    const { room_number, room_type, price_per_night, status } = body
+    const { room_number, room_type, price_per_night, weekend_price, weekend_days, status } = body
 
     if (!room_number || !room_type || !price_per_night) {
       return NextResponse.json(
@@ -150,15 +152,31 @@ export async function POST(request: NextRequest) {
     }
 
     // ─── CREATE THE ROOM ───────────────────────────────────────
+    // Préparer les champs de tarification weekend
+    const insertData: Record<string, unknown> = {
+      hotel_id: hotelId,
+      room_number: room_number.trim(),
+      room_type: room_type.trim(),
+      price_per_night: price,
+      status: status || 'available',
+    }
+
+    // Prix weekend (optionnel)
+    if (weekend_price !== undefined && weekend_price !== null && weekend_price !== '') {
+      const wp = parseFloat(weekend_price)
+      if (!isNaN(wp) && wp > 0) {
+        insertData.weekend_price = wp
+      }
+    }
+
+    // Jours weekend (optionnel, défaut '5,6')
+    if (weekend_days !== undefined && weekend_days !== null && weekend_days !== '') {
+      insertData.weekend_days = weekend_days
+    }
+
     const { data: room, error } = await adminClient
       .from('rooms')
-      .insert({
-        hotel_id: hotelId,
-        room_number: room_number.trim(),
-        room_type: room_type.trim(),
-        price_per_night: price,
-        status: status || 'available',
-      })
+      .insert(insertData)
       .select()
       .single()
 

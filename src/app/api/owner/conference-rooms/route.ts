@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { isDemoMode, DEMO_CONFERENCE_ROOMS } from '@/lib/demo-data'
 
 const READ_ROLES = ['owner', 'manager', 'receptionist']
 const WRITE_ROLES = ['owner', 'manager']
@@ -11,6 +12,11 @@ const WRITE_ROLES = ['owner', 'manager']
  */
 export async function GET() {
   try {
+    // Mode démo : retourner les données en mémoire
+    if (isDemoMode()) {
+      return NextResponse.json({ rooms: DEMO_CONFERENCE_ROOMS })
+    }
+
     const supabase = await createClient()
     const { data: { user } } = await supabase.auth.getUser()
 
@@ -52,23 +58,6 @@ export async function GET() {
  */
 export async function POST(request: NextRequest) {
   try {
-    const supabase = await createClient()
-    const { data: { user } } = await supabase.auth.getUser()
-
-    if (!user) {
-      return NextResponse.json({ error: 'Non authentifié' }, { status: 401 })
-    }
-
-    const role = user.app_metadata?.role
-    if (!WRITE_ROLES.includes(role)) {
-      return NextResponse.json({ error: 'Accès non autorisé. Seuls le propriétaire et le manager peuvent créer des salles de conférence.' }, { status: 403 })
-    }
-
-    const hotelId = user.app_metadata?.hotel_id
-    if (!hotelId) {
-      return NextResponse.json({ error: 'Aucun hôtel associé' }, { status: 404 })
-    }
-
     const body = await request.json()
     const { name, capacity, price_per_hour, status } = body
 
@@ -97,6 +86,47 @@ export async function POST(request: NextRequest) {
 
     const validStatuses = ['available', 'occupied', 'maintenance']
     const roomStatus = status && validStatuses.includes(status) ? status : 'available'
+
+    // Mode démo : ajouter en mémoire
+    if (isDemoMode()) {
+      // Vérifier l'unicité du nom
+      if (DEMO_CONFERENCE_ROOMS.some(r => r.name === name.trim())) {
+        return NextResponse.json(
+          { error: `Une salle de conférence nommée "${name.trim()}" existe déjà` },
+          { status: 409 }
+        )
+      }
+
+      const newRoom = {
+        id: `conf-room-${Date.now()}`,
+        hotel_id: 'demo-hotel-0001',
+        name: name.trim(),
+        capacity: capacityNum,
+        price_per_hour: priceNum,
+        status: roomStatus as 'available' | 'occupied' | 'maintenance',
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      }
+      DEMO_CONFERENCE_ROOMS.push(newRoom)
+      return NextResponse.json({ room: newRoom }, { status: 201 })
+    }
+
+    const supabase = await createClient()
+    const { data: { user } } = await supabase.auth.getUser()
+
+    if (!user) {
+      return NextResponse.json({ error: 'Non authentifié' }, { status: 401 })
+    }
+
+    const role = user.app_metadata?.role
+    if (!WRITE_ROLES.includes(role)) {
+      return NextResponse.json({ error: 'Accès non autorisé. Seuls le propriétaire et le manager peuvent créer des salles de conférence.' }, { status: 403 })
+    }
+
+    const hotelId = user.app_metadata?.hotel_id
+    if (!hotelId) {
+      return NextResponse.json({ error: 'Aucun hôtel associé' }, { status: 404 })
+    }
 
     const adminClient = createAdminClient()
 

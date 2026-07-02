@@ -15,6 +15,7 @@ import {
   Wrench,
   Loader2,
   ChevronRight,
+  ChevronLeft,
   Utensils,
   Coffee,
   Wine,
@@ -37,6 +38,13 @@ import {
   Minus,
   X,
   Wallet,
+  Play,
+  SkipForward,
+  Smartphone,
+  QrCode,
+  Home,
+  ArrowRightLeft,
+  Flame,
 } from 'lucide-react'
 import Image from 'next/image'
 
@@ -65,6 +73,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 
+import { useIsMobile } from '@/hooks/use-mobile'
 import { ReservationsTab } from '@/components/reservations-tab'
 import { CustomersTab } from '@/components/customers-tab'
 import { WalkInDialog } from '@/components/walk-in-dialog'
@@ -215,7 +224,7 @@ interface StockItem {
 
 type ReceptionistTabId = 'overview' | 'rooms' | 'reservations' | 'customers' | 'invoices' | 'notifications'
 type RestaurantStaffTabId = 'overview' | 'orders' | 'menu' | 'stocks' | 'notifications'
-type HousekeeperTabId = 'overview' | 'to-clean' | 'rooms' | 'notifications'
+type HousekeeperTabId = 'overview' | 'to-clean' | 'tasks' | 'rooms' | 'notifications'
 type ManagerTabId = 'overview' | 'rooms' | 'reservations' | 'customers' | 'invoices' | 'expenses' | 'restaurant' | 'housekeeping' | 'stocks' | 'notifications'
 
 const RECEPTIONIST_NAV_ITEMS: { id: ReceptionistTabId; label: string; icon: React.ReactNode }[] = [
@@ -238,6 +247,7 @@ const RESTAURANT_NAV_ITEMS: { id: RestaurantStaffTabId; label: string; icon: Rea
 const HOUSEKEEPER_NAV_ITEMS: { id: HousekeeperTabId; label: string; icon: React.ReactNode }[] = [
   { id: 'overview', label: 'Accueil', icon: <BarChart3 className="h-4 w-4" /> },
   { id: 'to-clean', label: 'À nettoyer', icon: <SprayCan className="h-4 w-4" /> },
+  { id: 'tasks', label: 'Tâches du jour', icon: <ClipboardCheck className="h-4 w-4" /> },
   { id: 'rooms', label: 'Toutes les chambres', icon: <Bed className="h-4 w-4" /> },
   { id: 'notifications', label: 'Notifications', icon: <Bell className="h-4 w-4" /> },
 ]
@@ -353,6 +363,77 @@ function getRoomStatusBadge(status: string) {
   }
 }
 
+// ─── Mobile Shared Components ────────────────────────────────────────────────
+
+interface MobileNavItem {
+  id: string
+  label: string
+  icon: React.ReactNode
+  badgeCount?: number
+}
+
+function MobileBottomNav({
+  items,
+  activeId,
+  onSelect,
+  colorScheme = 'amber',
+}: {
+  items: MobileNavItem[]
+  activeId: string
+  onSelect: (id: string) => void
+  colorScheme?: 'amber' | 'orange' | 'emerald'
+}) {
+  const colorMap = {
+    amber: { active: 'text-amber-700', indicator: 'bg-amber-600' },
+    orange: { active: 'text-orange-700', indicator: 'bg-orange-600' },
+    emerald: { active: 'text-emerald-700', indicator: 'bg-emerald-600' },
+  }
+  const colors = colorMap[colorScheme]
+
+  return (
+    <nav className="lg:hidden fixed bottom-0 left-0 right-0 z-50 bg-white/95 backdrop-blur-md border-t border-gray-200 shadow-[0_-2px_10px_rgba(0,0,0,0.08)]">
+      <div className="flex items-center justify-around px-1 py-1 max-w-lg mx-auto">
+        {items.map((item) => {
+          const isActive = activeId === item.id
+          return (
+            <button
+              key={item.id}
+              onClick={() => onSelect(item.id)}
+              className={`flex flex-col items-center justify-center min-w-[56px] min-h-[48px] px-2 py-1.5 rounded-xl transition-all relative touch-manipulation ${
+                isActive ? colors.active : 'text-gray-400 active:text-gray-600'
+              }`}
+            >
+              <div className="relative">
+                <span className={isActive ? '' : 'opacity-70'}>{item.icon}</span>
+                {item.badgeCount !== undefined && item.badgeCount > 0 && (
+                  <span className="absolute -top-1.5 -right-2.5 flex h-4.5 min-w-[18px] items-center justify-center rounded-full bg-red-500 text-[9px] font-bold text-white px-1 leading-none">
+                    {item.badgeCount > 9 ? '9+' : item.badgeCount}
+                  </span>
+                )}
+              </div>
+              <span className="text-[10px] font-semibold mt-0.5 leading-none">{item.label}</span>
+              {isActive && (
+                <div className={`absolute -bottom-1.5 left-1/2 -translate-x-1/2 h-1 w-6 rounded-full ${colors.indicator}`} />
+              )}
+            </button>
+          )
+        })}
+      </div>
+      {/* Safe area spacer for iOS */}
+      <div className="h-[env(safe-area-inset-bottom)]" />
+    </nav>
+  )
+}
+
+function MobileModeIndicator() {
+  return (
+    <div className="sm:hidden flex items-center gap-1 rounded-full bg-gray-100 px-2 py-0.5">
+      <Smartphone className="h-3 w-3 text-gray-500" />
+      <span className="text-[10px] font-semibold text-gray-500 uppercase tracking-wider">Mode Mobile</span>
+    </div>
+  )
+}
+
 // ─── Shared Support Footer ──────────────────────────────────────────────────
 // NOTE: WhatsApp support to the Super Admin is reserved for the hotel owner.
 // Staff members can only reach support by email.
@@ -395,6 +476,7 @@ function RestaurantStaffView({ profile, onLogout }: StaffDashboardProps) {
   const [menuLoading, setMenuLoading] = useState(true)
   const [menuSearch, setMenuSearch] = useState('')
   const [menuToggleLoading, setMenuToggleLoading] = useState<string | null>(null)
+  const isMobile = useIsMobile()
 
   // Stock state
   const [stockItems, setStockItems] = useState<StockItem[]>([])
@@ -674,6 +756,15 @@ function RestaurantStaffView({ profile, onLogout }: StaffDashboardProps) {
     </div>
   )
 
+  // Mobile bottom nav items for restaurant staff
+  const restaurantMobileNavItems: MobileNavItem[] = [
+    { id: 'overview', label: 'Accueil', icon: <Home className="h-5 w-5" />, badgeCount: (stats?.pending ?? 0) > 0 ? stats?.pending : undefined },
+    { id: 'orders', label: 'Commandes', icon: <Utensils className="h-5 w-5" />, badgeCount: (stats?.pending ?? 0) + (stats?.preparing ?? 0) > 0 ? (stats?.pending ?? 0) + (stats?.preparing ?? 0) : undefined },
+    { id: 'menu', label: 'Menu', icon: <UtensilsCrossed className="h-5 w-5" /> },
+    { id: 'stocks', label: 'Stocks', icon: <Package className="h-5 w-5" />, badgeCount: stockAlerts.length > 0 ? stockAlerts.length : undefined },
+    { id: 'notifications', label: 'Notifs', icon: <Bell className="h-5 w-5" /> },
+  ]
+
   return (
     <div className="flex min-h-screen bg-gray-50/50">
       <aside className="hidden lg:flex w-64 flex-col border-r border-orange-200/50 shrink-0">
@@ -695,29 +786,12 @@ function RestaurantStaffView({ profile, onLogout }: StaffDashboardProps) {
               </SheetContent>
             </Sheet>
             <span className="font-bold bg-gradient-to-r from-orange-600 to-amber-600 bg-clip-text text-transparent">OGOU_Hôtel</span>
+            <MobileModeIndicator />
           </div>
           <Button variant="ghost" size="sm" onClick={onLogout}><LogOut className="h-4 w-4" /></Button>
         </div>
 
-        <div className="lg:hidden flex overflow-x-auto gap-1 px-4 py-2 border-b bg-white">
-          {RESTAURANT_NAV_ITEMS.map((item) => (
-            <button
-              key={item.id}
-              onClick={() => setActiveTab(item.id)}
-              className={`flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium whitespace-nowrap transition-colors ${
-                activeTab === item.id ? 'bg-orange-100 text-orange-900' : 'text-gray-500 hover:bg-gray-100'
-              }`}
-            >
-              {item.icon}{item.label}
-              {item.id === 'overview' && <ExpiredStayBadge />}
-              {item.id === 'stocks' && stockAlerts.length > 0 && (
-                <span className="flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-white text-[9px]">{stockAlerts.length}</span>
-              )}
-            </button>
-          ))}
-        </div>
-
-        <div className="p-4 sm:p-6 lg:p-8 max-w-6xl mx-auto">
+        <div className="p-4 pb-24 lg:pb-8 sm:p-6 lg:p-8 max-w-6xl mx-auto">
           {/* ── Overview Tab ── */}
           {activeTab === 'overview' && (
             <div className="space-y-6">
@@ -876,25 +950,33 @@ function RestaurantStaffView({ profile, onLogout }: StaffDashboardProps) {
               ) : (
                 <div className="space-y-3">
                   {filteredOrders.map((order) => (
-                    <Card key={order.id} className="border-orange-200/40 shadow-sm">
-                      <CardContent className="p-4">
+                    <Card key={order.id} className={`shadow-sm border-2 ${
+                      order.status === 'pending' ? 'border-amber-300 bg-gradient-to-b from-amber-50 to-white' :
+                      order.status === 'preparing' ? 'border-sky-300 bg-gradient-to-b from-sky-50 to-white' :
+                      'border-emerald-200 bg-gradient-to-b from-emerald-50 to-white'
+                    }`}>
+                      <CardContent className="p-4 sm:p-3">
                         <div className="flex items-start justify-between mb-3">
                           <div>
                             <div className="flex items-center gap-2">
-                              <span className="text-lg font-bold text-gray-900">{getShortOrderId(order.id)}</span>
-                              {order.status === 'pending' && <Badge className="bg-amber-100 text-amber-700 border-amber-200 hover:bg-amber-100 text-xs">En attente</Badge>}
-                              {order.status === 'preparing' && <Badge className="bg-orange-100 text-orange-700 border-orange-200 hover:bg-orange-100 text-xs">En préparation</Badge>}
-                              {order.status === 'served' && <Badge className="bg-emerald-100 text-emerald-700 border-emerald-200 hover:bg-emerald-100 text-xs">Servie</Badge>}
+                              <span className="text-xl sm:text-lg font-bold text-gray-900">{getShortOrderId(order.id)}</span>
+                              {order.status === 'pending' && <Badge className="bg-amber-100 text-amber-700 border-amber-200 hover:bg-amber-100 text-xs">⏳ En attente</Badge>}
+                              {order.status === 'preparing' && <Badge className="bg-sky-100 text-sky-700 border-sky-200 hover:bg-sky-100 text-xs">🔥 En préparation</Badge>}
+                              {order.status === 'served' && <Badge className="bg-emerald-100 text-emerald-700 border-emerald-200 hover:bg-emerald-100 text-xs">✅ Servie</Badge>}
                             </div>
                             <div className="flex items-center gap-1.5 mt-1 text-sm text-muted-foreground">
                               {order.room_id ? (<><Bed className="h-3.5 w-3.5" /><span>Chambre</span></>) : (<><Utensils className="h-3.5 w-3.5" /><span>Table {order.table_number || '—'}</span></>)}
                               <span className="mx-1">•</span><Clock className="h-3.5 w-3.5" /><span>{formatTimeAgo(order.created_at)}</span>
                             </div>
                           </div>
-                          <ChevronRight className="h-5 w-5 text-orange-300" />
+                          <span className="text-base sm:text-sm font-bold text-gray-700">{formatFCFA(order.total_amount)}</span>
                         </div>
                         {order.restaurant_order_items && order.restaurant_order_items.length > 0 && (
-                          <div className="bg-orange-50/50 rounded-lg p-3 mb-3">
+                          <div className={`rounded-lg p-3 mb-3 ${
+                            order.status === 'pending' ? 'bg-amber-50/50' :
+                            order.status === 'preparing' ? 'bg-sky-50/50' :
+                            'bg-emerald-50/50'
+                          }`}>
                             <div className="space-y-1.5">
                               {order.restaurant_order_items.map((item) => (
                                 <div key={item.id} className="flex items-center justify-between text-sm">
@@ -906,24 +988,20 @@ function RestaurantStaffView({ profile, onLogout }: StaffDashboardProps) {
                                 </div>
                               ))}
                             </div>
-                            <Separator className="my-2" />
-                            <div className="flex items-center justify-between text-sm font-semibold">
-                              <span>Total</span><span className="text-orange-800">{formatFCFA(order.total_amount)}</span>
-                            </div>
                           </div>
                         )}
                         {order.status === 'pending' && (
-                          <Button className="w-full h-12 text-base font-medium rounded-xl bg-orange-600 hover:bg-orange-700 text-white shadow-md shadow-orange-600/20" onClick={() => handleOrderStatus(order.id, 'preparing')} disabled={actionLoading === order.id}>
-                            {actionLoading === order.id ? <Loader2 className="h-5 w-5 animate-spin mr-2" /> : <span className="mr-2">🔥</span>}Préparer
+                          <Button className="w-full h-14 sm:h-12 text-base font-bold rounded-xl bg-orange-600 hover:bg-orange-700 text-white shadow-md shadow-orange-600/20 touch-manipulation" onClick={() => handleOrderStatus(order.id, 'preparing')} disabled={actionLoading === order.id}>
+                            {actionLoading === order.id ? <Loader2 className="h-5 w-5 animate-spin mr-2" /> : <Flame className="h-5 w-5 mr-2" />}Préparé
                           </Button>
                         )}
                         {order.status === 'preparing' && (
-                          <Button className="w-full h-12 text-base font-medium rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white shadow-md shadow-emerald-600/20" onClick={() => handleOrderStatus(order.id, 'served')} disabled={actionLoading === order.id}>
-                            {actionLoading === order.id ? <Loader2 className="h-5 w-5 animate-spin mr-2" /> : <CheckCircle2 className="h-5 w-5 mr-2" />}Servir
+                          <Button className="w-full h-14 sm:h-12 text-base font-bold rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white shadow-md shadow-emerald-600/20 touch-manipulation" onClick={() => handleOrderStatus(order.id, 'served')} disabled={actionLoading === order.id}>
+                            {actionLoading === order.id ? <Loader2 className="h-5 w-5 animate-spin mr-2" /> : <CheckCircle2 className="h-5 w-5 mr-2" />}Servi
                           </Button>
                         )}
                         {order.status === 'served' && (
-                          <div className="flex items-center justify-center gap-2 text-emerald-600 py-1"><CheckCircle2 className="h-5 w-5" /><span className="text-sm font-medium">Commande servie</span></div>
+                          <div className="flex items-center justify-center gap-2 text-emerald-600 py-2"><CheckCircle2 className="h-5 w-5" /><span className="text-sm font-semibold">Commande servie</span></div>
                         )}
                       </CardContent>
                     </Card>
@@ -1088,94 +1166,182 @@ function RestaurantStaffView({ profile, onLogout }: StaffDashboardProps) {
         </div>
       </main>
 
-      {/* Create Order Dialog */}
-      <Dialog open={createOrderOpen} onOpenChange={setCreateOrderOpen}>
-        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2"><ShoppingCart className="h-5 w-5 text-orange-600" />Nouvelle commande</DialogTitle>
-            <DialogDescription>Ajoutez des articles du menu et validez la commande.</DialogDescription>
-          </DialogHeader>
-
-          <div className="space-y-4">
-            {/* Order type */}
-            <div className="flex gap-2">
-              <Button variant={orderType === 'table' ? 'default' : 'outline'} size="sm" className={orderType === 'table' ? 'bg-orange-600 hover:bg-orange-700 text-white' : 'border-orange-200 text-orange-700'} onClick={() => setOrderType('table')}>
-                                Table
-              </Button>
-              <Button variant={orderType === 'room' ? 'default' : 'outline'} size="sm" className={orderType === 'room' ? 'bg-orange-600 hover:bg-orange-700 text-white' : 'border-orange-200 text-orange-700'} onClick={() => setOrderType('room')}>
-                                Chambre
-              </Button>
-            </div>
-            {orderType === 'table' ? (
-              <Input placeholder="Numéro de table" value={orderTableNumber} onChange={(e) => setOrderTableNumber(e.target.value)} className="border-orange-200" />
-            ) : (
-              <Input placeholder="Numéro de chambre" value={orderTableNumber} onChange={(e) => setOrderTableNumber(e.target.value)} className="border-orange-200" />
-            )}
-
-            {/* Search menu items */}
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input placeholder="Rechercher un plat..." value={orderSearch} onChange={(e) => setOrderSearch(e.target.value)} className="pl-9 border-orange-200" />
-            </div>
-
-            {/* Menu items for selection */}
-            <div className="max-h-48 overflow-y-auto space-y-1 border rounded-lg p-2 bg-gray-50">
-              {(orderSearch ? filteredMenuForOrder : groupedMenuForOrder).length === 0 || (orderSearch && filteredMenuForOrder.length === 0) ? (
-                <p className="text-sm text-muted-foreground text-center py-4">Aucun article disponible</p>
-              ) : (orderSearch ? [{ value: 'search', label: 'Résultats', items: filteredMenuForOrder }] : groupedMenuForOrder).map(group => (
-                <div key={group.value}>
-                  {!orderSearch && <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider px-2 py-1">{CATEGORY_ICONS[group.value] || '🍴'} {group.label}</p>}
-                  {group.items.map(item => {
-                    const inOrder = orderItems.find(o => o.menuItemId === item.id)
-                    return (
-                      <button key={item.id} onClick={() => addOrderItem(item)} className="w-full flex items-center justify-between rounded-lg px-3 py-2 text-sm hover:bg-orange-50 transition-colors">
-                        <div className="flex-1 text-left">
-                          <span className="font-medium text-gray-900">{item.name}</span>
-                          <span className="ml-2 text-muted-foreground">{formatFCFA(item.price)}</span>
-                        </div>
-                        {inOrder && <Badge className="bg-orange-100 text-orange-700 text-[10px]">x{inOrder.quantity}</Badge>}
-                      </button>
-                    )
-                  })}
-                </div>
-              ))}
-            </div>
-
-            {/* Current order items */}
-            {orderItems.length > 0 && (
-              <div className="space-y-2 border rounded-lg p-3 bg-orange-50/50">
-                <p className="text-sm font-semibold text-orange-800">Commande</p>
-                {orderItems.map(item => (
-                  <div key={item.menuItemId} className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <Button variant="outline" size="icon" className="h-7 w-7 border-orange-200" onClick={() => updateOrderItemQuantity(item.menuItemId, item.quantity - 1)}><Minus className="h-3 w-3" /></Button>
-                      <span className="text-sm font-bold text-orange-800 min-w-[24px] text-center">{item.quantity}</span>
-                      <Button variant="outline" size="icon" className="h-7 w-7 border-orange-200" onClick={() => updateOrderItemQuantity(item.menuItemId, item.quantity + 1)}><Plus className="h-3 w-3" /></Button>
-                      <span className="text-sm text-gray-700">{item.name}</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <span className="text-sm font-medium text-orange-800">{formatFCFA(item.price * item.quantity)}</span>
-                      <Button variant="ghost" size="icon" className="h-7 w-7 text-red-500" onClick={() => updateOrderItemQuantity(item.menuItemId, 0)}><X className="h-3 w-3" /></Button>
-                    </div>
+      {/* Create Order - Sheet on mobile, Dialog on desktop */}
+      {isMobile ? (
+        <Sheet open={createOrderOpen} onOpenChange={setCreateOrderOpen}>
+          <SheetContent side="bottom" className="max-h-[85vh] rounded-t-2xl p-0">
+            <SheetHeader className="px-4 pt-4 pb-2 border-b">
+              <SheetTitle className="flex items-center gap-2"><ShoppingCart className="h-5 w-5 text-orange-600" />Nouvelle commande</SheetTitle>
+            </SheetHeader>
+            <div className="overflow-y-auto max-h-[65vh] px-4 py-4 space-y-4">
+              <div className="flex gap-2">
+                <Button variant={orderType === 'table' ? 'default' : 'outline'} size="sm" className={orderType === 'table' ? 'bg-orange-600 hover:bg-orange-700 text-white' : 'border-orange-200 text-orange-700'} onClick={() => setOrderType('table')}>
+                  Table
+                </Button>
+                <Button variant={orderType === 'room' ? 'default' : 'outline'} size="sm" className={orderType === 'room' ? 'bg-orange-600 hover:bg-orange-700 text-white' : 'border-orange-200 text-orange-700'} onClick={() => setOrderType('room')}>
+                  Chambre
+                </Button>
+              </div>
+              {orderType === 'table' ? (
+                <Input placeholder="Numéro de table" value={orderTableNumber} onChange={(e) => setOrderTableNumber(e.target.value)} className="border-orange-200 h-12 text-base" />
+              ) : (
+                <Input placeholder="Numéro de chambre" value={orderTableNumber} onChange={(e) => setOrderTableNumber(e.target.value)} className="border-orange-200 h-12 text-base" />
+              )}
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input placeholder="Rechercher un plat..." value={orderSearch} onChange={(e) => setOrderSearch(e.target.value)} className="pl-9 border-orange-200 h-12" />
+              </div>
+              <div className="max-h-40 overflow-y-auto space-y-1 border rounded-lg p-2 bg-gray-50">
+                {(orderSearch ? filteredMenuForOrder : groupedMenuForOrder).length === 0 || (orderSearch && filteredMenuForOrder.length === 0) ? (
+                  <p className="text-sm text-muted-foreground text-center py-4">Aucun article disponible</p>
+                ) : (orderSearch ? [{ value: 'search', label: 'Résultats', items: filteredMenuForOrder }] : groupedMenuForOrder).map(group => (
+                  <div key={group.value}>
+                    {!orderSearch && <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider px-2 py-1">{CATEGORY_ICONS[group.value] || '🍴'} {group.label}</p>}
+                    {group.items.map(item => {
+                      const inOrder = orderItems.find(o => o.menuItemId === item.id)
+                      return (
+                        <button key={item.id} onClick={() => addOrderItem(item)} className="w-full flex items-center justify-between rounded-lg px-3 py-3 text-sm hover:bg-orange-50 transition-colors min-h-[44px]">
+                          <div className="flex-1 text-left">
+                            <span className="font-medium text-gray-900">{item.name}</span>
+                            <span className="ml-2 text-muted-foreground">{formatFCFA(item.price)}</span>
+                          </div>
+                          {inOrder && <Badge className="bg-orange-100 text-orange-700 text-[10px]">x{inOrder.quantity}</Badge>}
+                        </button>
+                      )
+                    })}
                   </div>
                 ))}
-                <Separator />
-                <div className="flex items-center justify-between text-sm font-bold">
-                  <span>Total</span>
-                  <span className="text-orange-800">{formatFCFA(getOrderTotal())}</span>
-                </div>
               </div>
-            )}
-          </div>
+              {orderItems.length > 0 && (
+                <div className="space-y-2 border rounded-lg p-3 bg-orange-50/50">
+                  <p className="text-sm font-semibold text-orange-800">Commande</p>
+                  {orderItems.map(item => (
+                    <div key={item.menuItemId} className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <Button variant="outline" size="icon" className="h-8 w-8 border-orange-200" onClick={() => updateOrderItemQuantity(item.menuItemId, item.quantity - 1)}><Minus className="h-3 w-3" /></Button>
+                        <span className="text-sm font-bold text-orange-800 min-w-[24px] text-center">{item.quantity}</span>
+                        <Button variant="outline" size="icon" className="h-8 w-8 border-orange-200" onClick={() => updateOrderItemQuantity(item.menuItemId, item.quantity + 1)}><Plus className="h-3 w-3" /></Button>
+                        <span className="text-sm text-gray-700">{item.name}</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm font-medium text-orange-800">{formatFCFA(item.price * item.quantity)}</span>
+                        <Button variant="ghost" size="icon" className="h-8 w-8 text-red-500" onClick={() => updateOrderItemQuantity(item.menuItemId, 0)}><X className="h-3 w-3" /></Button>
+                      </div>
+                    </div>
+                  ))}
+                  <Separator />
+                  <div className="flex items-center justify-between text-sm font-bold">
+                    <span>Total</span>
+                    <span className="text-orange-800">{formatFCFA(getOrderTotal())}</span>
+                  </div>
+                </div>
+              )}
+            </div>
+            <div className="sticky bottom-0 bg-white border-t p-4 flex gap-2">
+              <Button variant="outline" className="flex-1 h-12" onClick={() => setCreateOrderOpen(false)}>Annuler</Button>
+              <Button className="flex-1 h-12 bg-orange-600 hover:bg-orange-700 text-white shadow-md" disabled={creatingOrder || orderItems.length === 0} onClick={handleCreateOrder}>
+                {creatingOrder ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Création...</> : <><CheckCircle2 className="h-4 w-4 mr-2" />Créer ({formatFCFA(getOrderTotal())})</>}
+              </Button>
+            </div>
+          </SheetContent>
+        </Sheet>
+      ) : (
+        <Dialog open={createOrderOpen} onOpenChange={setCreateOrderOpen}>
+          <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2"><ShoppingCart className="h-5 w-5 text-orange-600" />Nouvelle commande</DialogTitle>
+              <DialogDescription>Ajoutez des articles du menu et validez la commande.</DialogDescription>
+            </DialogHeader>
 
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setCreateOrderOpen(false)}>Annuler</Button>
-            <Button className="bg-orange-600 hover:bg-orange-700 text-white shadow-md" disabled={creatingOrder || orderItems.length === 0} onClick={handleCreateOrder}>
-              {creatingOrder ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Création...</> : <><CheckCircle2 className="h-4 w-4 mr-2" />Créer ({formatFCFA(getOrderTotal())})</>}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+            <div className="space-y-4">
+              {/* Order type */}
+              <div className="flex gap-2">
+                <Button variant={orderType === 'table' ? 'default' : 'outline'} size="sm" className={orderType === 'table' ? 'bg-orange-600 hover:bg-orange-700 text-white' : 'border-orange-200 text-orange-700'} onClick={() => setOrderType('table')}>
+                  Table
+                </Button>
+                <Button variant={orderType === 'room' ? 'default' : 'outline'} size="sm" className={orderType === 'room' ? 'bg-orange-600 hover:bg-orange-700 text-white' : 'border-orange-200 text-orange-700'} onClick={() => setOrderType('room')}>
+                  Chambre
+                </Button>
+              </div>
+              {orderType === 'table' ? (
+                <Input placeholder="Numéro de table" value={orderTableNumber} onChange={(e) => setOrderTableNumber(e.target.value)} className="border-orange-200" />
+              ) : (
+                <Input placeholder="Numéro de chambre" value={orderTableNumber} onChange={(e) => setOrderTableNumber(e.target.value)} className="border-orange-200" />
+              )}
+
+              {/* Search menu items */}
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input placeholder="Rechercher un plat..." value={orderSearch} onChange={(e) => setOrderSearch(e.target.value)} className="pl-9 border-orange-200" />
+              </div>
+
+              {/* Menu items for selection */}
+              <div className="max-h-48 overflow-y-auto space-y-1 border rounded-lg p-2 bg-gray-50">
+                {(orderSearch ? filteredMenuForOrder : groupedMenuForOrder).length === 0 || (orderSearch && filteredMenuForOrder.length === 0) ? (
+                  <p className="text-sm text-muted-foreground text-center py-4">Aucun article disponible</p>
+                ) : (orderSearch ? [{ value: 'search', label: 'Résultats', items: filteredMenuForOrder }] : groupedMenuForOrder).map(group => (
+                  <div key={group.value}>
+                    {!orderSearch && <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider px-2 py-1">{CATEGORY_ICONS[group.value] || '🍴'} {group.label}</p>}
+                    {group.items.map(item => {
+                      const inOrder = orderItems.find(o => o.menuItemId === item.id)
+                      return (
+                        <button key={item.id} onClick={() => addOrderItem(item)} className="w-full flex items-center justify-between rounded-lg px-3 py-2 text-sm hover:bg-orange-50 transition-colors">
+                          <div className="flex-1 text-left">
+                            <span className="font-medium text-gray-900">{item.name}</span>
+                            <span className="ml-2 text-muted-foreground">{formatFCFA(item.price)}</span>
+                          </div>
+                          {inOrder && <Badge className="bg-orange-100 text-orange-700 text-[10px]">x{inOrder.quantity}</Badge>}
+                        </button>
+                      )
+                    })}
+                  </div>
+                ))}
+              </div>
+
+              {/* Current order items */}
+              {orderItems.length > 0 && (
+                <div className="space-y-2 border rounded-lg p-3 bg-orange-50/50">
+                  <p className="text-sm font-semibold text-orange-800">Commande</p>
+                  {orderItems.map(item => (
+                    <div key={item.menuItemId} className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <Button variant="outline" size="icon" className="h-7 w-7 border-orange-200" onClick={() => updateOrderItemQuantity(item.menuItemId, item.quantity - 1)}><Minus className="h-3 w-3" /></Button>
+                        <span className="text-sm font-bold text-orange-800 min-w-[24px] text-center">{item.quantity}</span>
+                        <Button variant="outline" size="icon" className="h-7 w-7 border-orange-200" onClick={() => updateOrderItemQuantity(item.menuItemId, item.quantity + 1)}><Plus className="h-3 w-3" /></Button>
+                        <span className="text-sm text-gray-700">{item.name}</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm font-medium text-orange-800">{formatFCFA(item.price * item.quantity)}</span>
+                        <Button variant="ghost" size="icon" className="h-7 w-7 text-red-500" onClick={() => updateOrderItemQuantity(item.menuItemId, 0)}><X className="h-3 w-3" /></Button>
+                      </div>
+                    </div>
+                  ))}
+                  <Separator />
+                  <div className="flex items-center justify-between text-sm font-bold">
+                    <span>Total</span>
+                    <span className="text-orange-800">{formatFCFA(getOrderTotal())}</span>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setCreateOrderOpen(false)}>Annuler</Button>
+              <Button className="bg-orange-600 hover:bg-orange-700 text-white shadow-md" disabled={creatingOrder || orderItems.length === 0} onClick={handleCreateOrder}>
+                {creatingOrder ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Création...</> : <><CheckCircle2 className="h-4 w-4 mr-2" />Créer ({formatFCFA(getOrderTotal())})</>}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      )}
+
+      {/* Mobile Bottom Navigation */}
+      <MobileBottomNav
+        items={restaurantMobileNavItems}
+        activeId={activeTab}
+        onSelect={(id) => setActiveTab(id as RestaurantStaffTabId)}
+        colorScheme="orange"
+      />
     </div>
   )
 }
@@ -1192,6 +1358,41 @@ function HousekeeperView({ profile, onLogout }: StaffDashboardProps) {
   const [roomFilter, setRoomFilter] = useState<string>('all')
   const [lastRefresh, setLastRefresh] = useState<Date | null>(null)
   const [secondsSinceRefresh, setSecondsSinceRefresh] = useState(0)
+  const isMobile = useIsMobile()
+
+  // ─── Tâches de ménage ──────────────────────────────────────
+  interface HousekeepingTaskInfo {
+    id: string
+    hotel_id: string
+    room_id: string
+    assigned_to: string | null
+    task_type: 'checkout_cleaning' | 'deep_cleaning' | 'maintenance_cleaning' | 'inspection'
+    priority: 'urgent' | 'high' | 'normal' | 'low'
+    status: 'pending' | 'in_progress' | 'completed' | 'skipped'
+    notes: string | null
+    due_date: string
+    completed_at: string | null
+    created_at: string
+    rooms?: { id: string; room_number: string; room_type: string; status: string }
+    profiles?: { id: string; first_name: string; last_name: string } | null
+  }
+
+  const [tasks, setTasks] = useState<HousekeepingTaskInfo[]>([])
+  const [taskActionLoading, setTaskActionLoading] = useState<string | null>(null)
+
+  const TASK_TYPE_LABELS: Record<string, string> = {
+    checkout_cleaning: 'Ménage départ',
+    deep_cleaning: 'Grand nettoyage',
+    maintenance_cleaning: 'Nettoyage maintenance',
+    inspection: 'Inspection',
+  }
+
+  const PRIORITY_LABELS: Record<string, string> = {
+    urgent: 'Urgent',
+    high: 'Haute',
+    normal: 'Normale',
+    low: 'Basse',
+  }
 
   const fetchData = useCallback(async () => {
     setLoading(true)
@@ -1201,6 +1402,7 @@ function HousekeeperView({ profile, onLogout }: StaffDashboardProps) {
         const data = await res.json()
         setRooms(data.rooms || [])
         setStats(data.stats || null)
+        setTasks(data.tasks || [])
         setLastRefresh(new Date())
         setSecondsSinceRefresh(0)
       } else {
@@ -1270,6 +1472,30 @@ function HousekeeperView({ profile, onLogout }: StaffDashboardProps) {
     }
   }
 
+  // ─── Gestion des tâches de ménage ────────────────────────
+  const handleTaskStatus = async (taskId: string, newStatus: string) => {
+    setTaskActionLoading(taskId)
+    try {
+      const res = await fetch(`/api/staff/housekeeping-tasks/${taskId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: newStatus }),
+      })
+      if (res.ok) {
+        const statusLabel = newStatus === 'in_progress' ? 'En cours' : newStatus === 'completed' ? 'Terminé' : newStatus
+        toast.success(`Tâche marquée "${statusLabel}"`)
+        fetchData()
+      } else {
+        const data = await res.json()
+        toast.error(data.error || 'Erreur lors de la mise à jour')
+      }
+    } catch {
+      toast.error('Erreur de connexion')
+    } finally {
+      setTaskActionLoading(null)
+    }
+  }
+
   const filteredRooms = rooms.filter(r => roomFilter === 'all' || r.status === roomFilter)
   const priorityRooms = rooms.filter(r => r.status === 'cleaning')
   const cleaningRooms = rooms.filter(r => r.status === 'cleaning')
@@ -1305,6 +1531,11 @@ function HousekeeperView({ profile, onLogout }: StaffDashboardProps) {
               {item.id === 'to-clean' && (stats?.cleaning ?? 0) > 0 && (
                 <span className="flex h-5 w-5 items-center justify-center rounded-full bg-amber-500 text-[10px] font-bold text-white shrink-0">
                   {stats?.cleaning ?? 0}
+                </span>
+              )}
+              {item.id === 'tasks' && tasks.filter(t => t.status === 'pending' || t.status === 'in_progress').length > 0 && (
+                <span className="flex h-5 w-5 items-center justify-center rounded-full bg-emerald-500 text-[10px] font-bold text-white shrink-0">
+                  {tasks.filter(t => t.status === 'pending' || t.status === 'in_progress').length}
                 </span>
               )}
               {item.id === 'overview' && <ExpiredStayBadge />}
@@ -1347,6 +1578,15 @@ function HousekeeperView({ profile, onLogout }: StaffDashboardProps) {
     </div>
   )
 
+  // Mobile bottom nav items for housekeeper
+  const housekeeperMobileNavItems: MobileNavItem[] = [
+    { id: 'overview', label: 'Accueil', icon: <Home className="h-5 w-5" /> },
+    { id: 'to-clean', label: 'À nettoyer', icon: <SprayCan className="h-5 w-5" />, badgeCount: (stats?.cleaning ?? 0) > 0 ? stats?.cleaning : undefined },
+    { id: 'tasks', label: 'Tâches', icon: <ClipboardCheck className="h-5 w-5" />, badgeCount: tasks.filter(t => t.status === 'pending' || t.status === 'in_progress').length > 0 ? tasks.filter(t => t.status === 'pending' || t.status === 'in_progress').length : undefined },
+    { id: 'rooms', label: 'Chambres', icon: <Bed className="h-5 w-5" /> },
+    { id: 'notifications', label: 'Notifs', icon: <Bell className="h-5 w-5" /> },
+  ]
+
   return (
     <div className="flex min-h-screen bg-gray-50/50">
       {/* Desktop Sidebar */}
@@ -1373,37 +1613,14 @@ function HousekeeperView({ profile, onLogout }: StaffDashboardProps) {
               </SheetContent>
             </Sheet>
             <span className="font-bold bg-gradient-to-r from-emerald-600 to-green-500 bg-clip-text text-transparent">OGOU_Hôtel</span>
+            <MobileModeIndicator />
           </div>
           <Button variant="ghost" size="sm" onClick={onLogout}>
             <LogOut className="h-4 w-4" />
           </Button>
         </div>
 
-        {/* Mobile Navigation Pills */}
-        <div className="lg:hidden flex overflow-x-auto gap-1 px-4 py-2 border-b bg-white">
-          {HOUSEKEEPER_NAV_ITEMS.map((item) => (
-            <button
-              key={item.id}
-              onClick={() => setActiveTab(item.id)}
-              className={`flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium whitespace-nowrap transition-colors ${
-                activeTab === item.id
-                  ? 'bg-emerald-100 text-emerald-900'
-                  : 'text-gray-500 hover:bg-gray-100'
-              }`}
-            >
-              {item.icon}
-              {item.label}
-              {item.id === 'to-clean' && (stats?.cleaning ?? 0) > 0 && (
-                <span className="flex h-4 w-4 items-center justify-center rounded-full bg-amber-500 text-[9px] font-bold text-white">
-                  {stats?.cleaning ?? 0}
-                </span>
-              )}
-              {item.id === 'overview' && <ExpiredStayBadge />}
-            </button>
-          ))}
-        </div>
-
-        <div className="p-4 sm:p-6 lg:p-8 max-w-6xl mx-auto">
+        <div className="p-4 pb-24 lg:pb-8 sm:p-6 lg:p-8 max-w-6xl mx-auto">
           {/* Overview Tab */}
           {activeTab === 'overview' && (
             <div className="space-y-6">
@@ -1528,6 +1745,13 @@ function HousekeeperView({ profile, onLogout }: StaffDashboardProps) {
                       <span className="text-sm font-medium text-emerald-900">Toutes les chambres</span>
                     </CardContent>
                   </Card>
+                  {/* Scan QR Code button (placeholder) */}
+                  <Card className="border-sky-200/40 cursor-pointer hover:shadow-md transition-shadow" onClick={() => { toast.info('Fonctionnalité de scan QR à venir !') }}>
+                    <CardContent className="p-4 flex flex-col items-center text-center gap-2">
+                      <QrCode className="h-6 w-6 text-sky-600" />
+                      <span className="text-sm font-medium text-sky-900">Scanner chambre</span>
+                    </CardContent>
+                  </Card>
                 </div>
               </div>
             </div>
@@ -1641,19 +1865,25 @@ function HousekeeperView({ profile, onLogout }: StaffDashboardProps) {
                           <p className="text-sm text-amber-700 font-medium mb-1">
                             Client parti — nettoyage requis
                           </p>
-                          <p className="text-xs text-gray-500 mb-4">{room.room_type} — {formatFCFA(room.price_per_night)}/nuit</p>
+                          <p className="text-xs text-gray-500 mb-2">{room.room_type} — {formatFCFA(room.price_per_night)}/nuit</p>
+                          {/* Mobile swipe hint */}
+                          <div className="sm:hidden flex items-center justify-center gap-3 text-xs text-amber-500 mb-3">
+                            <div className="flex items-center gap-1"><ChevronLeft className="h-3 w-3" /><span className="text-red-500">Signaler</span></div>
+                            <ArrowRightLeft className="h-3 w-3" />
+                            <div className="flex items-center gap-1"><span className="text-emerald-600">Valider</span><ChevronRight className="h-3 w-3" /></div>
+                          </div>
                           <div className="space-y-2 pt-3 border-t border-amber-200">
                             <Button
-                              className="w-full h-12 text-sm font-bold rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white shadow-lg shadow-emerald-600/20"
+                              className="w-full h-14 sm:h-12 text-sm font-bold rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white shadow-lg shadow-emerald-600/20 touch-manipulation"
                               onClick={() => handleRoomStatus(room.id, 'available', room.room_number)}
                               disabled={actionLoading === room.id}
                             >
-                              {actionLoading === room.id ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <CheckCircle2 className="h-5 w-5 mr-2" />}
+                              {actionLoading === room.id ? <Loader2 className="h-5 w-5 animate-spin mr-2" /> : <CheckCircle2 className="h-5 w-5 mr-2" />}
                               ✅ Chambre propre — Valider
                             </Button>
                             <Button
                               variant="outline"
-                              className="w-full h-10 text-xs font-medium rounded-xl border-red-300 text-red-700 hover:bg-red-50 hover:border-red-400"
+                              className="w-full h-12 sm:h-10 text-xs font-medium rounded-xl border-red-300 text-red-700 hover:bg-red-50 hover:border-red-400 touch-manipulation"
                               onClick={() => handleRoomStatus(room.id, 'maintenance', room.room_number)}
                               disabled={actionLoading === room.id}
                             >
@@ -1721,6 +1951,175 @@ function HousekeeperView({ profile, onLogout }: StaffDashboardProps) {
                       </Card>
                     ))}
                   </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* ═══ Tâches du jour Tab ═══ */}
+          {activeTab === 'tasks' && (
+            <div className="space-y-6">
+              <div className="flex items-center justify-between flex-wrap gap-3">
+                <div>
+                  <h2 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
+                    <ClipboardCheck className="h-6 w-6 text-emerald-600" />
+                    Tâches du jour
+                  </h2>
+                  <p className="text-sm text-gray-500 mt-1">Vos tâches de ménage planifiées pour aujourd&apos;hui</p>
+                </div>
+                <div className="flex items-center gap-3">
+                  {lastRefresh && (
+                    <span className="text-xs text-gray-400">
+                      Mise à jour il y a {secondsSinceRefresh}s
+                    </span>
+                  )}
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={fetchData}
+                    disabled={loading}
+                    className="border-emerald-200 text-emerald-700 hover:bg-emerald-50"
+                  >
+                    <RefreshCw className={`h-4 w-4 mr-1.5 ${loading ? 'animate-spin' : ''}`} />
+                    Actualiser
+                  </Button>
+                </div>
+              </div>
+
+              {/* Résumé */}
+              <div className="grid grid-cols-3 gap-3">
+                <Card className="border-amber-200/50 bg-gradient-to-br from-amber-50 to-amber-100/50">
+                  <CardContent className="p-3 text-center">
+                    <p className="text-2xl font-bold text-amber-700">{tasks.filter(t => t.status === 'pending').length}</p>
+                    <p className="text-xs font-medium text-amber-800">En attente</p>
+                  </CardContent>
+                </Card>
+                <Card className="border-sky-200/50 bg-gradient-to-br from-sky-50 to-sky-100/50">
+                  <CardContent className="p-3 text-center">
+                    <p className="text-2xl font-bold text-sky-700">{tasks.filter(t => t.status === 'in_progress').length}</p>
+                    <p className="text-xs font-medium text-sky-800">En cours</p>
+                  </CardContent>
+                </Card>
+                <Card className="border-emerald-200/50 bg-gradient-to-br from-emerald-50 to-emerald-100/50">
+                  <CardContent className="p-3 text-center">
+                    <p className="text-2xl font-bold text-emerald-700">{tasks.filter(t => t.status === 'completed').length}</p>
+                    <p className="text-xs font-medium text-emerald-800">Terminé</p>
+                  </CardContent>
+                </Card>
+              </div>
+
+              {/* Liste des tâches */}
+              {loading ? (
+                <div className="space-y-3">
+                  {[1, 2, 3].map(i => (
+                    <Skeleton key={i} className="h-24 w-full" />
+                  ))}
+                </div>
+              ) : tasks.length === 0 ? (
+                <Card>
+                  <CardContent className="p-8 text-center">
+                    <ClipboardCheck className="h-12 w-12 text-gray-300 mx-auto mb-3" />
+                    <p className="text-gray-500 font-medium">Aucune tâche planifiée pour aujourd&apos;hui</p>
+                    <p className="text-sm text-gray-400 mt-1">Les tâches de ménage apparaîtront ici lorsqu&apos;elles seront planifiées</p>
+                  </CardContent>
+                </Card>
+              ) : (
+                <div className="space-y-3">
+                  {tasks
+                    .sort((a, b) => {
+                      // Trier: pending d'abord, puis in_progress, puis par priorité
+                      const statusOrder = { pending: 0, in_progress: 1, completed: 2, skipped: 3 }
+                      const priorityOrder = { urgent: 0, high: 1, normal: 2, low: 3 }
+                      const statusDiff = (statusOrder[a.status] ?? 9) - (statusOrder[b.status] ?? 9)
+                      if (statusDiff !== 0) return statusDiff
+                      return (priorityOrder[a.priority] ?? 9) - (priorityOrder[b.priority] ?? 9)
+                    })
+                    .map(task => (
+                    <Card
+                      key={task.id}
+                      className={`${
+                        task.status === 'completed' ? 'opacity-50' :
+                        task.priority === 'urgent' ? 'border-red-300 bg-gradient-to-r from-red-50 to-white' :
+                        task.priority === 'high' ? 'border-amber-300 bg-gradient-to-r from-amber-50 to-white' :
+                        task.status === 'in_progress' ? 'border-sky-300 bg-gradient-to-r from-sky-50 to-white' :
+                        'border-gray-200'
+                      }`}
+                    >
+                      <CardContent className="p-4">
+                        <div className="flex items-center justify-between mb-2">
+                          <div className="flex items-center gap-3">
+                            <span className="text-xl font-bold text-gray-900">
+                              {task.rooms?.room_number || '—'}
+                            </span>
+                            <Badge className={`text-xs ${
+                              task.task_type === 'checkout_cleaning' ? 'bg-sky-100 text-sky-700 border-sky-200' :
+                              task.task_type === 'deep_cleaning' ? 'bg-purple-100 text-purple-700 border-purple-200' :
+                              task.task_type === 'maintenance_cleaning' ? 'bg-orange-100 text-orange-700 border-orange-200' :
+                              'bg-teal-100 text-teal-700 border-teal-200'
+                            }`}>
+                              {TASK_TYPE_LABELS[task.task_type] || task.task_type}
+                            </Badge>
+                            <Badge className={`text-xs ${
+                              task.priority === 'urgent' ? 'bg-red-100 text-red-700 border-red-200' :
+                              task.priority === 'high' ? 'bg-amber-100 text-amber-700 border-amber-200' :
+                              'bg-gray-100 text-gray-600 border-gray-200'
+                            }`}>
+                              {PRIORITY_LABELS[task.priority] || task.priority}
+                            </Badge>
+                          </div>
+                          <Badge className={`text-xs ${
+                            task.status === 'pending' ? 'bg-amber-100 text-amber-700 border-amber-200' :
+                            task.status === 'in_progress' ? 'bg-sky-100 text-sky-700 border-sky-200' :
+                            task.status === 'completed' ? 'bg-emerald-100 text-emerald-700 border-emerald-200' :
+                            'bg-gray-100 text-gray-500 border-gray-200'
+                          }`}>
+                            {task.status === 'pending' ? 'En attente' :
+                             task.status === 'in_progress' ? 'En cours' :
+                             task.status === 'completed' ? 'Terminé' : 'Ignoré'}
+                          </Badge>
+                        </div>
+                        {task.rooms && (
+                          <p className="text-xs text-gray-500 mb-1">{task.rooms.room_type}</p>
+                        )}
+                        {task.notes && (
+                          <p className="text-xs text-gray-600 bg-gray-50 rounded p-2 mb-3">{task.notes}</p>
+                        )}
+                        {/* Boutons d'action — grands et tactiles pour mobile */}
+                        {task.status !== 'completed' && task.status !== 'skipped' && (
+                          <div className="flex gap-2 mt-3">
+                            {task.status === 'pending' && (
+                              <Button
+                                className="flex-1 h-12 text-sm font-bold rounded-xl bg-sky-600 hover:bg-sky-700 text-white"
+                                onClick={() => handleTaskStatus(task.id, 'in_progress')}
+                                disabled={taskActionLoading === task.id}
+                              >
+                                {taskActionLoading === task.id ? <Loader2 className="h-5 w-5 animate-spin mr-2" /> : <Play className="h-5 w-5 mr-2" />}
+                                Démarrer
+                              </Button>
+                            )}
+                            {task.status === 'in_progress' && (
+                              <Button
+                                className="flex-1 h-12 text-sm font-bold rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white"
+                                onClick={() => handleTaskStatus(task.id, 'completed')}
+                                disabled={taskActionLoading === task.id}
+                              >
+                                {taskActionLoading === task.id ? <Loader2 className="h-5 w-5 animate-spin mr-2" /> : <CheckCircle2 className="h-5 w-5 mr-2" />}
+                                Terminer ✅
+                              </Button>
+                            )}
+                            <Button
+                              variant="outline"
+                              className="h-12 px-4 text-sm rounded-xl border-gray-300 text-gray-500"
+                              onClick={() => handleTaskStatus(task.id, 'skipped')}
+                              disabled={taskActionLoading === task.id}
+                            >
+                              <SkipForward className="h-5 w-5" />
+                            </Button>
+                          </div>
+                        )}
+                      </CardContent>
+                    </Card>
+                  ))}
                 </div>
               )}
             </div>
@@ -1953,6 +2352,14 @@ function HousekeeperView({ profile, onLogout }: StaffDashboardProps) {
           )}
         </div>
       </main>
+
+      {/* Mobile Bottom Navigation */}
+      <MobileBottomNav
+        items={housekeeperMobileNavItems}
+        activeId={activeTab}
+        onSelect={(id) => setActiveTab(id as HousekeeperTabId)}
+        colorScheme="emerald"
+      />
     </div>
   )
 }
@@ -1971,6 +2378,7 @@ function ReceptionistView({ profile, onLogout }: StaffDashboardProps) {
   const [roomStatusFilter, setRoomStatusFilter] = useState<string>('all')
   const [roomActionLoading, setRoomActionLoading] = useState<string | null>(null)
   const [walkInOpen, setWalkInOpen] = useState(false)
+  const isMobile = useIsMobile()
 
   const fetchAllData = useCallback(async () => {
     setLoading(true)
@@ -2248,6 +2656,15 @@ function ReceptionistView({ profile, onLogout }: StaffDashboardProps) {
     </div>
   )
 
+  // Mobile bottom nav items for receptionist
+  const receptionistMobileNavItems: MobileNavItem[] = [
+    { id: 'overview', label: 'Accueil', icon: <Home className="h-5 w-5" /> },
+    { id: 'rooms', label: 'Chambres', icon: <Bed className="h-5 w-5" /> },
+    { id: 'reservations', label: 'Réservations', icon: <Calendar className="h-5 w-5" /> },
+    { id: 'customers', label: 'Clients', icon: <Users className="h-5 w-5" /> },
+    { id: 'notifications', label: 'Notifs', icon: <Bell className="h-5 w-5" /> },
+  ]
+
   return (
     <div className="flex min-h-screen bg-gray-50/50">
       <aside className="hidden lg:flex w-64 flex-col border-r border-amber-200/50 shrink-0">
@@ -2271,29 +2688,14 @@ function ReceptionistView({ profile, onLogout }: StaffDashboardProps) {
               </SheetContent>
             </Sheet>
             <span className="font-bold bg-gradient-to-r from-emerald-600 to-green-500 bg-clip-text text-transparent">OGOU_Hôtel</span>
+            <MobileModeIndicator />
           </div>
           <Button variant="ghost" size="sm" onClick={onLogout}>
             <LogOut className="h-4 w-4" />
           </Button>
         </div>
 
-        <div className="lg:hidden flex overflow-x-auto gap-1 px-4 py-2 border-b bg-white">
-          {RECEPTIONIST_NAV_ITEMS.map((item) => (
-            <button
-              key={item.id}
-              onClick={() => setActiveTab(item.id)}
-              className={`flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium whitespace-nowrap transition-colors ${
-                activeTab === item.id ? 'bg-amber-100 text-amber-900' : 'text-gray-500 hover:bg-gray-100'
-              }`}
-            >
-              {item.icon}
-              {item.label}
-              {item.id === 'overview' && <ExpiredStayBadge />}
-            </button>
-          ))}
-        </div>
-
-        <div className="p-4 sm:p-6 lg:p-8 max-w-6xl mx-auto">
+        <div className="p-4 pb-24 lg:pb-8 sm:p-6 lg:p-8 max-w-6xl mx-auto">
           {activeTab === 'overview' && (
             <div className="space-y-6">
               <div className="flex items-center justify-between">
@@ -2357,32 +2759,45 @@ function ReceptionistView({ profile, onLogout }: StaffDashboardProps) {
                 </Card>
               </div>
 
-              <Card className="border-2 border-emerald-300 bg-gradient-to-r from-emerald-50 to-teal-50 cursor-pointer hover:shadow-lg transition-all" onClick={() => setWalkInOpen(true)}>
-                <CardContent className="p-5 flex items-center gap-4">
-                  <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 shadow-lg shadow-emerald-500/30">
-                    <DoorOpen className="h-6 w-6 text-white" />
+              <Card className="border-2 border-emerald-300 bg-gradient-to-r from-emerald-50 to-teal-50 cursor-pointer hover:shadow-lg transition-all sm:py-2" onClick={() => setWalkInOpen(true)}>
+                <CardContent className="p-5 sm:p-4 flex items-center gap-4">
+                  <div className="flex h-14 w-14 sm:h-12 sm:w-12 items-center justify-center rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 shadow-lg shadow-emerald-500/30">
+                    <DoorOpen className="h-7 w-7 sm:h-6 sm:w-6 text-white" />
                   </div>
                   <div className="flex-1">
-                    <p className="text-base font-bold text-emerald-900">Enregistrement Direct</p>
-                    <p className="text-sm text-emerald-700">Client sans réservation ? Enregistrez-le et attribuez une chambre immédiatement</p>
+                    <p className="text-lg sm:text-base font-bold text-emerald-900">Enregistrement Direct</p>
+                    <p className="text-sm text-emerald-700">Client sans réservation ? Enregistrez-le immédiatement</p>
                   </div>
-                  <Plus className="h-6 w-6 text-emerald-500 shrink-0" />
+                  <Plus className="h-7 w-7 sm:h-6 sm:w-6 text-emerald-500 shrink-0" />
                 </CardContent>
               </Card>
 
+              {/* Room availability summary - large numbers for mobile */}
               <Card className="border-amber-200/40">
                 <CardHeader className="pb-3">
                   <CardTitle className="text-base flex items-center gap-2">
                     <Bed className="h-4 w-4 text-amber-600" />
-                    État des chambres
+                    Disponibilité des chambres
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="flex flex-wrap gap-3">
-                    <div className="flex items-center gap-1.5"><div className="h-3 w-3 rounded-full bg-emerald-500" /><span className="text-sm text-muted-foreground">{roomStats.available} disponibles</span></div>
-                    <div className="flex items-center gap-1.5"><div className="h-3 w-3 rounded-full bg-sky-500" /><span className="text-sm text-muted-foreground">{roomStats.occupied} occupées</span></div>
-                    <div className="flex items-center gap-1.5"><div className="h-3 w-3 rounded-full bg-amber-500" /><span className="text-sm text-muted-foreground">{roomStats.cleaning} nettoyage</span></div>
-                    <div className="flex items-center gap-1.5"><div className="h-3 w-3 rounded-full bg-red-500" /><span className="text-sm text-muted-foreground">{roomStats.maintenance} maintenance</span></div>
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                    <div className="flex flex-col items-center rounded-xl bg-emerald-50 border border-emerald-200 px-3 py-4">
+                      <span className="text-4xl sm:text-3xl font-bold text-emerald-700">{roomStats.available}</span>
+                      <span className="text-xs font-medium text-emerald-600 mt-1">Disponibles</span>
+                    </div>
+                    <div className="flex flex-col items-center rounded-xl bg-sky-50 border border-sky-200 px-3 py-4">
+                      <span className="text-4xl sm:text-3xl font-bold text-sky-700">{roomStats.occupied}</span>
+                      <span className="text-xs font-medium text-sky-600 mt-1">Occupées</span>
+                    </div>
+                    <div className="flex flex-col items-center rounded-xl bg-amber-50 border border-amber-200 px-3 py-4">
+                      <span className="text-4xl sm:text-3xl font-bold text-amber-700">{roomStats.cleaning}</span>
+                      <span className="text-xs font-medium text-amber-600 mt-1">Nettoyage</span>
+                    </div>
+                    <div className="flex flex-col items-center rounded-xl bg-red-50 border border-red-200 px-3 py-4">
+                      <span className="text-4xl sm:text-3xl font-bold text-red-700">{roomStats.maintenance}</span>
+                      <span className="text-xs font-medium text-red-600 mt-1">Maintenance</span>
+                    </div>
                   </div>
                 </CardContent>
               </Card>
@@ -2564,6 +2979,14 @@ function ReceptionistView({ profile, onLogout }: StaffDashboardProps) {
       </main>
 
       <WalkInDialog open={walkInOpen} onOpenChange={setWalkInOpen} rooms={rooms.map((r) => ({ id: r.id, room_number: r.room_number, room_type: r.room_type, status: r.status, price_per_night: r.price_per_night }))} onSuccess={fetchAllData} />
+
+      {/* Mobile Bottom Navigation */}
+      <MobileBottomNav
+        items={receptionistMobileNavItems}
+        activeId={activeTab}
+        onSelect={(id) => setActiveTab(id as ReceptionistTabId)}
+        colorScheme="amber"
+      />
     </div>
   )
 }
@@ -2585,6 +3008,7 @@ function ManagerView({ profile, onLogout }: StaffDashboardProps) {
   const [housekeepingRooms, setHousekeepingRooms] = useState<RoomInfo[]>([])
   const [housekeepingStats, setHousekeepingStats] = useState<HousekeepingStats | null>(null)
   const [housekeepingActionLoading, setHousekeepingActionLoading] = useState<string | null>(null)
+  const isMobile = useIsMobile()
 
   const fetchAllData = useCallback(async () => {
     setLoading(true)
@@ -2815,6 +3239,15 @@ function ManagerView({ profile, onLogout }: StaffDashboardProps) {
     </div>
   )
 
+  // Mobile bottom nav items for manager
+  const managerMobileNavItems: MobileNavItem[] = [
+    { id: 'overview', label: 'Accueil', icon: <Home className="h-5 w-5" /> },
+    { id: 'rooms', label: 'Chambres', icon: <Bed className="h-5 w-5" /> },
+    { id: 'reservations', label: 'Réservations', icon: <Calendar className="h-5 w-5" /> },
+    { id: 'restaurant', label: 'Restaurant', icon: <Utensils className="h-5 w-5" /> },
+    { id: 'notifications', label: 'Notifs', icon: <Bell className="h-5 w-5" /> },
+  ]
+
   return (
     <div className="flex min-h-screen bg-gray-50/50">
       <aside className="hidden lg:flex w-64 flex-col border-r border-amber-200/50 shrink-0">
@@ -2838,29 +3271,14 @@ function ManagerView({ profile, onLogout }: StaffDashboardProps) {
               </SheetContent>
             </Sheet>
             <span className="font-bold bg-gradient-to-r from-amber-600 to-orange-600 bg-clip-text text-transparent">OGOU_Hôtel</span>
+            <MobileModeIndicator />
           </div>
           <Button variant="ghost" size="sm" onClick={onLogout}>
             <LogOut className="h-4 w-4" />
           </Button>
         </div>
 
-        <div className="lg:hidden flex overflow-x-auto gap-1 px-4 py-2 border-b bg-white">
-          {MANAGER_NAV_ITEMS.map((item) => (
-            <button
-              key={item.id}
-              onClick={() => setActiveTab(item.id)}
-              className={`flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium whitespace-nowrap transition-colors ${
-                activeTab === item.id ? 'bg-amber-100 text-amber-900' : 'text-gray-500 hover:bg-gray-100'
-              }`}
-            >
-              {item.icon}
-              {item.label}
-              {item.id === 'overview' && <ExpiredStayBadge />}
-            </button>
-          ))}
-        </div>
-
-        <div className="p-4 sm:p-6 lg:p-8 max-w-6xl mx-auto">
+        <div className="p-4 pb-24 lg:pb-8 sm:p-6 lg:p-8 max-w-6xl mx-auto">
           {/* Manager Overview */}
           {activeTab === 'overview' && (
             <div className="space-y-6">
@@ -3176,6 +3594,14 @@ function ManagerView({ profile, onLogout }: StaffDashboardProps) {
       </main>
 
       <WalkInDialog open={walkInOpen} onOpenChange={setWalkInOpen} rooms={rooms.map((r) => ({ id: r.id, room_number: r.room_number, room_type: r.room_type, status: r.status, price_per_night: r.price_per_night }))} onSuccess={fetchAllData} />
+
+      {/* Mobile Bottom Navigation */}
+      <MobileBottomNav
+        items={managerMobileNavItems}
+        activeId={activeTab}
+        onSelect={(id) => setActiveTab(id as ManagerTabId)}
+        colorScheme="amber"
+      />
     </div>
   )
 }

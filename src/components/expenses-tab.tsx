@@ -23,6 +23,8 @@ import {
   FileText,
   Eye,
   Paperclip,
+  ClipboardList,
+  Tags,
 } from 'lucide-react'
 
 import { Card, CardContent } from '@/components/ui/card'
@@ -444,7 +446,7 @@ export function ExpensesTab({ onRefresh }: ExpensesTabProps) {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-2xl font-bold tracking-tight">💸 Suivi des Dépenses</h2>
+          <h2 className="text-2xl font-bold tracking-tight flex items-center gap-2"><Wallet className="h-6 w-6 text-amber-600" /> Suivi des Dépenses</h2>
           <p className="text-muted-foreground">
             {expenses.length} dépense{expenses.length !== 1 ? 's' : ''} enregistrée{expenses.length !== 1 ? 's' : ''}
           </p>
@@ -511,11 +513,11 @@ export function ExpensesTab({ onRefresh }: ExpensesTabProps) {
       {/* Sub-tabs */}
       <Tabs value={subTab} onValueChange={(v) => setSubTab(v as SubTab)}>
         <TabsList className="bg-amber-50 border border-amber-200/60">
-          <TabsTrigger value="list" className="data-[state=active]:bg-amber-600 data-[state=active]:text-white">
-            📋 Liste des dépenses
+          <TabsTrigger value="list" className="data-[state=active]:bg-amber-600 data-[state=active]:text-white flex items-center gap-1.5">
+            <ClipboardList className="h-4 w-4" /> Liste des dépenses
           </TabsTrigger>
-          <TabsTrigger value="categories" className="data-[state=active]:bg-amber-600 data-[state=active]:text-white">
-            🏷️ Catégories
+          <TabsTrigger value="categories" className="data-[state=active]:bg-amber-600 data-[state=active]:text-white flex items-center gap-1.5">
+            <Tags className="h-4 w-4" /> Catégories
           </TabsTrigger>
         </TabsList>
 
@@ -762,7 +764,7 @@ export function ExpensesTab({ onRefresh }: ExpensesTabProps) {
 
       {/* ─── Expense Create/Edit Dialog ───────────────────────────────── */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="max-w-lg">
+        <DialogContent className="sm:max-w-lg">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               {editMode ? (
@@ -949,7 +951,7 @@ export function ExpensesTab({ onRefresh }: ExpensesTabProps) {
 
       {/* ─── Category Create Dialog ──────────────────────────────────── */}
       <Dialog open={catDialogOpen} onOpenChange={setCatDialogOpen}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Plus className="h-5 w-5 text-amber-600" />

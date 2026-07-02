@@ -2,9 +2,10 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { logAudit } from '@/lib/audit'
+import { isDemoMode, DEMO_INVOICES } from '@/lib/demo-data'
 
 const ALLOWED_ROLES = ['owner', 'manager', 'receptionist']
-const VALID_STATUSES = ['paid', 'refund', 'cancelled'] as const
+const VALID_STATUSES = ['paid', 'pending', 'refund', 'cancelled'] as const
 const VALID_PAYMENT_METHODS = ['OM', 'MTN', 'Wave', 'Espèces', 'Chèque', 'Carte'] as const
 
 /**
@@ -14,6 +15,30 @@ const VALID_PAYMENT_METHODS = ['OM', 'MTN', 'Wave', 'Espèces', 'Chèque', 'Cart
  */
 export async function GET(request: NextRequest) {
   try {
+    // ─── Demo mode ──────────────────────────────────────────────
+    if (isDemoMode()) {
+      const { searchParams } = new URL(request.url)
+      const status = searchParams.get('status')
+      const search = searchParams.get('search')?.trim()
+
+      let results = [...DEMO_INVOICES]
+
+      if (status) {
+        results = results.filter(i => i.status === status)
+      }
+      if (search) {
+        const q = search.toLowerCase()
+        results = results.filter(i =>
+          i.invoice_number.toLowerCase().includes(q) ||
+          (i.customers && `${i.customers.first_name} ${i.customers.last_name}`.toLowerCase().includes(q))
+        )
+      }
+
+      results.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+
+      return NextResponse.json({ invoices: results })
+    }
+
     const supabase = await createClient()
     const { data: { user } } = await supabase.auth.getUser()
 
@@ -135,6 +160,7 @@ export async function POST(request: NextRequest) {
       tourist_tax = 0,
       vat_rate = 0.18,
       notes,
+      status: invoiceStatus = 'paid',
     } = body
 
     // ─── Validate required fields ──────────────────────────────
@@ -148,6 +174,15 @@ export async function POST(request: NextRequest) {
     if (!payment_method) {
       return NextResponse.json(
         { error: 'La méthode de paiement est requise' },
+        { status: 400 }
+      )
+    }
+
+    // Validate invoice status
+    const allowedCreationStatuses = ['paid', 'pending'] as const
+    if (!allowedCreationStatuses.includes(invoiceStatus)) {
+      return NextResponse.json(
+        { error: `Statut de facture invalide à la création. Statuts autorisés : ${allowedCreationStatuses.join(', ')}` },
         { status: 400 }
       )
     }
@@ -235,6 +270,22 @@ export async function POST(request: NextRequest) {
           { status: 404 }
         )
       }
+
+      // ─── Check for existing invoice for this reservation ───────
+      const { data: existingInvoice } = await adminClient
+        .from('invoices')
+        .select('id, invoice_number')
+        .eq('reservation_id', reservation_id)
+        .eq('hotel_id', hotelId)
+        .neq('status', 'cancelled')
+        .maybeSingle()
+
+      if (existingInvoice) {
+        return NextResponse.json(
+          { error: `Une facture (${(existingInvoice as Record<string, unknown>).invoice_number}) existe déjà pour cette réservation. Modifiez la facture existante plutôt que d'en créer une nouvelle.` },
+          { status: 409 }
+        )
+      }
     }
 
     // ─── Calculate financials ──────────────────────────────────
@@ -286,7 +337,7 @@ export async function POST(request: NextRequest) {
         vat,
         total_amount: totalAmount,
         payment_method,
-        status: 'paid',
+        status: invoiceStatus,
         notes: notes?.trim() || null,
       })
       .select()

@@ -2,9 +2,10 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { logAudit } from '@/lib/audit'
-import { isDemoMode, DEMO_ROOMS, DEMO_RESERVATIONS } from '@/lib/demo-data'
+import { isDemoMode, DEMO_ROOMS, DEMO_RESERVATIONS, DEMO_ROOM_RATES, generateDemoInvoiceFromReservation } from '@/lib/demo-data'
+import { calculateDynamicPrice } from '@/lib/pricing'
 
-const ALLOWED_ROLES = ['manager', 'receptionist']
+const ALLOWED_ROLES = ['owner', 'manager', 'receptionist']
 
 /**
  * POST /api/owner/reservations/walk-in
@@ -18,6 +19,9 @@ const ALLOWED_ROLES = ['manager', 'receptionist']
  *   - room_id (required)
  *   - check_out_date (required, YYYY-MM-DD)
  *   - identity_document_type?, identity_document_number? (optional for new customer)
+ *   - payment_method? (default: 'Espèces') — for auto invoice generation
+ *   - generate_invoice? (default: true) — whether to auto-generate invoice
+ *   - invoice_status? ('paid' | 'pending', default: 'paid') — status for auto-generated invoice
  */
 export async function POST(request: NextRequest) {
   try {
@@ -34,6 +38,10 @@ export async function POST(request: NextRequest) {
       // Reservation fields
       room_id,
       check_out_date,
+      // Invoice fields
+      payment_method = 'Espèces',
+      generate_invoice = true,
+      invoice_status = 'paid',
     } = body
 
     // ─── Demo mode: handle walk-in in-memory ──────────────────────────
@@ -64,9 +72,19 @@ export async function POST(request: NextRequest) {
 
       const todayStr = new Date().toISOString().split('T')[0]
       const checkOut = new Date(check_out_date)
-      const diffTime = checkOut.getTime() - new Date().getTime()
-      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
-      const totalPrice = room.price_per_night * diffDays
+
+      // Calcul dynamique du prix (tarification weekend + saisonnière)
+      const roomRates = DEMO_ROOM_RATES.filter(r => r.room_id === room_id)
+      const totalPrice = calculateDynamicPrice(
+        {
+          price_per_night: room.price_per_night,
+          weekend_price: room.weekend_price,
+          weekend_days: room.weekend_days || '5,6',
+        },
+        roomRates.map(r => ({ id: r.id, price_per_night: r.price_per_night, start_date: r.start_date, end_date: r.end_date, priority: r.priority })),
+        todayStr,
+        check_out_date
+      )
 
       const newId = `res-walkin-${Date.now()}`
       const custFirstName = first_name || 'Client'
@@ -95,9 +113,17 @@ export async function POST(request: NextRequest) {
       room.status = 'occupied'
       room.updated_at = new Date().toISOString()
 
+      // ─── Auto-generate invoice ──────────────────────────────
+      let invoice = null
+      if (generate_invoice) {
+        const invStatus = (invoice_status === 'paid' ? 'paid' : 'pending') as 'paid' | 'pending'
+        invoice = generateDemoInvoiceFromReservation(newReservation, payment_method, invStatus)
+      }
+
       return NextResponse.json({
         reservation: newReservation,
         walk_in: true,
+        invoice: invoice || undefined,
       }, { status: 201 })
     }
 
@@ -180,43 +206,57 @@ export async function POST(request: NextRequest) {
         }
       }
 
-      const { data: newCustomer, error: customerError } = await adminClient
+      // ─── Check for duplicate customer (same phone in same hotel) ──
+      const { data: existingCustomer } = await adminClient
         .from('customers')
-        .insert({
+        .select('id, first_name, last_name, phone')
+        .eq('hotel_id', hotelId)
+        .eq('phone', phone.trim())
+        .maybeSingle()
+
+      if (existingCustomer) {
+        // Auto-use the existing customer instead of creating a duplicate
+        customerId = (existingCustomer as Record<string, unknown>).id as string
+      } else {
+        // No duplicate found — create new customer
+        const { data: newCustomer, error: customerError } = await adminClient
+          .from('customers')
+          .insert({
+            hotel_id: hotelId,
+            first_name: first_name.trim(),
+            last_name: last_name.trim(),
+            email: email?.trim() || null,
+            phone: phone.trim(),
+            identity_document_type: identity_document_type || null,
+            identity_document_number: identity_document_number?.trim() || null,
+          })
+          .select('id, first_name, last_name, phone, email')
+          .single()
+
+        if (customerError) {
+          return NextResponse.json(
+            { error: `Erreur lors de la création du client : ${customerError.message}` },
+            { status: 500 }
+          )
+        }
+
+        customerId = newCustomer.id
+
+        // Audit log for customer creation
+        await logAudit({
           hotel_id: hotelId,
-          first_name: first_name.trim(),
-          last_name: last_name.trim(),
-          email: email?.trim() || null,
-          phone: phone.trim(),
-          identity_document_type: identity_document_type || null,
-          identity_document_number: identity_document_number?.trim() || null,
+          profile_id: user.id,
+          action: 'create',
+          entity_type: 'customer',
+          entity_id: customerId,
+          new_values: {
+            first_name: first_name.trim(),
+            last_name: last_name.trim(),
+            phone: phone.trim(),
+            source: 'walk_in',
+          },
         })
-        .select('id, first_name, last_name, phone, email')
-        .single()
-
-      if (customerError) {
-        return NextResponse.json(
-          { error: `Erreur lors de la création du client : ${customerError.message}` },
-          { status: 500 }
-        )
       }
-
-      customerId = newCustomer.id
-
-      // Audit log for customer creation
-      await logAudit({
-        hotel_id: hotelId,
-        profile_id: user.id,
-        action: 'create',
-        entity_type: 'customer',
-        entity_id: customerId,
-        new_values: {
-          first_name: first_name.trim(),
-          last_name: last_name.trim(),
-          phone: phone.trim(),
-          source: 'walk_in',
-        },
-      })
     } else {
       // Verify existing customer belongs to this hotel
       const { data: existingCustomer } = await adminClient
@@ -237,7 +277,7 @@ export async function POST(request: NextRequest) {
     // ─── Verify room belongs to hotel and is available ────────────
     const { data: room } = await adminClient
       .from('rooms')
-      .select('id, room_number, room_type, price_per_night, status')
+      .select('id, room_number, room_type, price_per_night, weekend_price, weekend_days, status')
       .eq('id', room_id)
       .eq('hotel_id', hotelId)
       .maybeSingle()
@@ -293,10 +333,23 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // ─── Calculate total_price ─────────────────────────────────────
-    const diffTime = checkOut.getTime() - today.getTime()
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
-    const totalPrice = room.price_per_night * diffDays
+    // ─── Calculate total_price (tarification dynamique) ────────────
+    // Récupérer les tarifs saisonniers pour cette chambre
+    const { data: seasonalRates } = await adminClient
+      .from('room_rates')
+      .select('id, price_per_night, start_date, end_date, priority')
+      .eq('room_id', room_id)
+
+    const totalPrice = calculateDynamicPrice(
+      {
+        price_per_night: room.price_per_night,
+        weekend_price: room.weekend_price,
+        weekend_days: room.weekend_days || '5,6',
+      },
+      (seasonalRates || []) as { id: string; price_per_night: number; start_date: string; end_date: string; priority: number }[],
+      checkInDate,
+      check_out_date
+    )
 
     // ─── Create reservation with checked_in status ────────────────
     const { data: reservation, error: reservationError } = await adminClient
@@ -349,9 +402,121 @@ export async function POST(request: NextRequest) {
       .eq('id', reservation.id)
       .single()
 
+    // ─── Auto-generate invoice ──────────────────────────────────
+    let generatedInvoice = null
+    if (generate_invoice) {
+      const VALID_PAYMENT_METHODS = ['OM', 'MTN', 'Wave', 'Espèces', 'Chèque', 'Carte'] as const
+      const invPaymentMethod = VALID_PAYMENT_METHODS.includes(payment_method as typeof VALID_PAYMENT_METHODS[number]) ? payment_method : 'Espèces'
+      const invStatus = invoice_status === 'pending' ? 'pending' : 'paid'
+      const nights = Math.max(1, Math.ceil((new Date(check_out_date).getTime() - new Date(checkInDate).getTime()) / (1000 * 60 * 60 * 24)))
+      const pricePerNight = Math.round(totalPrice / nights)
+      const invSubtotal = Math.round(totalPrice / 1.18)
+      const invVat = totalPrice - invSubtotal
+
+      // Generate invoice number: FACT-YYYY-MM-XXXX
+      const now = new Date()
+      const year = now.getFullYear()
+      const month = String(now.getMonth() + 1).padStart(2, '0')
+      const invPrefix = `FACT-${year}-${month}-`
+
+      const { data: lastInvoice } = await adminClient
+        .from('invoices')
+        .select('invoice_number')
+        .eq('hotel_id', hotelId)
+        .like('invoice_number', `${invPrefix}%`)
+        .order('invoice_number', { ascending: false })
+        .limit(1)
+        .maybeSingle()
+
+      let nextCounter = 1
+      if (lastInvoice?.invoice_number) {
+        const lastCounterStr = lastInvoice.invoice_number.substring(invPrefix.length)
+        const lastCounter = parseInt(lastCounterStr, 10)
+        if (!isNaN(lastCounter)) {
+          nextCounter = lastCounter + 1
+        }
+      }
+      const invoiceNumber = `${invPrefix}${String(nextCounter).padStart(4, '0')}`
+
+      // Generate receipt number if paid
+      let receiptNumber: string | null = null
+      if (invStatus === 'paid') {
+        const recPrefix = `REC-${year}-${month}-`
+        const { data: lastReceipt } = await adminClient
+          .from('invoices')
+          .select('receipt_number')
+          .eq('hotel_id', hotelId)
+          .like('receipt_number', `${recPrefix}%`)
+          .order('receipt_number', { ascending: false })
+          .limit(1)
+          .maybeSingle()
+
+        let recCounter = 1
+        if (lastReceipt?.receipt_number) {
+          const lastCounterStr = lastReceipt.receipt_number.substring(recPrefix.length)
+          const lastCounter = parseInt(lastCounterStr, 10)
+          if (!isNaN(lastCounter)) {
+            recCounter = lastCounter + 1
+          }
+        }
+        receiptNumber = `${recPrefix}${String(recCounter).padStart(4, '0')}`
+      }
+
+      const { data: invoice } = await adminClient
+        .from('invoices')
+        .insert({
+          hotel_id: hotelId,
+          invoice_number: invoiceNumber,
+          customer_id: customerId,
+          reservation_id: reservation.id,
+          subtotal: invSubtotal,
+          tourist_tax: 0,
+          vat: invVat,
+          total_amount: totalPrice,
+          payment_method: invPaymentMethod,
+          status: invStatus,
+          receipt_number: receiptNumber,
+          paid_at: invStatus === 'paid' ? new Date().toISOString() : null,
+          notes: invStatus === 'paid' ? 'Facture auto-générée (Walk-in)' : 'Facture auto-générée (En attente de paiement)',
+        })
+        .select()
+        .single()
+
+      if (invoice) {
+        // Insert invoice item
+        await adminClient.from('invoice_items').insert({
+          invoice_id: invoice.id,
+          description: `Chambre ${room.room_number} (${room.room_type}) — Nuitée`,
+          quantity: nights,
+          unit_price: pricePerNight,
+          total: totalPrice,
+        })
+        generatedInvoice = invoice
+
+        await logAudit({
+          hotel_id: hotelId,
+          profile_id: user.id,
+          action: 'auto_create_invoice',
+          entity_type: 'invoice',
+          entity_id: invoice.id,
+          new_values: {
+            invoice_number: invoiceNumber,
+            customer_id: customerId,
+            reservation_id: reservation.id,
+            total_amount: totalPrice,
+            payment_method: invPaymentMethod,
+            status: invStatus,
+            receipt_number: receiptNumber,
+            source: 'walk_in',
+          },
+        })
+      }
+    }
+
     return NextResponse.json({
       reservation: refreshedReservation || reservation,
       walk_in: true,
+      invoice: generatedInvoice || undefined,
     }, { status: 201 })
   } catch (error) {
     console.error('Walk-in check-in error:', error)

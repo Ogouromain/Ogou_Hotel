@@ -19,6 +19,8 @@ import {
   Loader2,
   ExternalLink,
   Shield,
+  CheckCircle2,
+  Receipt,
 } from 'lucide-react'
 import {
   Sheet,
@@ -30,6 +32,13 @@ import {
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Separator } from '@/components/ui/separator'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -177,6 +186,8 @@ export function ReservationDetailSheet({
   const [actionLoading, setActionLoading] = useState<string | null>(null)
   const [cancelDialogOpen, setCancelDialogOpen] = useState(false)
   const [docLoading, setDocLoading] = useState(false)
+  const [invoiceLoading, setInvoiceLoading] = useState(false)
+  const [invoicePaymentMethod, setInvoicePaymentMethod] = useState('Espèces')
 
   if (!reservation) return null
 
@@ -190,13 +201,22 @@ export function ReservationDetailSheet({
   async function handleAction(action: string) {
     setActionLoading(action)
     try {
+      const body: Record<string, unknown> = { action }
+      // For check-in, pass payment method so invoice can be auto-generated
+      if (action === 'check_in') {
+        body.payment_method = invoicePaymentMethod
+        body.invoice_status = 'paid'
+      }
+
       await onAction(action, reservation.id)
       toast.success(
         action === 'check_in'
           ? 'Arrivée validée avec succès !'
           : action === 'check_out'
             ? 'Départ validé avec succès !'
-            : 'Réservation annulée.'
+            : action === 'confirm'
+              ? 'Réservation confirmée avec succès !'
+              : 'Réservation annulée.'
       )
       onRefresh()
       onOpenChange(false)
@@ -436,20 +456,59 @@ export function ReservationDetailSheet({
                 </div>
               ) : (
                 <div className="space-y-2">
-                  {/* Check-In Button */}
-                  {(status === 'pending' || status === 'confirmed') && (
+                  {/* Confirm Button */}
+                  {status === 'pending' && (
                     <Button
-                      className="w-full h-12 text-sm font-semibold bg-emerald-600 hover:bg-emerald-700 text-white shadow-md shadow-emerald-500/20"
+                      className="w-full h-12 text-sm font-semibold bg-sky-600 hover:bg-sky-700 text-white shadow-md shadow-sky-500/20"
                       disabled={actionLoading !== null}
-                      onClick={() => handleAction('check_in')}
+                      onClick={() => handleAction('confirm')}
                     >
-                      {actionLoading === 'check_in' ? (
+                      {actionLoading === 'confirm' ? (
                         <Loader2 className="h-4 w-4 mr-2 animate-spin" />
                       ) : (
-                        <LogIn className="h-4 w-4 mr-2" />
+                        <CheckCircle2 className="h-4 w-4 mr-2" />
                       )}
-                      Valider l&apos;Arrivée (Check-In)
+                      Confirmer la Réservation
                     </Button>
+                  )}
+
+                  {/* Check-In Button */}
+                  {(status === 'pending' || status === 'confirmed') && (
+                    <>
+                      <div className="space-y-2 rounded-lg border border-emerald-200 bg-emerald-50/50 p-3">
+                        <p className="text-xs font-medium text-emerald-700 flex items-center gap-1.5">
+                          <Receipt className="h-3.5 w-3.5" />
+                          Une facture sera générée automatiquement lors du check-in
+                        </p>
+                        <div className="space-y-1.5">
+                          <span className="text-[10px] text-emerald-600 font-medium">Mode de paiement :</span>
+                          <Select value={invoicePaymentMethod} onValueChange={setInvoicePaymentMethod}>
+                            <SelectTrigger className="h-8 text-xs">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="Espèces">💵 Espèces</SelectItem>
+                              <SelectItem value="OM">📱 Orange Money</SelectItem>
+                              <SelectItem value="MTN">📱 MTN Money</SelectItem>
+                              <SelectItem value="Wave">📱 Wave</SelectItem>
+                              <SelectItem value="Carte">💳 Carte bancaire</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      </div>
+                      <Button
+                        className="w-full h-12 text-sm font-semibold bg-emerald-600 hover:bg-emerald-700 text-white shadow-md shadow-emerald-500/20"
+                        disabled={actionLoading !== null}
+                        onClick={() => handleAction('check_in')}
+                      >
+                        {actionLoading === 'check_in' ? (
+                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                        ) : (
+                          <LogIn className="h-4 w-4 mr-2" />
+                        )}
+                        Valider l&apos;Arrivée (Check-In)
+                      </Button>
+                    </>
                   )}
 
                   {/* Check-Out Button */}

@@ -18,6 +18,7 @@ import {
   ShoppingCart,
   Search,
   X,
+  ArrowRightLeft,
 } from 'lucide-react'
 
 import { Card, CardContent } from '@/components/ui/card'
@@ -422,7 +423,7 @@ export function StocksTab({ onRefresh }: StocksTabProps) {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-2xl font-bold tracking-tight">📦 Stocks</h2>
+          <h2 className="text-2xl font-bold tracking-tight flex items-center gap-2"><Package className="h-6 w-6 text-amber-600" /> Stocks</h2>
           <p className="text-muted-foreground">
             {stockItems.length} article{stockItems.length !== 1 ? 's' : ''} en stock • {lowStockItems.length} alerte{lowStockItems.length !== 1 ? 's' : ''}
           </p>
@@ -463,11 +464,11 @@ export function StocksTab({ onRefresh }: StocksTabProps) {
       {/* Sub-tabs */}
       <Tabs value={subTab} onValueChange={(v) => setSubTab(v as SubTab)}>
         <TabsList className="bg-amber-50 border border-amber-200/60">
-          <TabsTrigger value="inventory" className="data-[state=active]:bg-amber-600 data-[state=active]:text-white">
-            📦 Inventaire
+          <TabsTrigger value="inventory" className="data-[state=active]:bg-amber-600 data-[state=active]:text-white flex items-center gap-1.5">
+            <Package className="h-4 w-4" /> Inventaire
           </TabsTrigger>
-          <TabsTrigger value="transactions" className="data-[state=active]:bg-amber-600 data-[state=active]:text-white">
-            🔄 Mouvements
+          <TabsTrigger value="transactions" className="data-[state=active]:bg-amber-600 data-[state=active]:text-white flex items-center gap-1.5">
+            <ArrowRightLeft className="h-4 w-4" /> Mouvements
           </TabsTrigger>
         </TabsList>
 
@@ -687,7 +688,7 @@ export function StocksTab({ onRefresh }: StocksTabProps) {
 
       {/* ─── Item Create/Edit Dialog ───────────────────────────────────── */}
       <Dialog open={itemDialogOpen} onOpenChange={setItemDialogOpen}>
-        <DialogContent className="max-w-lg">
+        <DialogContent className="sm:max-w-lg">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               {editMode ? (
@@ -808,7 +809,7 @@ export function StocksTab({ onRefresh }: StocksTabProps) {
 
       {/* ─── Quick Transaction Dialog ──────────────────────────────────── */}
       <Dialog open={quickTransOpen} onOpenChange={setQuickTransOpen}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               {quickTransType === 'in' ? (
@@ -872,7 +873,7 @@ export function StocksTab({ onRefresh }: StocksTabProps) {
 
       {/* ─── Full Transaction Dialog ───────────────────────────────────── */}
       <Dialog open={transDialogOpen} onOpenChange={setTransDialogOpen}>
-        <DialogContent className="max-w-lg">
+        <DialogContent className="sm:max-w-lg">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Plus className="h-5 w-5 text-amber-600" />

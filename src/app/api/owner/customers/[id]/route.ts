@@ -244,6 +244,19 @@ export async function DELETE(
       )
     }
 
+    // ─── Check for existing invoices ──────────────────────────
+    const { count: invoiceCount } = await adminClient
+      .from('invoices')
+      .select('id', { count: 'exact', head: true })
+      .eq('customer_id', id)
+
+    if ((invoiceCount ?? 0) > 0) {
+      return NextResponse.json(
+        { error: 'Impossible de supprimer ce client : il a des factures associées. Archivez-le ou supprimez d\'abord les factures.' },
+        { status: 403 }
+      )
+    }
+
     // ─── Delete identity document from storage (try if column exists) ──
     // Try to get the document path - if column doesn't exist, skip silently
     try {

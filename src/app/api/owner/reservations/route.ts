@@ -2,7 +2,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { logAudit } from '@/lib/audit'
-import { isDemoMode, DEMO_RESERVATIONS } from '@/lib/demo-data'
+import { isDemoMode, DEMO_RESERVATIONS, DEMO_ROOMS, DEMO_ROOM_RATES } from '@/lib/demo-data'
+import { calculateDynamicPrice } from '@/lib/pricing'
 
 const ALLOWED_ROLES = ['owner', 'manager', 'receptionist']
 
@@ -180,7 +181,7 @@ export async function POST(request: NextRequest) {
     // ─── Verify room belongs to this hotel ─────────────────────
     const { data: room } = await adminClient
       .from('rooms')
-      .select('id, room_number, room_type, price_per_night, status')
+      .select('id, room_number, room_type, price_per_night, weekend_price, weekend_days, status')
       .eq('id', room_id)
       .eq('hotel_id', hotelId)
       .maybeSingle()
@@ -240,10 +241,23 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // ─── Calculate total_price ─────────────────────────────────
-    const diffTime = checkOut.getTime() - checkIn.getTime()
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
-    const totalPrice = room.price_per_night * diffDays
+    // ─── Calculate total_price (tarification dynamique) ────────
+    // Récupérer les tarifs saisonniers pour cette chambre
+    const { data: seasonalRates } = await adminClient
+      .from('room_rates')
+      .select('id, price_per_night, start_date, end_date, priority')
+      .eq('room_id', room_id)
+
+    const totalPrice = calculateDynamicPrice(
+      {
+        price_per_night: room.price_per_night,
+        weekend_price: room.weekend_price,
+        weekend_days: room.weekend_days || '5,6',
+      },
+      (seasonalRates || []) as { id: string; price_per_night: number; start_date: string; end_date: string; priority: number }[],
+      check_in_date,
+      check_out_date
+    )
 
     // ─── Create reservation ────────────────────────────────────
     const { data: reservation, error } = await adminClient

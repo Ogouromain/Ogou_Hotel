@@ -14,6 +14,7 @@ import {
   Upload,
   X,
   FileText,
+  Calendar,
 } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
@@ -320,10 +321,13 @@ export function ReservationCreationDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-track]:bg-gray-100 [&::-webkit-scrollbar-thumb]:bg-gray-300 [&::-webkit-scrollbar-thumb]:rounded-full">
+      <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-track]:bg-gray-100 [&::-webkit-scrollbar-thumb]:bg-gray-300 [&::-webkit-scrollbar-thumb]:rounded-full">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            📅 Nouvelle Réservation
+            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-amber-100">
+              <Calendar className="h-4 w-4 text-amber-600" />
+            </div>
+            Nouvelle Réservation
           </DialogTitle>
           <DialogDescription>Créez une réservation en 3 étapes</DialogDescription>
         </DialogHeader>

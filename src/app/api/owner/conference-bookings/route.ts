@@ -1,9 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { isDemoMode, DEMO_CONFERENCE_BOOKINGS, DEMO_CONFERENCE_ROOMS, DEMO_CUSTOMERS } from '@/lib/demo-data'
 
 const READ_ROLES = ['owner', 'manager', 'receptionist']
 const WRITE_ROLES = ['owner', 'manager', 'receptionist']
+
+// Types d'événements valides
+const VALID_EVENT_TYPES = [
+  'seminar', 'workshop', 'wedding', 'corporate_meeting',
+  'birthday', 'conference', 'other',
+]
 
 /**
  * GET /api/owner/conference-bookings
@@ -12,6 +19,35 @@ const WRITE_ROLES = ['owner', 'manager', 'receptionist']
  */
 export async function GET(request: NextRequest) {
   try {
+    // Mode démo : retourner les données en mémoire
+    if (isDemoMode()) {
+      const { searchParams } = new URL(request.url)
+      const statusFilter = searchParams.get('status')
+      const conferenceRoomId = searchParams.get('conference_room_id')
+
+      let results = [...DEMO_CONFERENCE_BOOKINGS]
+
+      if (statusFilter) {
+        results = results.filter(b => b.status === statusFilter)
+      }
+      if (conferenceRoomId) {
+        results = results.filter(b => b.conference_room_id === conferenceRoomId)
+      }
+
+      // Enrichir avec les noms joints
+      const enriched = results.map(booking => {
+        const room = DEMO_CONFERENCE_ROOMS.find(r => r.id === booking.conference_room_id)
+        const customer = DEMO_CUSTOMERS.find(c => c.id === booking.customer_id)
+        return {
+          ...booking,
+          conference_room_name: room?.name || null,
+          customer_name: customer ? `${customer.first_name} ${customer.last_name}` : null,
+        }
+      })
+
+      return NextResponse.json({ bookings: enriched })
+    }
+
     const supabase = await createClient()
     const { data: { user } } = await supabase.auth.getUser()
 
@@ -81,28 +117,18 @@ export async function GET(request: NextRequest) {
 /**
  * POST /api/owner/conference-bookings
  * Create a new conference booking with time overlap validation.
+ * Accepts event planning fields: event_name, event_type, attendees_count,
+ * catering_required, equipment_needs, setup_notes, contact_name, contact_phone
  */
 export async function POST(request: NextRequest) {
   try {
-    const supabase = await createClient()
-    const { data: { user } } = await supabase.auth.getUser()
-
-    if (!user) {
-      return NextResponse.json({ error: 'Non authentifié' }, { status: 401 })
-    }
-
-    const role = user.app_metadata?.role
-    if (!WRITE_ROLES.includes(role)) {
-      return NextResponse.json({ error: 'Accès non autorisé. Seuls le propriétaire, le manager et le réceptionniste peuvent créer des réservations de salle.' }, { status: 403 })
-    }
-
-    const hotelId = user.app_metadata?.hotel_id
-    if (!hotelId) {
-      return NextResponse.json({ error: 'Aucun hôtel associé' }, { status: 404 })
-    }
-
     const body = await request.json()
-    const { conference_room_id, customer_id, start_time, end_time, total_price } = body
+    const {
+      conference_room_id, customer_id, start_time, end_time, total_price,
+      // Champs planification événement
+      event_name, event_type, attendees_count, catering_required,
+      equipment_needs, setup_notes, contact_name, contact_phone,
+    } = body
 
     if (!conference_room_id || !customer_id || !start_time || !end_time) {
       return NextResponse.json(
@@ -131,6 +157,105 @@ export async function POST(request: NextRequest) {
         { error: 'Le prix total doit être un nombre positif' },
         { status: 400 }
       )
+    }
+
+    // Validation des champs événement
+    if (event_type && !VALID_EVENT_TYPES.includes(event_type)) {
+      return NextResponse.json(
+        { error: `Type d'événement invalide. Types valides : ${VALID_EVENT_TYPES.join(', ')}` },
+        { status: 400 }
+      )
+    }
+
+    if (attendees_count !== undefined && attendees_count !== null) {
+      const ac = parseInt(String(attendees_count))
+      if (isNaN(ac) || ac < 1) {
+        return NextResponse.json(
+          { error: 'Le nombre de participants doit être un entier positif' },
+          { status: 400 }
+        )
+      }
+    }
+
+    // Mode démo : créer en mémoire
+    if (isDemoMode()) {
+      // Vérifier la salle
+      const room = DEMO_CONFERENCE_ROOMS.find(r => r.id === conference_room_id)
+      if (!room) {
+        return NextResponse.json({ error: 'Salle de conférence introuvable' }, { status: 404 })
+      }
+      if (room.status === 'maintenance') {
+        return NextResponse.json({ error: 'Cette salle est actuellement en maintenance' }, { status: 400 })
+      }
+
+      // Vérifier le client
+      const customer = DEMO_CUSTOMERS.find(c => c.id === customer_id)
+      if (!customer) {
+        return NextResponse.json({ error: 'Client introuvable' }, { status: 404 })
+      }
+
+      // Vérifier les conflits d'horaire
+      const overlapping = DEMO_CONFERENCE_BOOKINGS.filter(
+        b => b.conference_room_id === conference_room_id
+          && b.status !== 'cancelled'
+          && new Date(b.start_time) < endDate
+          && new Date(b.end_time) > startDate
+      )
+      if (overlapping.length > 0) {
+        return NextResponse.json(
+          { error: 'Conflit d\'horaire : cette salle est déjà réservée pour ce créneau', conflicts: overlapping },
+          { status: 409 }
+        )
+      }
+
+      // Calculer le prix
+      let calculatedPrice = priceNum
+      if (!priceNum || priceNum === 0) {
+        const hours = (endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60)
+        calculatedPrice = Math.round(hours * room.price_per_hour)
+      }
+
+      const newBooking = {
+        id: `conf-book-${Date.now()}`,
+        hotel_id: 'demo-hotel-0001',
+        conference_room_id,
+        customer_id,
+        start_time,
+        end_time,
+        total_price: calculatedPrice,
+        status: 'confirmed' as const,
+        event_name: event_name || null,
+        event_type: event_type || null,
+        attendees_count: attendees_count ? parseInt(String(attendees_count)) : null,
+        catering_required: Boolean(catering_required),
+        equipment_needs: equipment_needs || null,
+        setup_notes: setup_notes || null,
+        contact_name: contact_name || null,
+        contact_phone: contact_phone || null,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+        conference_room_name: room.name,
+        customer_name: `${customer.first_name} ${customer.last_name}`,
+      }
+      DEMO_CONFERENCE_BOOKINGS.unshift(newBooking)
+      return NextResponse.json({ booking: newBooking }, { status: 201 })
+    }
+
+    const supabase = await createClient()
+    const { data: { user } } = await supabase.auth.getUser()
+
+    if (!user) {
+      return NextResponse.json({ error: 'Non authentifié' }, { status: 401 })
+    }
+
+    const role = user.app_metadata?.role
+    if (!WRITE_ROLES.includes(role)) {
+      return NextResponse.json({ error: 'Accès non autorisé. Seuls le propriétaire, le manager et le réceptionniste peuvent créer des réservations de salle.' }, { status: 403 })
+    }
+
+    const hotelId = user.app_metadata?.hotel_id
+    if (!hotelId) {
+      return NextResponse.json({ error: 'Aucun hôtel associé' }, { status: 404 })
     }
 
     const adminClient = createAdminClient()
@@ -192,17 +317,34 @@ export async function POST(request: NextRequest) {
       calculatedPrice = Math.round(hours * room.price_per_hour)
     }
 
+    // Construire l'objet d'insertion avec les champs événement
+    const insertData: Record<string, unknown> = {
+      hotel_id: hotelId,
+      conference_room_id,
+      customer_id,
+      start_time,
+      end_time,
+      total_price: calculatedPrice,
+      status: 'confirmed',
+    }
+
+    // Ajouter les champs événement s'ils sont fournis
+    if (event_name) insertData.event_name = event_name
+    if (event_type) insertData.event_type = event_type
+    if (attendees_count !== undefined && attendees_count !== null) {
+      insertData.attendees_count = parseInt(String(attendees_count))
+    }
+    if (catering_required !== undefined) {
+      insertData.catering_required = Boolean(catering_required)
+    }
+    if (equipment_needs) insertData.equipment_needs = equipment_needs
+    if (setup_notes) insertData.setup_notes = setup_notes
+    if (contact_name) insertData.contact_name = contact_name
+    if (contact_phone) insertData.contact_phone = contact_phone
+
     const { data: booking, error } = await adminClient
       .from('conference_bookings')
-      .insert({
-        hotel_id: hotelId,
-        conference_room_id,
-        customer_id,
-        start_time,
-        end_time,
-        total_price: calculatedPrice,
-        status: 'confirmed',
-      })
+      .insert(insertData)
       .select()
       .single()
 

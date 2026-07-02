@@ -34,6 +34,7 @@ import {
   Stamp,
   BedDouble,
   CircleDollarSign,
+  Clock,
 } from 'lucide-react'
 import Image from 'next/image'
 
@@ -130,6 +131,7 @@ interface InvoiceFormLine {
 const STATUS_OPTIONS = [
   { value: 'all', label: 'Tous' },
   { value: 'paid', label: 'Payée' },
+  { value: 'pending', label: 'En attente' },
   { value: 'refund', label: 'Remboursée' },
   { value: 'cancelled', label: 'Annulée' },
 ] as const
@@ -179,6 +181,8 @@ function getStatusBadge(status: InvoiceStatus) {
   switch (status) {
     case 'paid':
       return <Badge className="bg-emerald-100 text-emerald-700 border-emerald-200 hover:bg-emerald-100">Payée</Badge>
+    case 'pending':
+      return <Badge className="bg-amber-100 text-amber-700 border-amber-200 hover:bg-amber-100">En attente</Badge>
     case 'refund':
       return <Badge className="bg-orange-100 text-orange-700 border-orange-200 hover:bg-orange-100">Remboursée</Badge>
     case 'cancelled':
@@ -242,12 +246,18 @@ export function InvoicesTab({ onRefresh }: InvoicesTabProps) {
   const [formTouristTax, setFormTouristTax] = useState(0)
   const [formVatEnabled, setFormVatEnabled] = useState(true)
   const [formPaymentMethod, setFormPaymentMethod] = useState<PaymentMethod | ''>('')
+  const [formInvoiceStatus, setFormInvoiceStatus] = useState<'paid' | 'pending'>('paid')
   const [formNotes, setFormNotes] = useState('')
 
   // Status change dialog
   const [statusDialogOpen, setStatusDialogOpen] = useState(false)
   const [statusChangeTarget, setStatusChangeTarget] = useState<'refund' | 'cancelled' | null>(null)
   const [statusChanging, setStatusChanging] = useState(false)
+
+  // Mark as paid dialog
+  const [markPaidDialogOpen, setMarkPaidDialogOpen] = useState(false)
+  const [markPaidPaymentMethod, setMarkPaidPaymentMethod] = useState<PaymentMethod>('Espèces')
+  const [markPaidLoading, setMarkPaidLoading] = useState(false)
 
   // Export state
   const [exporting, setExporting] = useState(false)
@@ -401,6 +411,7 @@ export function InvoicesTab({ onRefresh }: InvoicesTabProps) {
           tourist_tax: formTouristTax,
           vat_rate: formVatEnabled ? VAT_RATE : 0,
           payment_method: formPaymentMethod,
+          status: formInvoiceStatus,
           notes: formNotes.trim() || null,
         }),
       })
@@ -447,22 +458,32 @@ export function InvoicesTab({ onRefresh }: InvoicesTabProps) {
   }
 
   // ─── Status change ────────────────────────────────────────────────────
-  async function handleStatusChange() {
-    if (!selectedInvoice || !statusChangeTarget) return
+  async function handleStatusChange(targetStatus?: 'refund' | 'cancelled' | 'paid') {
+    const target = targetStatus || statusChangeTarget
+    if (!selectedInvoice || !target) return
     setStatusChanging(true)
     try {
+      const body: Record<string, unknown> = { status: target }
+      if (target === 'paid') {
+        body.payment_method = markPaidPaymentMethod
+      }
+
       const res = await fetch(`/api/owner/invoices/${selectedInvoice.id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status: statusChangeTarget }),
+        body: JSON.stringify(body),
       })
 
       if (res.ok) {
-        const label = statusChangeTarget === 'refund' ? 'remboursée' : 'annulée'
+        const data = await res.json()
+        const label = target === 'refund' ? 'remboursée' : target === 'paid' ? 'marquée comme payée' : 'annulée'
         toast.success(`Facture ${selectedInvoice.invoice_number} ${label}`)
         setSelectedInvoice({
           ...selectedInvoice,
-          status: statusChangeTarget,
+          status: target,
+          receipt_number: data.invoice?.receipt_number || selectedInvoice.receipt_number,
+          paid_at: data.invoice?.paid_at || selectedInvoice.paid_at,
+          payment_method: target === 'paid' ? markPaidPaymentMethod : selectedInvoice.payment_method,
         })
         fetchInvoices()
         onRefresh()
@@ -476,6 +497,8 @@ export function InvoicesTab({ onRefresh }: InvoicesTabProps) {
       setStatusChanging(false)
       setStatusDialogOpen(false)
       setStatusChangeTarget(null)
+      setMarkPaidDialogOpen(false)
+      setMarkPaidLoading(false)
     }
   }
 
@@ -504,6 +527,11 @@ export function InvoicesTab({ onRefresh }: InvoicesTabProps) {
   // ─── Download PDF (opens A4 view, user can Save as PDF) ──────────────
   function handleDownloadPDF(invoice: Invoice) {
     window.open(`/api/owner/invoices/pdf/${invoice.id}?format=a4`, '_blank')
+  }
+
+  // ─── Download Receipt (for paid invoices) ───────────────────────────
+  function handleDownloadReceipt(invoice: Invoice) {
+    window.open(`/api/owner/invoices/pdf/${invoice.id}?format=a4&type=receipt`, '_blank')
   }
 
   // ─── Export CSV (server-side) ─────────────────────────────────────────
@@ -572,10 +600,14 @@ export function InvoicesTab({ onRefresh }: InvoicesTabProps) {
   const totalRevenue = invoices
     .filter(i => i.status === 'paid')
     .reduce((sum, i) => sum + Number(i.total_amount), 0)
+  const pendingRevenue = invoices
+    .filter(i => i.status === 'pending')
+    .reduce((sum, i) => sum + Number(i.total_amount), 0)
   const totalRefund = invoices
     .filter(i => i.status === 'refund')
     .reduce((sum, i) => sum + Number(i.total_amount), 0)
   const paidCount = invoices.filter(i => i.status === 'paid').length
+  const pendingCount = invoices.filter(i => i.status === 'pending').length
 
   // ─── Render ────────────────────────────────────────────────────────────
   return (
@@ -589,7 +621,7 @@ export function InvoicesTab({ onRefresh }: InvoicesTabProps) {
               Gestion des Factures
             </h2>
             <p className="text-muted-foreground">
-              {invoices.length} facture{invoices.length !== 1 ? 's' : ''} · {paidCount} payée{paidCount !== 1 ? 's' : ''}
+              {invoices.length} facture{invoices.length !== 1 ? 's' : ''} · {paidCount} payée{paidCount !== 1 ? 's' : ''}{pendingCount > 0 ? ` · ${pendingCount} en attente` : ''}
             </p>
           </div>
           <div className="flex items-center gap-2 flex-wrap">
@@ -635,7 +667,7 @@ export function InvoicesTab({ onRefresh }: InvoicesTabProps) {
 
         {/* Summary Cards */}
         {invoices.length > 0 && (
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             <Card className="border-emerald-200/60 bg-gradient-to-br from-emerald-50/50 to-white">
               <CardContent className="p-4">
                 <div className="flex items-center justify-between">
@@ -645,6 +677,19 @@ export function InvoicesTab({ onRefresh }: InvoicesTabProps) {
                   </div>
                   <div className="flex h-10 w-10 items-center justify-center rounded-full bg-emerald-100">
                     <CheckCircle2 className="h-5 w-5 text-emerald-600" />
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+            <Card className="border-amber-200/60 bg-gradient-to-br from-amber-50/50 to-white">
+              <CardContent className="p-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-xs font-medium text-amber-600">En attente ({pendingCount})</p>
+                    <p className="text-lg font-bold text-amber-700">{formatFCFA(pendingRevenue)}</p>
+                  </div>
+                  <div className="flex h-10 w-10 items-center justify-center rounded-full bg-amber-100">
+                    <Clock className="h-5 w-5 text-amber-600" />
                   </div>
                 </div>
               </CardContent>
@@ -962,6 +1007,11 @@ export function InvoicesTab({ onRefresh }: InvoicesTabProps) {
                                 <CheckCircle2 className="h-3 w-3 mr-1" />
                                 Payée
                               </Badge>
+                            ) : selectedInvoice.status === 'pending' ? (
+                              <Badge className="bg-amber-500 text-white border-amber-500 hover:bg-amber-500 px-2.5 py-0.5 text-xs font-bold">
+                                <Clock className="h-3 w-3 mr-1" />
+                                En attente
+                              </Badge>
                             ) : selectedInvoice.status === 'refund' ? (
                               <Badge className="bg-orange-500 text-white border-orange-500 hover:bg-orange-500 px-2.5 py-0.5 text-xs font-bold">
                                 <RotateCcw className="h-3 w-3 mr-1" />
@@ -1257,8 +1307,38 @@ export function InvoicesTab({ onRefresh }: InvoicesTabProps) {
                   </Button>
 
                   {/* Danger zone */}
-                  {selectedInvoice.status === 'paid' && (
+                  {(selectedInvoice.status === 'paid' || selectedInvoice.status === 'pending') && (
                     <>
+                      {selectedInvoice.status === 'pending' && (
+                        <>
+                          <Separator className="bg-emerald-100" />
+                          <Button
+                            className="w-full justify-center h-10 bg-emerald-600 hover:bg-emerald-700 text-white font-medium"
+                            onClick={() => {
+                              setMarkPaidPaymentMethod(selectedInvoice.payment_method)
+                              setMarkPaidDialogOpen(true)
+                            }}
+                            disabled={statusChanging}
+                          >
+                            <CheckCircle2 className="h-4 w-4 mr-2" />
+                            Marquer comme Payée
+                          </Button>
+                        </>
+                      )}
+
+                      {/* Download Receipt for paid invoices */}
+                      {selectedInvoice.status === 'paid' && selectedInvoice.receipt_number && (
+                        <>
+                          <Separator className="bg-emerald-100" />
+                          <Button
+                            className="w-full justify-center h-10 bg-emerald-600 hover:bg-emerald-700 text-white font-medium"
+                            onClick={() => handleDownloadReceipt(selectedInvoice)}
+                          >
+                            <Receipt className="h-4 w-4 mr-2" />
+                            Télécharger le Reçu ({selectedInvoice.receipt_number})
+                          </Button>
+                        </>
+                      )}
                       <Separator className="bg-red-100" />
                       <p className="text-[10px] font-semibold text-red-400 uppercase tracking-widest text-center">Zone de danger</p>
                       <div className="grid grid-cols-2 gap-3">
@@ -1295,10 +1375,12 @@ export function InvoicesTab({ onRefresh }: InvoicesTabProps) {
 
         {/* ─── Create Invoice Dialog ────────────────────────────────────────── */}
         <Dialog open={createOpen} onOpenChange={setCreateOpen}>
-          <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-track]:bg-gray-100 [&::-webkit-scrollbar-thumb]:bg-gray-300 [&::-webkit-scrollbar-thumb]:rounded-full">
+          <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-track]:bg-gray-100 [&::-webkit-scrollbar-thumb]:bg-gray-300 [&::-webkit-scrollbar-thumb]:rounded-full">
             <DialogHeader>
               <DialogTitle className="flex items-center gap-2">
-                <Plus className="h-5 w-5 text-amber-600" />
+                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-amber-100">
+                  <Plus className="h-4 w-4 text-amber-600" />
+                </div>
                 Nouvelle Facture
               </DialogTitle>
               <DialogDescription>
@@ -1460,6 +1542,30 @@ export function InvoicesTab({ onRefresh }: InvoicesTabProps) {
                 </Select>
               </div>
 
+              {/* Invoice Status */}
+              <div className="space-y-2">
+                <Label>Statut de la facture *</Label>
+                <Select value={formInvoiceStatus} onValueChange={(v) => setFormInvoiceStatus(v as 'paid' | 'pending')}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="paid">
+                      <span className="flex items-center gap-2">
+                        <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" />
+                        Payée
+                      </span>
+                    </SelectItem>
+                    <SelectItem value="pending">
+                      <span className="flex items-center gap-2">
+                        <Clock className="h-3.5 w-3.5 text-amber-600" />
+                        En attente de paiement
+                      </span>
+                    </SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
               {/* Notes */}
               <div className="space-y-2">
                 <Label>Notes (optionnel)</Label>
@@ -1526,7 +1632,10 @@ export function InvoicesTab({ onRefresh }: InvoicesTabProps) {
         <AlertDialog open={statusDialogOpen} onOpenChange={setStatusDialogOpen}>
           <AlertDialogContent>
             <AlertDialogHeader>
-              <AlertDialogTitle>
+              <AlertDialogTitle className="flex items-center gap-2">
+                <div className={`flex h-8 w-8 items-center justify-center rounded-lg ${statusChangeTarget === 'cancelled' ? 'bg-red-100' : 'bg-orange-100'}`}>
+                  {statusChangeTarget === 'cancelled' ? <Ban className="h-4 w-4 text-red-600" /> : <RotateCcw className="h-4 w-4 text-orange-600" />}
+                </div>
                 {statusChangeTarget === 'refund' ? 'Rembourser la facture' : 'Annuler la facture'}
               </AlertDialogTitle>
               <AlertDialogDescription>
@@ -1535,6 +1644,14 @@ export function InvoicesTab({ onRefresh }: InvoicesTabProps) {
                   : `Êtes-vous sûr de vouloir annuler la facture ${selectedInvoice?.invoice_number} ? Cette action est irréversible.`}
               </AlertDialogDescription>
             </AlertDialogHeader>
+            <div className={`rounded-lg border p-3 flex items-start gap-2 ${statusChangeTarget === 'cancelled' ? 'border-red-200 bg-red-50' : 'border-orange-200 bg-orange-50'}`}>
+              <AlertTriangle className={`h-4 w-4 mt-0.5 shrink-0 ${statusChangeTarget === 'cancelled' ? 'text-red-600' : 'text-orange-600'}`} />
+              <p className={`text-xs ${statusChangeTarget === 'cancelled' ? 'text-red-800' : 'text-orange-800'}`}>
+                {statusChangeTarget === 'refund'
+                  ? 'Le remboursement sera enregistré et un reçu de remboursement pourra être généré.'
+                  : 'La facture sera marquée comme annulée et ne pourra plus être modifiée.'}
+              </p>
+            </div>
             <AlertDialogFooter>
               <AlertDialogCancel>Annuler</AlertDialogCancel>
               <AlertDialogAction
@@ -1549,6 +1666,71 @@ export function InvoicesTab({ onRefresh }: InvoicesTabProps) {
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>
+
+        {/* ─── Mark as Paid Dialog ───────────────────────────────────────── */}
+        <Dialog open={markPaidDialogOpen} onOpenChange={setMarkPaidDialogOpen}>
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-100">
+                  <CheckCircle2 className="h-4 w-4 text-emerald-600" />
+                </div>
+                Marquer comme Payée
+              </DialogTitle>
+              <DialogDescription>
+                Facture {selectedInvoice?.invoice_number} — {selectedInvoice ? formatFCFA(selectedInvoice.total_amount) : ''}
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4 py-2">
+              <div className="rounded-lg bg-gray-50 p-3 space-y-1">
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">Montant</span>
+                  <span className="font-bold text-lg">{selectedInvoice ? formatFCFA(selectedInvoice.total_amount) : ''}</span>
+                </div>
+                <div className="flex justify-between text-xs text-muted-foreground">
+                  <span>Facture</span>
+                  <span>{selectedInvoice?.invoice_number}</span>
+                </div>
+              </div>
+              <div className="space-y-2">
+                <Label>Mode de paiement</Label>
+                <Select value={markPaidPaymentMethod} onValueChange={(v) => setMarkPaidPaymentMethod(v as PaymentMethod)}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {PAYMENT_METHOD_OPTIONS.map((opt) => (
+                      <SelectItem key={opt.value} value={opt.value}>
+                        {opt.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="rounded-lg bg-emerald-50 border border-emerald-200 p-3 text-sm text-emerald-800 flex items-start gap-2">
+                <Receipt className="h-4 w-4 text-emerald-600 mt-0.5 shrink-0" />
+                <span>Un reçu (REC-YYYY-XXXX) sera automatiquement généré.</span>
+              </div>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setMarkPaidDialogOpen(false)}>
+                Annuler
+              </Button>
+              <Button
+                className="bg-emerald-600 hover:bg-emerald-700 text-white"
+                onClick={() => handleStatusChange('paid')}
+                disabled={markPaidLoading}
+              >
+                {markPaidLoading ? (
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                ) : (
+                  <CheckCircle2 className="h-4 w-4 mr-2" />
+                )}
+                Confirmer le paiement
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </div>
     </TooltipProvider>
   )

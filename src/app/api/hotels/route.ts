@@ -1,14 +1,28 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { isDemoMode, DEMO_HOTELS } from '@/lib/demo-data'
 
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url)
     const hotelId = searchParams.get('hotel_id')
-    
-    const supabase = createAdminClient()
 
-    let query = supabase.from('hotels').select('*').order('created_at', { ascending: false })
+    // ─── Mode démo ────────────────────────────────────────────
+    if (isDemoMode()) {
+      let hotels = [...DEMO_HOTELS]
+      if (hotelId) {
+        hotels = hotels.filter(h => h.id === hotelId)
+      }
+      return NextResponse.json({ hotels })
+    }
+
+    // ─── Mode production ──────────────────────────────────────
+    const supabase = createAdminClient()
+    if (!supabase) {
+      return NextResponse.json({ error: 'Service indisponible' }, { status: 503 })
+    }
+
+    let query = supabase.from('hotels').select('*').eq('status', 'active').order('created_at', { ascending: false })
     
     if (hotelId) {
       query = query.eq('id', hotelId)
@@ -37,6 +51,9 @@ export async function POST(request: NextRequest) {
     }
 
     const supabase = createAdminClient()
+    if (!supabase) {
+      return NextResponse.json({ error: 'Service indisponible' }, { status: 503 })
+    }
 
     const { data, error } = await supabase
       .from('hotels')

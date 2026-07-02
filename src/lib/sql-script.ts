@@ -148,10 +148,40 @@ CREATE TABLE IF NOT EXISTS public.rooms (
     room_number VARCHAR(50) NOT NULL,
     room_type VARCHAR(100) NOT NULL,
     price_per_night NUMERIC(12, 2) NOT NULL,
+    weekend_price NUMERIC(12, 2),
+    weekend_days VARCHAR(50) DEFAULT '5,6',
     status public.room_status NOT NULL DEFAULT 'available',
     created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
     UNIQUE (hotel_id, room_number)
+);
+
+-- 9b. Table des Tarifs Saisonniers (Tarification Dynamique)
+CREATE TABLE IF NOT EXISTS public.room_rates (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    hotel_id UUID NOT NULL REFERENCES public.hotels(id) ON DELETE CASCADE,
+    room_id UUID NOT NULL REFERENCES public.rooms(id) ON DELETE CASCADE,
+    name VARCHAR(200) NOT NULL,
+    price_per_night NUMERIC(12, 2) NOT NULL,
+    start_date DATE NOT NULL,
+    end_date DATE NOT NULL,
+    priority INTEGER DEFAULT 0,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+
+-- 9c. Table des Tâches de Ménage (Planification)
+CREATE TABLE IF NOT EXISTS public.housekeeping_tasks (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    hotel_id UUID NOT NULL REFERENCES public.hotels(id) ON DELETE CASCADE,
+    room_id UUID NOT NULL REFERENCES public.rooms(id) ON DELETE CASCADE,
+    assigned_to UUID REFERENCES public.profiles(id) ON DELETE SET NULL,
+    task_type VARCHAR(50) NOT NULL DEFAULT 'checkout_cleaning',
+    priority VARCHAR(20) NOT NULL DEFAULT 'normal',
+    status VARCHAR(20) NOT NULL DEFAULT 'pending',
+    notes TEXT,
+    due_date DATE NOT NULL,
+    completed_at TIMESTAMP WITH TIME ZONE,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
 
 -- 10. Table des Clients
@@ -205,9 +235,46 @@ CREATE TABLE IF NOT EXISTS public.conference_bookings (
     end_time TIMESTAMP WITH TIME ZONE NOT NULL,
     total_price NUMERIC(12, 2) NOT NULL,
     status VARCHAR(50) NOT NULL DEFAULT 'confirmed',
+    -- Champs planification d'événements
+    event_name VARCHAR(200),
+    event_type VARCHAR(100),
+    attendees_count INTEGER,
+    catering_required BOOLEAN DEFAULT false,
+    equipment_needs TEXT,
+    setup_notes TEXT,
+    contact_name VARCHAR(200),
+    contact_phone VARCHAR(50),
     created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
     CONSTRAINT chk_conf_dates CHECK (end_time > start_time)
 );
+
+-- Ajout des colonnes planification événements si elles n'existent pas (migration)
+DO $$ BEGIN
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'conference_bookings' AND column_name = 'event_name') THEN
+        ALTER TABLE public.conference_bookings ADD COLUMN event_name VARCHAR(200);
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'conference_bookings' AND column_name = 'event_type') THEN
+        ALTER TABLE public.conference_bookings ADD COLUMN event_type VARCHAR(100);
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'conference_bookings' AND column_name = 'attendees_count') THEN
+        ALTER TABLE public.conference_bookings ADD COLUMN attendees_count INTEGER;
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'conference_bookings' AND column_name = 'catering_required') THEN
+        ALTER TABLE public.conference_bookings ADD COLUMN catering_required BOOLEAN DEFAULT false;
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'conference_bookings' AND column_name = 'equipment_needs') THEN
+        ALTER TABLE public.conference_bookings ADD COLUMN equipment_needs TEXT;
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'conference_bookings' AND column_name = 'setup_notes') THEN
+        ALTER TABLE public.conference_bookings ADD COLUMN setup_notes TEXT;
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'conference_bookings' AND column_name = 'contact_name') THEN
+        ALTER TABLE public.conference_bookings ADD COLUMN contact_name VARCHAR(200);
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'conference_bookings' AND column_name = 'contact_phone') THEN
+        ALTER TABLE public.conference_bookings ADD COLUMN contact_phone VARCHAR(50);
+    END IF;
+END $$;
 
 -- 14. Table des Commandes du Restaurant
 CREATE TABLE IF NOT EXISTS public.restaurant_orders (
@@ -321,6 +388,14 @@ CREATE INDEX IF NOT EXISTS idx_subscriptions_hotel_id ON public.subscriptions(ho
 CREATE INDEX IF NOT EXISTS idx_activation_codes_code ON public.activation_codes(code);
 CREATE INDEX IF NOT EXISTS idx_rooms_hotel_id ON public.rooms(hotel_id);
 CREATE INDEX IF NOT EXISTS idx_rooms_status ON public.rooms(status);
+CREATE INDEX IF NOT EXISTS idx_room_rates_hotel_id ON public.room_rates(hotel_id);
+CREATE INDEX IF NOT EXISTS idx_room_rates_room_id ON public.room_rates(room_id);
+CREATE INDEX IF NOT EXISTS idx_room_rates_dates ON public.room_rates(room_id, start_date, end_date);
+CREATE INDEX IF NOT EXISTS idx_housekeeping_tasks_hotel_id ON public.housekeeping_tasks(hotel_id);
+CREATE INDEX IF NOT EXISTS idx_housekeeping_tasks_room_id ON public.housekeeping_tasks(room_id);
+CREATE INDEX IF NOT EXISTS idx_housekeeping_tasks_assigned_to ON public.housekeeping_tasks(assigned_to);
+CREATE INDEX IF NOT EXISTS idx_housekeeping_tasks_status ON public.housekeeping_tasks(status);
+CREATE INDEX IF NOT EXISTS idx_housekeeping_tasks_due_date ON public.housekeeping_tasks(hotel_id, due_date);
 CREATE INDEX IF NOT EXISTS idx_customers_hotel_id ON public.customers(hotel_id);
 CREATE INDEX IF NOT EXISTS idx_reservations_hotel_id_dates ON public.reservations(hotel_id, check_in_date, check_out_date);
 CREATE INDEX IF NOT EXISTS idx_stock_items_hotel_id ON public.stock_items(hotel_id);

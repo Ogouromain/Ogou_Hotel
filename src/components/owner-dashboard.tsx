@@ -47,6 +47,17 @@ import {
   GraduationCap,
   DoorOpen,
   Wallet,
+  TrendingUp,
+  ArrowUpRight,
+  Sun,
+  Activity,
+  Zap,
+  Crown,
+  Star,
+  ArrowRight,
+  CircleDot,
+  LogIn,
+  LogOut as LogOutIcon,
 } from 'lucide-react'
 
 import Image from 'next/image'
@@ -133,6 +144,10 @@ const ExpensesTab = dynamic(
   () => import('@/components/expenses-tab').then(mod => ({ default: mod.ExpensesTab })),
   { ssr: false, loading: () => <TabLoadingSkeleton /> }
 )
+const HousekeepingTab = dynamic(
+  () => import('@/components/housekeeping-tab').then(mod => ({ default: mod.HousekeepingTab })),
+  { ssr: false, loading: () => <TabLoadingSkeleton /> }
+)
 
 import { RealtimeIndicator, RealtimeRefreshPulse } from '@/components/realtime-indicator'
 import { useRealtimeSafe } from '@/lib/realtime-context'
@@ -199,9 +214,23 @@ interface RoomInfo {
   room_number: string
   room_type: string
   price_per_night: number
+  weekend_price: number | null
+  weekend_days: string
   status: string
   created_at: string
   updated_at: string
+}
+
+interface RoomRateInfo {
+  id: string
+  hotel_id: string
+  room_id: string
+  name: string
+  price_per_night: number
+  start_date: string
+  end_date: string
+  priority: number
+  created_at: string
 }
 
 interface EmployeeInfo {
@@ -214,7 +243,7 @@ interface EmployeeInfo {
   created_at: string
 }
 
-type TabId = 'overview' | 'rooms' | 'reservations' | 'customers' | 'invoices' | 'expenses' | 'analytics' | 'activity' | 'notifications' | 'team' | 'settings' | 'restaurant' | 'stocks' | 'conference' | 'formation'
+type TabId = 'overview' | 'rooms' | 'housekeeping' | 'reservations' | 'customers' | 'invoices' | 'expenses' | 'analytics' | 'activity' | 'notifications' | 'team' | 'settings' | 'restaurant' | 'stocks' | 'conference' | 'formation'
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -295,6 +324,7 @@ function getEmployeeStatusBadge(status: string) {
 const NAV_ITEMS: { id: TabId; label: string; icon: React.ReactNode; requiredFeature?: FeatureGate }[] = [
   { id: 'overview', label: 'Tableau de bord', icon: <BarChart3 className="h-4 w-4" /> },
   { id: 'rooms', label: 'Chambres', icon: <Bed className="h-4 w-4" /> },
+  { id: 'housekeeping', label: 'Ménage', icon: <Sparkles className="h-4 w-4" /> },
   { id: 'reservations', label: 'Réservations', icon: <Calendar className="h-4 w-4" /> },
   { id: 'customers', label: 'Clients', icon: <Users className="h-4 w-4" /> },
   { id: 'invoices', label: 'Factures', icon: <FileText className="h-4 w-4" /> },
@@ -872,6 +902,10 @@ export function OwnerDashboard({ profile, onLogout, isNewRegistration }: OwnerDa
             />
           )}
 
+          {activeTab === 'housekeeping' && (
+            <HousekeepingTab onRefresh={fetchAllData} />
+          )}
+
           {activeTab === 'reservations' && (
             <ReservationsTab
               rooms={roomsList.map((r) => ({
@@ -1071,53 +1105,216 @@ function OverviewTab({
   onNavigateToInvoices?: () => void
   onNavigateToActivity?: () => void
 }) {
-  const totalEmployees = usage.receptionists + usage.managers // Only count employees (not owner)
+  const totalEmployees = usage.receptionists + usage.managers
 
-  const statCards = [
-    { title: 'Chambres', value: usage.rooms, icon: <Bed className="h-5 w-5" />, color: 'text-amber-600', bg: 'bg-amber-50', max: planInfo?.limits.max_rooms, onClick: onNavigateToRooms },
-    { title: 'Réservations', value: usage.reservations, icon: <Calendar className="h-5 w-5" />, color: 'text-orange-600', bg: 'bg-orange-50', max: undefined, onClick: onNavigateToReservations },
-    { title: 'Équipe', value: totalEmployees, icon: <Users className="h-5 w-5" />, color: 'text-emerald-600', bg: 'bg-emerald-50', max: undefined, onClick: onNavigateToTeam },
-    { title: 'Clients', value: usage.customers, icon: <Users className="h-5 w-5" />, color: 'text-sky-600', bg: 'bg-sky-50', max: undefined, onClick: onNavigateToCustomers },
+  // Current time greeting in French
+  const getGreeting = () => {
+    const hour = new Date().getHours()
+    if (hour < 12) return 'Bonjour'
+    if (hour < 18) return 'Bon après-midi'
+    return 'Bonsoir'
+  }
+
+  // Current date formatted in French
+  const getCurrentDateFR = () => {
+    return new Date().toLocaleDateString('fr-FR', {
+      weekday: 'long',
+      day: 'numeric',
+      month: 'long',
+      year: 'numeric',
+    })
+  }
+
+  // Current time formatted in French
+  const getCurrentTimeFR = () => {
+    return new Date().toLocaleTimeString('fr-FR', {
+      hour: '2-digit',
+      minute: '2-digit',
+    })
+  }
+
+  // Room status distribution
+  const statusCounts: Record<string, number> = {}
+  roomsList.forEach((r) => {
+    statusCounts[r.status] = (statusCounts[r.status] || 0) + 1
+  })
+
+  const statusConfig: Record<string, { label: string; color: string; bgBar: string; textColor: string; gradient: string }> = {
+    available: { label: 'Disponibles', color: 'bg-emerald-500', bgBar: 'bg-emerald-100', textColor: 'text-emerald-700', gradient: 'from-emerald-400 to-emerald-600' },
+    occupied: { label: 'Occupées', color: 'bg-orange-500', bgBar: 'bg-orange-100', textColor: 'text-orange-700', gradient: 'from-orange-400 to-orange-600' },
+    cleaning: { label: 'Nettoyage', color: 'bg-amber-500', bgBar: 'bg-amber-100', textColor: 'text-amber-700', gradient: 'from-amber-400 to-amber-600' },
+    maintenance: { label: 'Maintenance', color: 'bg-red-500', bgBar: 'bg-red-100', textColor: 'text-red-700', gradient: 'from-red-400 to-red-600' },
+  }
+
+  // Subscription progress
+  const getSubscriptionProgress = () => {
+    if (!subscription) return 0
+    try {
+      const start = new Date(subscription.starts_at).getTime()
+      const end = new Date(subscription.ends_at).getTime()
+      const now = Date.now()
+      if (end <= start) return 100
+      return Math.min(Math.max(((now - start) / (end - start)) * 100, 0), 100)
+    } catch {
+      return 0
+    }
+  }
+
+  const subProgress = getSubscriptionProgress()
+  const daysRemaining = subscription
+    ? Math.max(0, Math.ceil((new Date(subscription.ends_at).getTime() - Date.now()) / (1000 * 60 * 60 * 24)))
+    : 0
+
+  // KPI stat cards with gradient and progress
+  const kpiCards = [
+    {
+      title: 'Chambres',
+      value: usage.rooms,
+      max: planInfo?.limits.max_rooms,
+      icon: <Bed className="h-6 w-6" />,
+      gradient: 'from-amber-500 to-orange-600',
+      bgGradient: 'from-amber-50 via-orange-50 to-amber-100/50',
+      iconBg: 'bg-gradient-to-br from-amber-400 to-orange-500',
+      trend: usage.rooms > 0 ? '+actif' : '',
+      onClick: onNavigateToRooms,
+    },
+    {
+      title: 'Réservations',
+      value: usage.reservations,
+      max: undefined,
+      icon: <Calendar className="h-6 w-6" />,
+      gradient: 'from-orange-500 to-red-500',
+      bgGradient: 'from-orange-50 via-red-50/30 to-orange-100/50',
+      iconBg: 'bg-gradient-to-br from-orange-400 to-red-500',
+      trend: todayCheckIns.length > 0 ? `${todayCheckIns.length} arrivée${todayCheckIns.length > 1 ? 's' : ''}` : '',
+      onClick: onNavigateToReservations,
+    },
+    {
+      title: 'Équipe',
+      value: totalEmployees,
+      max: planInfo ? planInfo.limits.max_receptionists + planInfo.limits.max_managers : undefined,
+      icon: <Users className="h-6 w-6" />,
+      gradient: 'from-emerald-500 to-teal-600',
+      bgGradient: 'from-emerald-50 via-teal-50/30 to-emerald-100/50',
+      iconBg: 'bg-gradient-to-br from-emerald-400 to-teal-500',
+      trend: totalEmployees > 0 ? 'actif' : '',
+      onClick: onNavigateToTeam,
+    },
+    {
+      title: 'Clients',
+      value: usage.customers,
+      max: undefined,
+      icon: <Users className="h-6 w-6" />,
+      gradient: 'from-amber-600 to-amber-800',
+      bgGradient: 'from-amber-50 via-yellow-50/30 to-amber-100/50',
+      iconBg: 'bg-gradient-to-br from-amber-500 to-amber-700',
+      trend: usage.customers > 0 ? 'enregistrés' : '',
+      onClick: onNavigateToCustomers,
+    },
   ]
 
+  // Quick action cards
+  const quickActions = [
+    {
+      title: 'Chambres',
+      description: `${usage.rooms} configurée${usage.rooms !== 1 ? 's' : ''} — Gérer les types et prix`,
+      icon: <Bed className="h-5 w-5" />,
+      iconBg: 'bg-gradient-to-br from-amber-400 to-orange-500',
+      onClick: onNavigateToRooms,
+    },
+    {
+      title: 'Réservations',
+      description: 'Planning, check-in & check-out',
+      icon: <Calendar className="h-5 w-5" />,
+      iconBg: 'bg-gradient-to-br from-orange-400 to-red-500',
+      onClick: onNavigateToReservations,
+    },
+    {
+      title: 'Clients',
+      description: 'Fiches clients & documents',
+      icon: <Users className="h-5 w-5" />,
+      iconBg: 'bg-gradient-to-br from-emerald-400 to-teal-500',
+      onClick: onNavigateToCustomers,
+    },
+    {
+      title: 'Factures',
+      description: 'PDF & reçu thermique',
+      icon: <FileText className="h-5 w-5" />,
+      iconBg: 'bg-gradient-to-br from-amber-500 to-amber-700',
+      onClick: onNavigateToInvoices,
+    },
+    {
+      title: 'Équipe',
+      description: `${totalEmployees} employé${totalEmployees !== 1 ? 's' : ''} — Gérer les rôles`,
+      icon: <UserPlus className="h-5 w-5" />,
+      iconBg: 'bg-gradient-to-br from-emerald-500 to-emerald-700',
+      onClick: onNavigateToTeam,
+    },
+  ]
+
+  // Plan features for subscription section
+  const planFeatures: Record<string, string[]> = {
+    'Basique': ['Gestion des chambres', 'Réservations', 'Factures', 'Équipe (limité)'],
+    'Standard': ['Tout du Basique', 'Analytique', 'Notifications SMS', 'Plus de chambres'],
+    'Premium': ['Tout du Standard', 'Restaurant', 'Stocks', 'Salles conférence', 'Formation', 'Support prioritaire'],
+  }
+
   return (
-    <div className="space-y-6">
-      {/* ── Carte de bienvenue « Bonjour! » (style DataThis) ──────────────── */}
-      <div className="rounded-2xl border border-emerald-200 bg-gradient-to-br from-emerald-50 to-green-50 p-6 sm:p-8">
-        <div className="flex flex-col sm:flex-row items-start gap-5">
-          <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-emerald-100 text-emerald-600">
-            <Building2 className="h-7 w-7" />
+    <div className="space-y-8">
+      {/* ═══════════════════════════════════════════════════════════════════════
+          1. HERO WELCOME SECTION — Gradient hero with animated background
+      ═══════════════════════════════════════════════════════════════════════ */}
+      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-amber-600 via-orange-600 to-amber-700 p-6 sm:p-8 shadow-lg">
+        {/* Decorative circles for depth */}
+        <div className="pointer-events-none absolute -right-16 -top-16 h-64 w-64 rounded-full bg-white/5" />
+        <div className="pointer-events-none absolute -bottom-20 -left-20 h-80 w-80 rounded-full bg-white/5" />
+        <div className="pointer-events-none absolute right-1/4 top-1/4 h-32 w-32 rounded-full bg-white/[0.03]" />
+
+        <div className="relative z-10 flex flex-col sm:flex-row items-start gap-6">
+          {/* Icon */}
+          <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl bg-white/20 backdrop-blur-sm text-white shadow-inner">
+            <Building2 className="h-8 w-8" />
           </div>
+
+          {/* Content */}
           <div className="flex-1 min-w-0">
-            <h2 className="text-2xl font-bold text-emerald-800">
-              Bonjour{hotelInfo?.name ? `, ${hotelInfo.name}` : ' !'}
-            </h2>
-            <p className="text-sm text-emerald-700 mt-1">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+              <h2 className="text-2xl sm:text-3xl font-bold text-white">
+                {getGreeting()}{hotelInfo?.name ? `, ${hotelInfo.name}` : ' !'}
+              </h2>
+              <div className="flex items-center gap-2 text-amber-100">
+                <Sun className="h-4 w-4" />
+                <span className="text-sm font-medium">{getCurrentTimeFR()}</span>
+                <span className="text-amber-200/60">•</span>
+                <span className="text-sm capitalize">{getCurrentDateFR()}</span>
+              </div>
+            </div>
+            <p className="text-amber-100 mt-2 text-sm sm:text-base">
               Bienvenue dans votre espace de gestion hôtelière. Voici un aperçu de votre activité.
             </p>
-            <div className="flex flex-wrap gap-2 mt-4">
+
+            {/* Quick action buttons */}
+            <div className="flex flex-wrap gap-3 mt-5">
               <Button
                 size="sm"
                 onClick={onNavigateToRooms}
-                className="bg-emerald-600 text-white hover:bg-emerald-700"
+                className="bg-white/20 backdrop-blur-sm text-white hover:bg-white/30 border border-white/20 shadow-sm transition-all duration-300"
               >
                 <Bed className="h-4 w-4 mr-1.5" />
                 Gérer les chambres
               </Button>
               <Button
                 size="sm"
-                variant="outline"
                 onClick={onNavigateToReservations}
-                className="border-emerald-300 text-emerald-700 hover:bg-emerald-100"
+                className="bg-white/20 backdrop-blur-sm text-white hover:bg-white/30 border border-white/20 shadow-sm transition-all duration-300"
               >
                 <Calendar className="h-4 w-4 mr-1.5" />
                 Nouvelle réservation
               </Button>
               <Button
                 size="sm"
-                variant="outline"
                 onClick={onNavigateToTeam}
-                className="border-emerald-300 text-emerald-700 hover:bg-emerald-100"
+                className="bg-white/20 backdrop-blur-sm text-white hover:bg-white/30 border border-white/20 shadow-sm transition-all duration-300"
               >
                 <Users className="h-4 w-4 mr-1.5" />
                 Mon équipe
@@ -1132,162 +1329,126 @@ function OverviewTab({
         onNavigateToReservations={onNavigateToReservations}
       />
 
-      {/* Hotel & Subscription Cards */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <Card className="border-amber-200/60">
-          <CardHeader className="pb-3">
-            <CardTitle className="flex items-center gap-2 text-base">
-              <Building2 className="h-5 w-5 text-amber-600" />
-              Informations de l&apos;Hôtel
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            {loading ? (
-              <div className="space-y-3"><Skeleton className="h-5 w-48" /><Skeleton className="h-4 w-32" /><Skeleton className="h-4 w-40" /></div>
-            ) : hotelInfo ? (
-              <div className="space-y-3">
-                <div>
-                  <p className="text-xl font-bold text-gray-900">{hotelInfo.name}</p>
-                  <Badge className="mt-1 bg-emerald-100 text-emerald-700 border-emerald-200 hover:bg-emerald-100">
-                    {hotelInfo.status === 'active' ? 'Actif' : hotelInfo.status}
-                  </Badge>
-                </div>
-                <Separator />
-                <div className="space-y-2 text-sm">
-                  <div className="flex items-center gap-2 text-gray-600">
-                    <MapPin className="h-4 w-4 text-amber-500 shrink-0" />
-                    {hotelInfo.city}{hotelInfo.address ? ` — ${hotelInfo.address}` : ''}
+      {/* ═══════════════════════════════════════════════════════════════════════
+          2. KPI STAT CARDS — Modern gradient cards with progress bars
+      ═══════════════════════════════════════════════════════════════════════ */}
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        {kpiCards.map((card) => {
+          const hasMax = card.max && card.max < 9999
+          const progressPct = hasMax && card.max! > 0 ? Math.min((card.value / card.max!) * 100, 100) : 0
+          return (
+            <div
+              key={card.title}
+              className={`group relative overflow-hidden rounded-2xl bg-gradient-to-br ${card.bgGradient} border border-white/60 shadow-sm transition-all duration-300 hover:shadow-lg hover:scale-[1.02] ${card.onClick ? 'cursor-pointer' : ''}`}
+              onClick={card.onClick}
+            >
+              {/* Decorative gradient blob */}
+              <div className={`pointer-events-none absolute -right-6 -top-6 h-24 w-24 rounded-full bg-gradient-to-br ${card.gradient} opacity-10 group-hover:opacity-20 transition-opacity duration-300`} />
+
+              <div className="relative p-5 sm:p-6">
+                <div className="flex items-start justify-between mb-3">
+                  <div className={`flex h-11 w-11 items-center justify-center rounded-xl ${card.iconBg} text-white shadow-sm`}>
+                    {card.icon}
                   </div>
-                  <div className="flex items-center gap-2 text-gray-600">
-                    <Phone className="h-4 w-4 text-amber-500 shrink-0" />
-                    {hotelInfo.phone}
-                  </div>
-                  {hotelInfo.email && (
-                    <div className="flex items-center gap-2 text-gray-600">
-                      <Mail className="h-4 w-4 text-amber-500 shrink-0" />
-                      {hotelInfo.email}
+                  {card.trend && (
+                    <div className="flex items-center gap-1 rounded-full bg-white/70 px-2 py-0.5 text-xs font-medium text-emerald-700">
+                      <TrendingUp className="h-3 w-3" />
+                      {card.trend}
                     </div>
                   )}
                 </div>
-              </div>
-            ) : (
-              <p className="text-sm text-muted-foreground">Informations non disponibles</p>
-            )}
-          </CardContent>
-        </Card>
+                <p className="text-sm font-medium text-muted-foreground">{card.title}</p>
+                <div className="flex items-baseline gap-1 mt-0.5">
+                  <p className="text-3xl font-bold tracking-tight">{card.value}</p>
+                  {hasMax && <span className="text-sm font-normal text-muted-foreground">/ {card.max}</span>}
+                </div>
 
-        <Card className="border-amber-200/60">
-          <CardHeader className="pb-3">
-            <CardTitle className="flex items-center gap-2 text-base">
-              <CreditCard className="h-5 w-5 text-amber-600" />
-              Abonnement
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            {loading ? (
-              <div className="space-y-3"><Skeleton className="h-5 w-36" /><Skeleton className="h-4 w-48" /><Skeleton className="h-4 w-40" /></div>
-            ) : subscription && planInfo ? (
-              <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-xl font-bold text-gray-900">Plan {planInfo.name}</p>
-                    <p className="text-sm text-muted-foreground">{formatFCFA(planInfo.price_fcfa)}/an</p>
+                {/* Progress bar for limited resources */}
+                {hasMax && card.max! > 0 && (
+                  <div className="mt-3">
+                    <div className="h-1.5 w-full rounded-full bg-white/50 overflow-hidden">
+                      <div
+                        className={`h-full rounded-full bg-gradient-to-r ${card.gradient} transition-all duration-500`}
+                        style={{ width: `${progressPct}%` }}
+                      />
+                    </div>
+                    <div className="flex justify-between mt-1">
+                      <span className="text-[10px] text-muted-foreground">{Math.round(progressPct)}% utilisé</span>
+                      {progressPct >= 90 && (
+                        <span className="text-[10px] text-red-600 font-medium">Limite proche</span>
+                      )}
+                    </div>
                   </div>
-                  {getSubscriptionStatusBadge(subscription.status)}
-                </div>
-                <Separator />
-                <div className="space-y-2 text-sm">
-                  <div className="flex items-center gap-2 text-gray-600">
-                    <Calendar className="h-4 w-4 text-amber-500 shrink-0" />
-                    <span>Début : {formatDateFR(subscription.starts_at)}</span>
-                  </div>
-                  <div className="flex items-center gap-2 text-gray-600">
-                    <Clock className="h-4 w-4 text-amber-500 shrink-0" />
-                    <span>Expire le : {formatDateFR(subscription.ends_at)}</span>
-                  </div>
-                </div>
+                )}
               </div>
-            ) : (
-              <p className="text-sm text-muted-foreground">Informations d&apos;abonnement non disponibles</p>
-            )}
-          </CardContent>
-        </Card>
+            </div>
+          )
+        })}
       </div>
 
-      {/* Stats Grid */}
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        {statCards.map((card) => (
-          <Card key={card.title} className={card.onClick ? 'cursor-pointer hover:shadow-md transition-shadow' : ''} onClick={card.onClick}>
-            <CardContent className="p-6">
-              <div className="flex items-center gap-4">
-                <div className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-lg ${card.bg} ${card.color}`}>
-                  {card.icon}
-                </div>
-                <div>
-                  <p className="text-sm font-medium text-muted-foreground">{card.title}</p>
-                  <p className="text-2xl font-bold tracking-tight">{card.value}{card.max && card.max < 9999 ? <span className="text-sm font-normal text-muted-foreground">/{card.max}</span> : ''}</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
-
-      {/* Opérations du jour */}
-      <Card className="border-amber-200/60">
-        <CardHeader className="pb-3">
+      {/* ═══════════════════════════════════════════════════════════════════════
+          3. TODAY'S OPERATIONS — Timeline design with left border indicators
+      ═══════════════════════════════════════════════════════════════════════ */}
+      <div className="rounded-2xl border border-amber-200/60 bg-white shadow-sm overflow-hidden">
+        {/* Header */}
+        <div className="bg-gradient-to-r from-amber-50 to-orange-50 px-6 py-4 border-b border-amber-100">
           <div className="flex items-center justify-between">
-            <CardTitle className="flex items-center gap-2 text-base">
-              <DoorOpen className="h-5 w-5 text-amber-600" />
-              Opérations du jour
-            </CardTitle>
+            <div className="flex items-center gap-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-amber-400 to-orange-500 text-white shadow-sm">
+                <Activity className="h-5 w-5" />
+              </div>
+              <div>
+                <h3 className="text-base font-bold text-gray-900">Opérations du jour</h3>
+                <p className="text-xs text-muted-foreground flex items-center gap-1.5">
+                  <Eye className="h-3 w-3" />
+                  Gérées par le réceptionniste
+                </p>
+              </div>
+            </div>
             {todayDate && (
-              <Badge variant="outline" className="text-xs text-amber-700 border-amber-200">
+              <Badge variant="outline" className="text-xs text-amber-700 border-amber-300 bg-white/60">
                 {formatDateFR(todayDate)}
               </Badge>
             )}
           </div>
-          <CardDescription className="text-xs text-muted-foreground flex items-center gap-1.5 mt-1">
-            <Eye className="h-3.5 w-3.5" />
-            Les opérations quotidiennes sont gérées par le réceptionniste
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          {/* Summary cards */}
-          <div className="grid grid-cols-2 gap-4 mb-4">
-            <div className="rounded-lg border border-emerald-200 bg-emerald-50/50 p-4">
+        </div>
+
+        <div className="p-6">
+          {/* Summary mini cards */}
+          <div className="grid grid-cols-2 gap-4 mb-6">
+            <div className="rounded-xl bg-gradient-to-br from-emerald-50 to-emerald-100/50 border border-emerald-200/60 p-4 transition-all duration-300 hover:shadow-md">
               <div className="flex items-center gap-3">
-                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-emerald-100 text-emerald-600">
-                  <DoorOpen className="h-5 w-5" />
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-emerald-400 to-emerald-600 text-white shadow-sm">
+                  <LogIn className="h-5 w-5" />
                 </div>
                 <div>
-                  <p className="text-xs font-medium text-emerald-700">Arrivées aujourd&apos;hui</p>
+                  <p className="text-xs font-medium text-emerald-600">Arrivées</p>
                   <p className="text-2xl font-bold text-emerald-800">{loading ? '—' : todayCheckIns.length}</p>
                 </div>
               </div>
             </div>
-            <div className="rounded-lg border border-amber-200 bg-amber-50/50 p-4">
+            <div className="rounded-xl bg-gradient-to-br from-amber-50 to-orange-100/50 border border-amber-200/60 p-4 transition-all duration-300 hover:shadow-md">
               <div className="flex items-center gap-3">
-                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-amber-100 text-amber-600">
-                  <DoorOpen className="h-5 w-5" />
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-amber-400 to-orange-500 text-white shadow-sm">
+                  <LogOutIcon className="h-5 w-5" />
                 </div>
                 <div>
-                  <p className="text-xs font-medium text-amber-700">Départs aujourd&apos;hui</p>
+                  <p className="text-xs font-medium text-amber-600">Départs</p>
                   <p className="text-2xl font-bold text-amber-800">{loading ? '—' : todayCheckOuts.length}</p>
                 </div>
               </div>
             </div>
           </div>
 
-          {/* Arrivals list */}
+          {/* Arrivals timeline */}
           {todayCheckIns.length > 0 && (
-            <div className="mb-4">
-              <p className="text-sm font-semibold text-gray-700 mb-2 flex items-center gap-1.5">
-                <DoorOpen className="h-4 w-4 text-emerald-500" />
+            <div className="mb-6">
+              <p className="text-sm font-bold text-gray-800 mb-3 flex items-center gap-2">
+                <CircleDot className="h-4 w-4 text-emerald-500" />
                 Arrivées prévues
               </p>
-              <div className="max-h-48 overflow-y-auto space-y-1.5 pr-1 scrollbar-thin">
-                {todayCheckIns.map((res) => {
+              <div className="max-h-64 overflow-y-auto space-y-2 pr-1 scrollbar-thin">
+                {todayCheckIns.map((res, idx) => {
                   const cust = res.customers as Record<string, string> | null
                   const rm = res.rooms as Record<string, string> | null
                   const name = cust ? `${cust.first_name} ${cust.last_name}` : 'Client'
@@ -1295,20 +1456,31 @@ function OverviewTab({
                   const status = (res.status as string) || ''
                   const checkInDate = (res.check_in_date as string) || ''
                   return (
-                    <div key={res.id as string} className="flex items-center justify-between rounded-md border border-gray-100 bg-white px-3 py-2 text-sm">
-                      <div className="flex items-center gap-2 min-w-0">
-                        <span className="font-medium text-gray-800 truncate">{name}</span>
-                        <span className="text-xs text-muted-foreground shrink-0">Ch. {roomNum}</span>
+                    <div
+                      key={res.id as string}
+                      className="relative flex items-center gap-3 rounded-xl bg-white border border-gray-100 px-4 py-3 text-sm shadow-sm transition-all duration-200 hover:shadow-md hover:border-emerald-200"
+                    >
+                      {/* Left border indicator */}
+                      <div className="absolute left-0 top-2 bottom-2 w-1 rounded-full bg-gradient-to-b from-emerald-400 to-emerald-600" />
+                      {/* Timeline dot */}
+                      <div className="ml-2 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-emerald-100 text-emerald-600 text-xs font-bold">
+                        {idx + 1}
                       </div>
-                      <div className="flex items-center gap-2 shrink-0">
-                        {checkInDate && <span className="text-xs text-muted-foreground">{checkInDate}</span>}
-                        {status === 'confirmed' ? (
-                          <Badge className="bg-emerald-100 text-emerald-700 border-emerald-200 hover:bg-emerald-100 text-[10px]">Confirmée</Badge>
-                        ) : status === 'pending' ? (
-                          <Badge className="bg-amber-100 text-amber-700 border-amber-200 hover:bg-amber-100 text-[10px]">En attente</Badge>
-                        ) : (
-                          <Badge className="bg-sky-100 text-sky-700 border-sky-200 hover:bg-sky-100 text-[10px]">Enregistré</Badge>
-                        )}
+                      <div className="flex-1 min-w-0 flex items-center justify-between gap-2">
+                        <div className="flex items-center gap-2 min-w-0">
+                          <span className="font-medium text-gray-800 truncate">{name}</span>
+                          <span className="rounded-md bg-gray-100 px-1.5 py-0.5 text-[11px] font-medium text-gray-500 shrink-0">Ch. {roomNum}</span>
+                        </div>
+                        <div className="flex items-center gap-2 shrink-0">
+                          {checkInDate && <span className="text-xs text-muted-foreground">{checkInDate}</span>}
+                          {status === 'confirmed' ? (
+                            <Badge className="bg-emerald-100 text-emerald-700 border-emerald-200 hover:bg-emerald-100 text-[10px]">Confirmée</Badge>
+                          ) : status === 'pending' ? (
+                            <Badge className="bg-amber-100 text-amber-700 border-amber-200 hover:bg-amber-100 text-[10px]">En attente</Badge>
+                          ) : (
+                            <Badge className="bg-orange-100 text-orange-700 border-orange-200 hover:bg-orange-100 text-[10px]">Enregistré</Badge>
+                          )}
+                        </div>
                       </div>
                     </div>
                   )
@@ -1317,29 +1489,40 @@ function OverviewTab({
             </div>
           )}
 
-          {/* Departures list */}
+          {/* Departures timeline */}
           {todayCheckOuts.length > 0 && (
-            <div className="mb-4">
-              <p className="text-sm font-semibold text-gray-700 mb-2 flex items-center gap-1.5">
-                <DoorOpen className="h-4 w-4 text-amber-500" />
+            <div className="mb-6">
+              <p className="text-sm font-bold text-gray-800 mb-3 flex items-center gap-2">
+                <CircleDot className="h-4 w-4 text-amber-500" />
                 Départs prévus
               </p>
-              <div className="max-h-48 overflow-y-auto space-y-1.5 pr-1 scrollbar-thin">
-                {todayCheckOuts.map((res) => {
+              <div className="max-h-64 overflow-y-auto space-y-2 pr-1 scrollbar-thin">
+                {todayCheckOuts.map((res, idx) => {
                   const cust = res.customers as Record<string, string> | null
                   const rm = res.rooms as Record<string, string> | null
                   const name = cust ? `${cust.first_name} ${cust.last_name}` : 'Client'
                   const roomNum = rm?.room_number || '—'
                   const checkOutDate = (res.check_out_date as string) || ''
                   return (
-                    <div key={res.id as string} className="flex items-center justify-between rounded-md border border-gray-100 bg-white px-3 py-2 text-sm">
-                      <div className="flex items-center gap-2 min-w-0">
-                        <span className="font-medium text-gray-800 truncate">{name}</span>
-                        <span className="text-xs text-muted-foreground shrink-0">Ch. {roomNum}</span>
+                    <div
+                      key={res.id as string}
+                      className="relative flex items-center gap-3 rounded-xl bg-white border border-gray-100 px-4 py-3 text-sm shadow-sm transition-all duration-200 hover:shadow-md hover:border-amber-200"
+                    >
+                      {/* Left border indicator */}
+                      <div className="absolute left-0 top-2 bottom-2 w-1 rounded-full bg-gradient-to-b from-amber-400 to-orange-500" />
+                      {/* Timeline dot */}
+                      <div className="ml-2 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-amber-100 text-amber-600 text-xs font-bold">
+                        {idx + 1}
                       </div>
-                      <div className="flex items-center gap-2 shrink-0">
-                        {checkOutDate && <span className="text-xs text-muted-foreground">{checkOutDate}</span>}
-                        <Badge className="bg-sky-100 text-sky-700 border-sky-200 hover:bg-sky-100 text-[10px]">En chambre</Badge>
+                      <div className="flex-1 min-w-0 flex items-center justify-between gap-2">
+                        <div className="flex items-center gap-2 min-w-0">
+                          <span className="font-medium text-gray-800 truncate">{name}</span>
+                          <span className="rounded-md bg-gray-100 px-1.5 py-0.5 text-[11px] font-medium text-gray-500 shrink-0">Ch. {roomNum}</span>
+                        </div>
+                        <div className="flex items-center gap-2 shrink-0">
+                          {checkOutDate && <span className="text-xs text-muted-foreground">{checkOutDate}</span>}
+                          <Badge className="bg-orange-100 text-orange-700 border-orange-200 hover:bg-orange-100 text-[10px]">En chambre</Badge>
+                        </div>
                       </div>
                     </div>
                   )
@@ -1348,43 +1531,54 @@ function OverviewTab({
             </div>
           )}
 
-          {/* Empty state */}
+          {/* Empty state with illustration */}
           {!loading && todayCheckIns.length === 0 && todayCheckOuts.length === 0 && (
-            <div className="text-center py-6 text-muted-foreground">
-              <DoorOpen className="h-8 w-8 mx-auto mb-2 text-gray-300" />
-              <p className="text-sm">Aucune opération prévue aujourd&apos;hui</p>
+            <div className="text-center py-10">
+              <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-2xl bg-gradient-to-br from-gray-50 to-gray-100 mb-4">
+                <DoorOpen className="h-10 w-10 text-gray-300" />
+              </div>
+              <p className="text-sm font-medium text-gray-500">Aucune opération prévue aujourd&apos;hui</p>
+              <p className="text-xs text-muted-foreground mt-1">Les arrivées et départs apparaîtront ici automatiquement</p>
             </div>
           )}
 
-          <Separator className="my-4" />
-
-          {/* Room status distribution */}
-          <div>
-            <p className="text-sm font-semibold text-gray-700 mb-2 flex items-center gap-1.5">
+          {/* Room status distribution — Horizontal bar chart */}
+          <div className="mt-6 pt-5 border-t border-gray-100">
+            <p className="text-sm font-bold text-gray-800 mb-4 flex items-center gap-2">
               <Bed className="h-4 w-4 text-amber-500" />
               État des chambres
             </p>
             {roomsList.length > 0 ? (
-              <div className="flex flex-wrap items-center gap-4">
-                {(() => {
-                  const statusCounts: Record<string, number> = {}
-                  roomsList.forEach((r) => {
-                    statusCounts[r.status] = (statusCounts[r.status] || 0) + 1
-                  })
-                  const statusConfig: Record<string, { label: string; dotColor: string; textColor: string }> = {
-                    available: { label: 'Disponibles', dotColor: 'bg-emerald-500', textColor: 'text-emerald-700' },
-                    occupied: { label: 'Occupées', dotColor: 'bg-sky-500', textColor: 'text-sky-700' },
-                    cleaning: { label: 'Nettoyage', dotColor: 'bg-amber-500', textColor: 'text-amber-700' },
-                    maintenance: { label: 'Maintenance', dotColor: 'bg-red-500', textColor: 'text-red-700' },
-                  }
-                  return Object.entries(statusConfig).map(([key, cfg]) => (
-                    <div key={key} className="flex items-center gap-1.5">
-                      <span className={`inline-block h-2.5 w-2.5 rounded-full ${cfg.dotColor}`} />
-                      <span className={`text-sm font-medium ${cfg.textColor}`}>{statusCounts[key] || 0}</span>
-                      <span className="text-xs text-muted-foreground">{cfg.label}</span>
+              <div className="space-y-3">
+                {Object.entries(statusConfig).map(([key, cfg]) => {
+                  const count = statusCounts[key] || 0
+                  const pct = roomsList.length > 0 ? (count / roomsList.length) * 100 : 0
+                  return (
+                    <div key={key} className="group">
+                      <div className="flex items-center justify-between mb-1.5">
+                        <div className="flex items-center gap-2">
+                          <span className={`inline-block h-3 w-3 rounded-full bg-gradient-to-br ${cfg.gradient}`} />
+                          <span className="text-sm font-medium text-gray-700">{cfg.label}</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <span className={`text-sm font-bold ${cfg.textColor}`}>{count}</span>
+                          <span className="text-[10px] text-muted-foreground">({Math.round(pct)}%)</span>
+                        </div>
+                      </div>
+                      <div className={`h-2.5 w-full rounded-full ${cfg.bgBar} overflow-hidden`}>
+                        <div
+                          className={`h-full rounded-full bg-gradient-to-r ${cfg.gradient} transition-all duration-700 ease-out`}
+                          style={{ width: `${pct}%` }}
+                        />
+                      </div>
                     </div>
-                  ))
-                })()}
+                  )
+                })}
+                {/* Total */}
+                <div className="flex items-center justify-between pt-2 border-t border-gray-100">
+                  <span className="text-sm font-medium text-gray-500">Total</span>
+                  <span className="text-sm font-bold text-gray-800">{roomsList.length} chambre{roomsList.length !== 1 ? 's' : ''}</span>
+                </div>
               </div>
             ) : (
               <p className="text-xs text-muted-foreground">Aucune chambre configurée</p>
@@ -1393,192 +1587,251 @@ function OverviewTab({
 
           {/* Link to reservations tab */}
           {onNavigateToReservations && (
-            <div className="mt-4 pt-3 border-t border-gray-100">
+            <div className="mt-5 pt-4 border-t border-gray-100">
               <button
                 onClick={onNavigateToReservations}
-                className="text-sm font-medium text-amber-600 hover:text-amber-800 transition-colors flex items-center gap-1.5"
+                className="group text-sm font-medium text-amber-600 hover:text-amber-800 transition-colors flex items-center gap-1.5"
               >
                 <Calendar className="h-4 w-4" />
                 Voir toutes les réservations
-                <ChevronRight className="h-3.5 w-3.5" />
+                <ArrowRight className="h-3.5 w-3.5 transition-transform duration-200 group-hover:translate-x-0.5" />
               </button>
             </div>
           )}
-        </CardContent>
-      </Card>
-
-      {/* Subscription Limits */}
-      {planInfo && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Sparkles className="h-5 w-5 text-amber-600" />
-              Limites de votre Plan
-            </CardTitle>
-            <CardDescription>Utilisation actuelle vs limites de votre abonnement</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-5">
-              <LimitIndicator
-                current={usage.rooms}
-                max={planInfo.limits.max_rooms}
-                label="Chambres"
-              />
-              <LimitIndicator
-                current={usage.receptionists}
-                max={planInfo.limits.max_receptionists}
-                label="Réceptionnistes"
-              />
-              <LimitIndicator
-                current={usage.managers}
-                max={planInfo.limits.max_managers}
-                label="Managers"
-              />
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Quick Actions */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 gap-4">
-        <Card className="border-amber-200/60 hover:border-amber-300 transition-colors cursor-pointer" onClick={onNavigateToRooms}>
-          <CardContent className="p-5 flex items-center gap-3">
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-amber-50 text-amber-600">
-              <Bed className="h-5 w-5" />
-            </div>
-            <div className="flex-1 min-w-0">
-              <p className="font-medium text-sm">Chambres</p>
-              <p className="text-xs text-muted-foreground">{usage.rooms} configurée{usage.rooms !== 1 ? 's' : ''}</p>
-            </div>
-          </CardContent>
-        </Card>
-        <Card className="border-orange-200/60 hover:border-orange-300 transition-colors cursor-pointer" onClick={onNavigateToReservations}>
-          <CardContent className="p-5 flex items-center gap-3">
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-orange-50 text-orange-600">
-              <Calendar className="h-5 w-5" />
-            </div>
-            <div className="flex-1 min-w-0">
-              <p className="font-medium text-sm">Réservations</p>
-              <p className="text-xs text-muted-foreground">Planning & check-in/out</p>
-            </div>
-          </CardContent>
-        </Card>
-        <Card className="border-sky-200/60 hover:border-sky-300 transition-colors cursor-pointer" onClick={onNavigateToCustomers}>
-          <CardContent className="p-5 flex items-center gap-3">
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-sky-50 text-sky-600">
-              <Users className="h-5 w-5" />
-            </div>
-            <div className="flex-1 min-w-0">
-              <p className="font-medium text-sm">Clients</p>
-              <p className="text-xs text-muted-foreground">Fiches & documents</p>
-            </div>
-          </CardContent>
-        </Card>
-        <Card className="border-violet-200/60 hover:border-violet-300 transition-colors cursor-pointer" onClick={onNavigateToInvoices}>
-          <CardContent className="p-5 flex items-center gap-3">
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-violet-50 text-violet-600">
-              <FileText className="h-5 w-5" />
-            </div>
-            <div className="flex-1 min-w-0">
-              <p className="font-medium text-sm">Factures</p>
-              <p className="text-xs text-muted-foreground">PDF & reçu thermique</p>
-            </div>
-          </CardContent>
-        </Card>
-        <Card className="border-emerald-200/60 hover:border-emerald-300 transition-colors cursor-pointer" onClick={onNavigateToTeam}>
-          <CardContent className="p-5 flex items-center gap-3">
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-emerald-50 text-emerald-600">
-              <UserPlus className="h-5 w-5" />
-            </div>
-            <div className="flex-1 min-w-0">
-              <p className="font-medium text-sm">Équipe</p>
-              <p className="text-xs text-muted-foreground">{usage.receptionists + usage.managers} employé{usage.receptionists + usage.managers !== 1 ? 's' : ''}</p>
-            </div>
-          </CardContent>
-        </Card>
+        </div>
       </div>
 
-      {/* Transparence & Activité Récente */}
-      <Card className="border-amber-200/60 bg-gradient-to-br from-amber-50/30 to-orange-50/20">
-        <CardHeader className="pb-3">
+      {/* ═══════════════════════════════════════════════════════════════════════
+          4. SUBSCRIPTION STATUS — Gradient border card with features
+      ═══════════════════════════════════════════════════════════════════════ */}
+      <div className="relative rounded-2xl p-[2px] bg-gradient-to-br from-amber-400 via-orange-500 to-amber-600 shadow-lg">
+        <div className="rounded-2xl bg-white p-6">
+          <div className="flex flex-col lg:flex-row lg:items-start gap-6">
+            {/* Left: Plan info */}
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-gradient-to-br from-amber-400 to-orange-500 text-white shadow-sm">
+                  <Crown className="h-5 w-5" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-bold text-gray-900">
+                    {planInfo ? `Plan ${planInfo.name}` : 'Abonnement'}
+                  </h3>
+                  {planInfo && (
+                    <p className="text-sm text-muted-foreground">{formatFCFA(planInfo.price_fcfa)}/an</p>
+                  )}
+                </div>
+                {subscription && (
+                  <div className="ml-auto">
+                    {getSubscriptionStatusBadge(subscription.status)}
+                  </div>
+                )}
+              </div>
+
+              {/* Subscription progress bar */}
+              {subscription && (
+                <div className="mb-4">
+                  <div className="flex items-center justify-between text-xs mb-1.5">
+                    <span className="text-muted-foreground">
+                      {formatDateFR(subscription.starts_at)} — {formatDateFR(subscription.ends_at)}
+                    </span>
+                    <span className="font-medium text-amber-700">{daysRemaining} jour{daysRemaining !== 1 ? 's' : ''} restant{daysRemaining !== 1 ? 's' : ''}</span>
+                  </div>
+                  <div className="h-2 w-full rounded-full bg-amber-100 overflow-hidden">
+                    <div
+                      className="h-full rounded-full bg-gradient-to-r from-amber-400 via-orange-500 to-amber-600 transition-all duration-700"
+                      style={{ width: `${subProgress}%` }}
+                    />
+                  </div>
+                </div>
+              )}
+
+              {/* Plan features with checkmarks */}
+              {planInfo && planFeatures[planInfo.name] && (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  {planFeatures[planInfo.name].map((feature) => (
+                    <div key={feature} className="flex items-center gap-2 text-sm">
+                      <CheckCircle2 className="h-4 w-4 text-emerald-500 shrink-0" />
+                      <span className="text-gray-700">{feature}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* Hotel info inline */}
+              {hotelInfo && (
+                <div className="mt-4 pt-4 border-t border-gray-100">
+                  <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-gray-600">
+                    <div className="flex items-center gap-1.5">
+                      <Building2 className="h-3.5 w-3.5 text-amber-500" />
+                      <span className="font-medium">{hotelInfo.name}</span>
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      <MapPin className="h-3.5 w-3.5 text-amber-500" />
+                      {hotelInfo.city}
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      <Phone className="h-3.5 w-3.5 text-amber-500" />
+                      {hotelInfo.phone}
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Right: Usage limits + Upgrade CTA */}
+            {planInfo && (
+              <div className="lg:w-72 shrink-0 space-y-4">
+                <div className="rounded-xl bg-gradient-to-br from-amber-50 to-orange-50 p-4">
+                  <p className="text-xs font-bold text-amber-800 uppercase tracking-wider mb-3">Utilisation</p>
+                  <div className="space-y-3">
+                    <LimitIndicator current={usage.rooms} max={planInfo.limits.max_rooms} label="Chambres" />
+                    <LimitIndicator current={usage.receptionists} max={planInfo.limits.max_receptionists} label="Réceptionnistes" />
+                    <LimitIndicator current={usage.managers} max={planInfo.limits.max_managers} label="Managers" />
+                  </div>
+                </div>
+
+                {/* Upgrade CTA */}
+                {planInfo.name !== 'Premium' && (
+                  <a
+                    href="https://wa.me/2250576103277?text=Bonjour%2C%20je%20souhaite%20mettre%20%C3%A0%20niveau%20mon%20abonnement%20H%C3%B4telCI"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="group flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-amber-500 to-orange-600 px-4 py-3 text-sm font-bold text-white shadow-sm hover:shadow-lg hover:from-amber-600 hover:to-orange-700 transition-all duration-300"
+                  >
+                    <Sparkles className="h-4 w-4 group-hover:rotate-12 transition-transform duration-300" />
+                    Passer au {planInfo.name === 'Basique' ? 'Standard' : 'Premium'}
+                    <ArrowUpRight className="h-4 w-4 transition-transform duration-200 group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
+                  </a>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* ═══════════════════════════════════════════════════════════════════════
+          5. QUICK ACTIONS — Modern card layout with gradient icons
+      ═══════════════════════════════════════════════════════════════════════ */}
+      <div>
+        <div className="flex items-center gap-2 mb-4">
+          <Zap className="h-5 w-5 text-amber-600" />
+          <h3 className="text-base font-bold text-gray-900">Accès rapide</h3>
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 gap-4">
+          {quickActions.map((action) => (
+            <div
+              key={action.title}
+              className="group rounded-2xl border border-gray-100 bg-white p-5 shadow-sm transition-all duration-300 hover:shadow-lg hover:-translate-y-1 cursor-pointer"
+              onClick={action.onClick}
+            >
+              <div className={`flex h-11 w-11 items-center justify-center rounded-xl ${action.iconBg} text-white shadow-sm mb-3`}>
+                {action.icon}
+              </div>
+              <p className="font-semibold text-sm text-gray-900">{action.title}</p>
+              <p className="text-xs text-muted-foreground mt-1">{action.description}</p>
+              <div className="mt-3 flex items-center gap-1 text-xs font-medium text-amber-600 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                Accéder <ArrowRight className="h-3 w-3 transition-transform duration-200 group-hover:translate-x-0.5" />
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* ═══════════════════════════════════════════════════════════════════════
+          6. TRANSPARENCY & ACTIVITY — Modern activity overview
+      ═══════════════════════════════════════════════════════════════════════ */}
+      <div className="rounded-2xl border border-amber-200/60 bg-gradient-to-br from-amber-50/40 to-orange-50/30 overflow-hidden shadow-sm">
+        <div className="px-6 py-4 border-b border-amber-100/60 bg-gradient-to-r from-amber-50/60 to-orange-50/40">
           <div className="flex items-center justify-between">
-            <CardTitle className="flex items-center gap-2 text-base">
-              <BookOpen className="h-5 w-5 text-amber-600" />
-              Transparence & Activité
-            </CardTitle>
+            <div className="flex items-center gap-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-amber-400 to-orange-500 text-white shadow-sm">
+                <Shield className="h-5 w-5" />
+              </div>
+              <div>
+                <h3 className="text-base font-bold text-gray-900">Transparence & Activité</h3>
+                <p className="text-xs text-muted-foreground">Suivez les actions de votre équipe</p>
+              </div>
+            </div>
             <Badge className="bg-amber-100 text-amber-700 border-amber-200 hover:bg-amber-100 text-[10px]">
               Supervision
             </Badge>
           </div>
-          <CardDescription className="text-xs text-muted-foreground mt-1">
-            Suivez les actions de votre équipe pour une gestion transparente
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-4">
-            <div className="rounded-lg border border-emerald-200 bg-emerald-50/50 p-3 text-center">
-              <CheckCircle2 className="h-5 w-5 text-emerald-600 mx-auto mb-1" />
-              <p className="text-xs text-emerald-700 font-medium">Check-ins</p>
-              <p className="text-lg font-bold text-emerald-800">Aujourd&apos;hui</p>
-              <p className="text-sm text-emerald-600">{todayCheckIns.length} prévu{todayCheckIns.length !== 1 ? 's' : ''}</p>
-            </div>
-            <div className="rounded-lg border border-amber-200 bg-amber-50/50 p-3 text-center">
-              <DoorOpen className="h-5 w-5 text-amber-600 mx-auto mb-1" />
-              <p className="text-xs text-amber-700 font-medium">Check-outs</p>
-              <p className="text-lg font-bold text-amber-800">Aujourd&apos;hui</p>
-              <p className="text-sm text-amber-600">{todayCheckOuts.length} prévu{todayCheckOuts.length !== 1 ? 's' : ''}</p>
-            </div>
-            <div className="rounded-lg border border-sky-200 bg-sky-50/50 p-3 text-center">
-              <Users className="h-5 w-5 text-sky-600 mx-auto mb-1" />
-              <p className="text-xs text-sky-700 font-medium">Équipe active</p>
-              <p className="text-lg font-bold text-sky-800">{totalEmployees}</p>
-              <p className="text-sm text-sky-600">employé{totalEmployees !== 1 ? 's' : ''}</p>
-            </div>
-          </div>
-          <div className="rounded-lg border border-amber-200/60 bg-white/60 p-3">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <Shield className="h-4 w-4 text-amber-600" />
-                <p className="text-sm font-medium text-gray-700">
-                  Journal d&apos;activité disponible
-                </p>
+        </div>
+        <div className="p-6">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-5">
+            <div className="rounded-xl bg-gradient-to-br from-emerald-50 to-emerald-100/50 border border-emerald-200/60 p-4 text-center transition-all duration-300 hover:shadow-md">
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-emerald-400 to-emerald-600 text-white mx-auto mb-2 shadow-sm">
+                <LogIn className="h-5 w-5" />
               </div>
-              <button
-                onClick={onNavigateToActivity}
-                className="text-sm font-medium text-amber-600 hover:text-amber-800 transition-colors flex items-center gap-1"
-              >
-                Voir le journal
-                <ChevronRight className="h-3.5 w-3.5" />
-              </button>
+              <p className="text-2xl font-bold text-emerald-800">{todayCheckIns.length}</p>
+              <p className="text-xs text-emerald-600 font-medium">Check-ins aujourd&apos;hui</p>
             </div>
-            <p className="text-xs text-muted-foreground mt-1 ml-6">
-              Consultez toutes les actions de vos employés : check-ins, réservations, factures, modifications...
-            </p>
+            <div className="rounded-xl bg-gradient-to-br from-amber-50 to-orange-100/50 border border-amber-200/60 p-4 text-center transition-all duration-300 hover:shadow-md">
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-amber-400 to-orange-500 text-white mx-auto mb-2 shadow-sm">
+                <LogOutIcon className="h-5 w-5" />
+              </div>
+              <p className="text-2xl font-bold text-amber-800">{todayCheckOuts.length}</p>
+              <p className="text-xs text-amber-600 font-medium">Check-outs aujourd&apos;hui</p>
+            </div>
+            <div className="rounded-xl bg-gradient-to-br from-emerald-50 to-teal-100/50 border border-emerald-200/60 p-4 text-center transition-all duration-300 hover:shadow-md">
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 text-white mx-auto mb-2 shadow-sm">
+                <Users className="h-5 w-5" />
+              </div>
+              <p className="text-2xl font-bold text-emerald-800">{totalEmployees}</p>
+              <p className="text-xs text-emerald-600 font-medium">Employé{totalEmployees !== 1 ? 's' : ''} actif{totalEmployees !== 1 ? 's' : ''}</p>
+            </div>
           </div>
-        </CardContent>
-      </Card>
 
-      {/* Locked Features — Upgrade Prompt */}
+          {/* Activity log link */}
+          <div className="rounded-xl border border-amber-200/60 bg-white/70 p-4 flex items-center justify-between transition-all duration-300 hover:shadow-md hover:border-amber-300">
+            <div className="flex items-center gap-3">
+              <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-amber-100 text-amber-600">
+                <BookOpen className="h-4 w-4" />
+              </div>
+              <div>
+                <p className="text-sm font-medium text-gray-700">Journal d&apos;activité disponible</p>
+                <p className="text-xs text-muted-foreground">Consultez toutes les actions de vos employés</p>
+              </div>
+            </div>
+            <button
+              onClick={onNavigateToActivity}
+              className="group text-sm font-medium text-amber-600 hover:text-amber-800 transition-colors flex items-center gap-1"
+            >
+              Voir le journal
+              <ArrowRight className="h-3.5 w-3.5 transition-transform duration-200 group-hover:translate-x-0.5" />
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* ═══════════════════════════════════════════════════════════════════════
+          7. LOCKED FEATURES — Upgrade prompt with sparkle effect
+      ═══════════════════════════════════════════════════════════════════════ */}
       {planInfo && planInfo.name !== 'Premium' && (
-        <Card className="border-amber-200/60 bg-gradient-to-br from-gray-50 to-amber-50/30">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Sparkles className="h-5 w-5 text-amber-600" />
-              Fonctionnalités Premium
-            </CardTitle>
-            <CardDescription>Débloquez plus de puissance avec un plan supérieur</CardDescription>
-          </CardHeader>
-          <CardContent>
+        <div className="rounded-2xl border border-gray-200/80 bg-gradient-to-br from-gray-50/80 to-amber-50/40 shadow-sm overflow-hidden">
+          <div className="px-6 py-4 border-b border-gray-100 bg-gradient-to-r from-gray-50/80 to-amber-50/30">
+            <div className="flex items-center gap-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-amber-400 to-orange-500 text-white shadow-sm">
+                <Sparkles className="h-5 w-5" />
+              </div>
+              <div>
+                <h3 className="text-base font-bold text-gray-900">Fonctionnalités Premium</h3>
+                <p className="text-xs text-muted-foreground">Débloquez plus de puissance avec un plan supérieur</p>
+              </div>
+            </div>
+          </div>
+          <div className="p-6">
             <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
               {!hasFeature(planInfo.name, 'analytics') && (
-                <div className="rounded-lg border border-gray-200 bg-white/60 p-4 relative overflow-hidden">
+                <div className="group rounded-xl border border-gray-200 bg-white/80 p-4 relative overflow-hidden transition-all duration-300 hover:shadow-md hover:border-amber-200">
                   <div className="absolute top-2 right-2">
                     <Lock className="h-4 w-4 text-gray-300" />
                   </div>
-                  <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-gray-100 text-gray-400 mb-3">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-gray-200 to-gray-300 text-gray-500 mb-3">
                     <BarChart3 className="h-5 w-5" />
                   </div>
-                  <p className="font-medium text-sm text-gray-700">Analytique</p>
+                  <p className="font-semibold text-sm text-gray-700">Analytique</p>
                   <p className="text-xs text-gray-400 mt-1">KPIs & tableaux de bord</p>
                   <Badge className="mt-2 bg-amber-50 text-amber-600 border-amber-200 hover:bg-amber-50 text-[10px]">
                     Plan Standard+
@@ -1586,14 +1839,14 @@ function OverviewTab({
                 </div>
               )}
               {!hasFeature(planInfo.name, 'restaurant') && (
-                <div className="rounded-lg border border-gray-200 bg-white/60 p-4 relative overflow-hidden">
+                <div className="group rounded-xl border border-gray-200 bg-white/80 p-4 relative overflow-hidden transition-all duration-300 hover:shadow-md hover:border-amber-200">
                   <div className="absolute top-2 right-2">
                     <Lock className="h-4 w-4 text-gray-300" />
                   </div>
-                  <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-gray-100 text-gray-400 mb-3">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-gray-200 to-gray-300 text-gray-500 mb-3">
                     <UtensilsCrossed className="h-5 w-5" />
                   </div>
-                  <p className="font-medium text-sm text-gray-700">Restaurant</p>
+                  <p className="font-semibold text-sm text-gray-700">Restaurant</p>
                   <p className="text-xs text-gray-400 mt-1">Menu, commandes, facturation</p>
                   <Badge className="mt-2 bg-amber-50 text-amber-600 border-amber-200 hover:bg-amber-50 text-[10px]">
                     Plan Premium
@@ -1601,14 +1854,14 @@ function OverviewTab({
                 </div>
               )}
               {!hasFeature(planInfo.name, 'stocks') && (
-                <div className="rounded-lg border border-gray-200 bg-white/60 p-4 relative overflow-hidden">
+                <div className="group rounded-xl border border-gray-200 bg-white/80 p-4 relative overflow-hidden transition-all duration-300 hover:shadow-md hover:border-amber-200">
                   <div className="absolute top-2 right-2">
                     <Lock className="h-4 w-4 text-gray-300" />
                   </div>
-                  <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-gray-100 text-gray-400 mb-3">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-gray-200 to-gray-300 text-gray-500 mb-3">
                     <Package className="h-5 w-5" />
                   </div>
-                  <p className="font-medium text-sm text-gray-700">Stocks</p>
+                  <p className="font-semibold text-sm text-gray-700">Stocks</p>
                   <p className="text-xs text-gray-400 mt-1">Suivi & approvisionnement</p>
                   <Badge className="mt-2 bg-amber-50 text-amber-600 border-amber-200 hover:bg-amber-50 text-[10px]">
                     Plan Premium
@@ -1616,14 +1869,14 @@ function OverviewTab({
                 </div>
               )}
               {!hasFeature(planInfo.name, 'conference') && (
-                <div className="rounded-lg border border-gray-200 bg-white/60 p-4 relative overflow-hidden">
+                <div className="group rounded-xl border border-gray-200 bg-white/80 p-4 relative overflow-hidden transition-all duration-300 hover:shadow-md hover:border-amber-200">
                   <div className="absolute top-2 right-2">
                     <Lock className="h-4 w-4 text-gray-300" />
                   </div>
-                  <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-gray-100 text-gray-400 mb-3">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-gray-200 to-gray-300 text-gray-500 mb-3">
                     <Building2 className="h-5 w-5" />
                   </div>
-                  <p className="font-medium text-sm text-gray-700">Salles conférence</p>
+                  <p className="font-semibold text-sm text-gray-700">Salles conférence</p>
                   <p className="text-xs text-gray-400 mt-1">Réservation & séminaires</p>
                   <Badge className="mt-2 bg-amber-50 text-amber-600 border-amber-200 hover:bg-amber-50 text-[10px]">
                     Plan Premium
@@ -1631,14 +1884,14 @@ function OverviewTab({
                 </div>
               )}
               {!hasFeature(planInfo.name, 'formation') && (
-                <div className="rounded-lg border border-gray-200 bg-white/60 p-4 relative overflow-hidden">
+                <div className="group rounded-xl border border-gray-200 bg-white/80 p-4 relative overflow-hidden transition-all duration-300 hover:shadow-md hover:border-amber-200">
                   <div className="absolute top-2 right-2">
                     <Lock className="h-4 w-4 text-gray-300" />
                   </div>
-                  <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-gray-100 text-gray-400 mb-3">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-gray-200 to-gray-300 text-gray-500 mb-3">
                     <BookOpen className="h-5 w-5" />
                   </div>
-                  <p className="font-medium text-sm text-gray-700">Formation</p>
+                  <p className="font-semibold text-sm text-gray-700">Formation</p>
                   <p className="text-xs text-gray-400 mt-1">Guides & bonnes pratiques</p>
                   <Badge className="mt-2 bg-amber-50 text-amber-600 border-amber-200 hover:bg-amber-50 text-[10px]">
                     Plan Premium
@@ -1646,22 +1899,26 @@ function OverviewTab({
                 </div>
               )}
             </div>
-            <div className="mt-4 flex items-center gap-3">
+
+            {/* Upgrade CTA with sparkle effect */}
+            <div className="mt-5 flex flex-col sm:flex-row items-start sm:items-center gap-3">
               <a
                 href="https://wa.me/2250576103277?text=Bonjour%2C%20je%20souhaite%20mettre%20%C3%A0%20niveau%20mon%20abonnement%20H%C3%B4telCI"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-flex items-center gap-2 rounded-lg bg-gradient-to-r from-amber-500 to-orange-600 px-4 py-2 text-sm font-medium text-white hover:from-amber-600 hover:to-orange-700 transition-colors"
+                className="group relative inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-amber-500 via-orange-500 to-amber-600 px-5 py-3 text-sm font-bold text-white shadow-sm hover:shadow-lg hover:from-amber-600 hover:via-orange-600 hover:to-amber-700 transition-all duration-300 overflow-hidden"
               >
-                <MessageSquare className="h-4 w-4" />
-                Mettre à niveau
+                <span className="absolute inset-0 bg-gradient-to-r from-white/0 via-white/20 to-white/0 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-700" />
+                <Sparkles className="h-4 w-4 relative z-10 group-hover:rotate-12 transition-transform duration-300" />
+                <span className="relative z-10">Mettre à niveau</span>
+                <MessageSquare className="h-4 w-4 relative z-10" />
               </a>
               <p className="text-xs text-muted-foreground">
                 Contactez-nous pour passer au plan {planInfo.name === 'Basique' ? 'Standard' : 'Premium'}
               </p>
             </div>
-          </CardContent>
-        </Card>
+          </div>
+        </div>
       )}
     </div>
   )
@@ -1871,7 +2128,36 @@ function RoomsTab({
   const [formNumber, setFormNumber] = useState('')
   const [formType, setFormType] = useState('')
   const [formPrice, setFormPrice] = useState('')
+  const [formWeekendPrice, setFormWeekendPrice] = useState('')
+  const [formWeekendDays, setFormWeekendDays] = useState<string[]>(['5', '6']) // Ven/Sam par défaut
   const [formStatus, setFormStatus] = useState('available')
+
+  // ─── Seasonal rates dialog state ────────────────────────────
+  const [ratesDialogOpen, setRatesDialogOpen] = useState(false)
+  const [ratesRoom, setRatesRoom] = useState<RoomInfo | null>(null)
+  const [roomRates, setRoomRates] = useState<RoomRateInfo[]>([])
+  const [ratesLoading, setRatesLoading] = useState(false)
+  const [rateFormOpen, setRateFormOpen] = useState(false)
+  const [rateEditMode, setRateEditMode] = useState(false)
+  const [editingRateId, setEditingRateId] = useState<string | null>(null)
+  const [rateSubmitting, setRateSubmitting] = useState(false)
+  // Rate form state
+  const [rateName, setRateName] = useState('')
+  const [ratePrice, setRatePrice] = useState('')
+  const [rateStartDate, setRateStartDate] = useState('')
+  const [rateEndDate, setRateEndDate] = useState('')
+  const [ratePriority, setRatePriority] = useState('0')
+
+  // Jours de la semaine pour les checkboxes
+  const WEEKDAY_OPTIONS = [
+    { value: '0', label: 'Dim' },
+    { value: '1', label: 'Lun' },
+    { value: '2', label: 'Mar' },
+    { value: '3', label: 'Mer' },
+    { value: '4', label: 'Jeu' },
+    { value: '5', label: 'Ven' },
+    { value: '6', label: 'Sam' },
+  ]
 
   const fetchRooms = useCallback(async () => {
     setLoading(true)
@@ -1896,6 +2182,8 @@ function RoomsTab({
     setFormNumber('')
     setFormType('')
     setFormPrice('')
+    setFormWeekendPrice('')
+    setFormWeekendDays(['5', '6'])
     setFormStatus('available')
   }
 
@@ -1904,6 +2192,8 @@ function RoomsTab({
     setFormNumber(room.room_number)
     setFormType(room.room_type)
     setFormPrice(room.price_per_night.toString())
+    setFormWeekendPrice(room.weekend_price ? room.weekend_price.toString() : '')
+    setFormWeekendDays(room.weekend_days ? room.weekend_days.split(',') : ['5', '6'])
     setFormStatus(room.status)
     setEditDialogOpen(true)
   }
@@ -1911,6 +2201,125 @@ function RoomsTab({
   function openDeleteDialog(room: RoomInfo) {
     setSelectedRoom(room)
     setDeleteDialogOpen(true)
+  }
+
+  // ─── Seasonal rates helpers ─────────────────────────────────
+  function openRatesDialog(room: RoomInfo) {
+    setRatesRoom(room)
+    setRatesDialogOpen(true)
+    fetchRoomRates(room.id)
+  }
+
+  async function fetchRoomRates(roomId: string) {
+    setRatesLoading(true)
+    try {
+      const res = await fetch(`/api/owner/room-rates?room_id=${roomId}`)
+      if (res.ok) {
+        const data = await res.json()
+        setRoomRates(data.rates || [])
+      }
+    } catch {
+      toast.error('Erreur lors du chargement des tarifs saisonniers')
+    } finally {
+      setRatesLoading(false)
+    }
+  }
+
+  function openAddRateForm() {
+    setRateEditMode(false)
+    setEditingRateId(null)
+    setRateName('')
+    setRatePrice('')
+    setRateStartDate('')
+    setRateEndDate('')
+    setRatePriority('0')
+    setRateFormOpen(true)
+  }
+
+  function openEditRateForm(rate: RoomRateInfo) {
+    setRateEditMode(true)
+    setEditingRateId(rate.id)
+    setRateName(rate.name)
+    setRatePrice(rate.price_per_night.toString())
+    setRateStartDate(rate.start_date)
+    setRateEndDate(rate.end_date)
+    setRatePriority(rate.priority.toString())
+    setRateFormOpen(true)
+  }
+
+  async function handleSaveRate() {
+    if (!ratesRoom || !rateName || !ratePrice || !rateStartDate || !rateEndDate) {
+      toast.error('Remplissez tous les champs requis du tarif')
+      return
+    }
+
+    setRateSubmitting(true)
+    try {
+      if (rateEditMode && editingRateId) {
+        // Mise à jour
+        const res = await fetch(`/api/owner/room-rates/${editingRateId}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            name: rateName,
+            price_per_night: parseFloat(ratePrice),
+            start_date: rateStartDate,
+            end_date: rateEndDate,
+            priority: parseInt(ratePriority) || 0,
+          }),
+        })
+        if (res.ok) {
+          toast.success('Tarif saisonnier modifié')
+          setRateFormOpen(false)
+          fetchRoomRates(ratesRoom.id)
+        } else {
+          const data = await res.json()
+          toast.error(data.error || 'Erreur lors de la modification')
+        }
+      } else {
+        // Création
+        const res = await fetch('/api/owner/room-rates', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            room_id: ratesRoom.id,
+            name: rateName,
+            price_per_night: parseFloat(ratePrice),
+            start_date: rateStartDate,
+            end_date: rateEndDate,
+            priority: parseInt(ratePriority) || 0,
+          }),
+        })
+        if (res.ok) {
+          toast.success('Tarif saisonnier ajouté')
+          setRateFormOpen(false)
+          fetchRoomRates(ratesRoom.id)
+        } else {
+          const data = await res.json()
+          toast.error(data.error || 'Erreur lors de l\'ajout')
+        }
+      }
+    } catch {
+      toast.error('Erreur de connexion')
+    } finally {
+      setRateSubmitting(false)
+    }
+  }
+
+  async function handleDeleteRate(rateId: string) {
+    if (!ratesRoom) return
+    try {
+      const res = await fetch(`/api/owner/room-rates/${rateId}`, { method: 'DELETE' })
+      if (res.ok) {
+        toast.success('Tarif saisonnier supprimé')
+        fetchRoomRates(ratesRoom.id)
+      } else {
+        const data = await res.json()
+        toast.error(data.error || 'Erreur lors de la suppression')
+      }
+    } catch {
+      toast.error('Erreur de connexion')
+    }
   }
 
   async function handleAddRoom() {
@@ -1928,6 +2337,8 @@ function RoomsTab({
           room_number: formNumber,
           room_type: formType,
           price_per_night: parseFloat(formPrice),
+          weekend_price: formWeekendPrice ? parseFloat(formWeekendPrice) : null,
+          weekend_days: formWeekendDays.length > 0 ? formWeekendDays.join(',') : '5,6',
           status: formStatus,
         }),
       })
@@ -1960,6 +2371,8 @@ function RoomsTab({
           room_number: formNumber,
           room_type: formType,
           price_per_night: parseFloat(formPrice),
+          weekend_price: formWeekendPrice ? parseFloat(formWeekendPrice) : null,
+          weekend_days: formWeekendDays.length > 0 ? formWeekendDays.join(',') : '5,6',
           status: formStatus,
         }),
       })
@@ -2035,6 +2448,19 @@ function RoomsTab({
     }
   }
 
+  // Helper pour afficher le prix avec weekend
+  function renderPriceCell(room: RoomInfo) {
+    if (room.weekend_price) {
+      return (
+        <div className="text-sm">
+          <span>{new Intl.NumberFormat('fr-FR').format(room.price_per_night)}</span>
+          <span className="text-amber-600 font-medium"> / {new Intl.NumberFormat('fr-FR').format(room.weekend_price)} we</span>
+        </div>
+      )
+    }
+    return <span>{new Intl.NumberFormat('fr-FR').format(room.price_per_night)}</span>
+  }
+
   const filteredRooms = roomStatusFilter === 'all' ? rooms : rooms.filter(r => r.status === roomStatusFilter)
   const roomCounts = {
     total: rooms.length,
@@ -2048,7 +2474,7 @@ function RoomsTab({
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-2xl font-bold tracking-tight">🛏️ Gestion des Chambres</h2>
+          <h2 className="text-2xl font-bold tracking-tight flex items-center gap-2"><Bed className="h-6 w-6 text-amber-600" /> Gestion des Chambres</h2>
           <p className="text-muted-foreground">
             {usage.rooms} chambre{usage.rooms !== 1 ? 's' : ''} sur {planInfo?.limits.max_rooms === 9999 ? 'Illimité' : planInfo?.limits.max_rooms ?? '—'}
           </p>
@@ -2189,9 +2615,9 @@ function RoomsTab({
                   <TableRow>
                     <TableHead>N° Chambre</TableHead>
                     <TableHead>Type</TableHead>
-                    <TableHead className="hidden sm:table-cell">Prix/Nuit</TableHead>
+                    <TableHead className="hidden sm:table-cell">Prix/Nuit (FCFA)</TableHead>
                     <TableHead>Statut</TableHead>
-                    <TableHead className="hidden md:table-cell">Changer statut</TableHead>
+                    <TableHead className="hidden lg:table-cell">Changer statut</TableHead>
                     <TableHead className="text-right">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -2205,19 +2631,25 @@ function RoomsTab({
                     }>
                       <TableCell className="font-mono font-semibold">{room.room_number}</TableCell>
                       <TableCell>{room.room_type}</TableCell>
-                      <TableCell className="hidden sm:table-cell">{formatFCFA(room.price_per_night)}</TableCell>
+                      <TableCell className="hidden sm:table-cell">{renderPriceCell(room)}</TableCell>
                       <TableCell>{getRoomStatusBadge(room.status)}</TableCell>
-                      <TableCell className="hidden md:table-cell">
+                      <TableCell className="hidden lg:table-cell">
                         <div className="flex items-center gap-1">
                           {quickStatusLoading === room.id ? (
                             <Loader2 className="h-3.5 w-3.5 animate-spin text-amber-500" />
                           ) : (
                             ROOM_STATUSES.filter(s => {
-                              // Owner has full control, but show coherent transitions
-                              // Hide current status, and for occupied rooms only show cleaning (check-out)
+                              // Hide current status
                               if (s.value === room.status) return false
-                              // Show all other status options for owner (full control)
-                              return true
+                              // Show only valid transitions based on current status
+                              const validTransitions: Record<string, string[]> = {
+                                available: ['occupied', 'cleaning', 'maintenance'],
+                                occupied: ['cleaning'],
+                                cleaning: ['available', 'maintenance'],
+                                maintenance: ['available', 'cleaning'],
+                              }
+                              const allowed = validTransitions[room.status] || []
+                              return allowed.includes(s.value)
                             }).map((s) => (
                               <button
                                 key={s.value}
@@ -2242,6 +2674,9 @@ function RoomsTab({
                       </TableCell>
                       <TableCell className="text-right">
                         <div className="flex items-center justify-end gap-1">
+                          <Button variant="ghost" size="icon" className="h-8 w-8" title="Tarifs Saisonniers" onClick={() => openRatesDialog(room)}>
+                            <Calendar className="h-3.5 w-3.5 text-amber-600" />
+                          </Button>
                           <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openEditDialog(room)}>
                             <Pencil className="h-3.5 w-3.5" />
                           </Button>
@@ -2261,44 +2696,94 @@ function RoomsTab({
 
       {/* Add Room Dialog */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent>
+        <DialogContent className="sm:max-w-lg">
           <DialogHeader>
-            <DialogTitle>Ajouter une Chambre</DialogTitle>
+            <DialogTitle className="flex items-center gap-2">
+              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-amber-100">
+                <Bed className="h-4 w-4 text-amber-600" />
+              </div>
+              Ajouter une Chambre
+            </DialogTitle>
             <DialogDescription>Configurez une nouvelle chambre dans votre établissement</DialogDescription>
           </DialogHeader>
-          <div className="space-y-4 py-4">
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="room-number">N° Chambre *</Label>
-                <Input id="room-number" placeholder="101" value={formNumber} onChange={(e) => setFormNumber(e.target.value)} />
+          <div className="space-y-5 py-2">
+            <div className="space-y-3">
+              <p className="text-sm font-semibold text-amber-700 flex items-center gap-1.5">
+                <Bed className="h-3.5 w-3.5" />
+                Informations de base
+              </p>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="room-number">N° Chambre *</Label>
+                  <Input id="room-number" placeholder="101" value={formNumber} onChange={(e) => setFormNumber(e.target.value)} />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="room-type">Type *</Label>
+                  <Select value={formType} onValueChange={setFormType}>
+                    <SelectTrigger><SelectValue placeholder="Sélectionner" /></SelectTrigger>
+                    <SelectContent>
+                      {ROOM_TYPES.map((type) => (
+                        <SelectItem key={type} value={type}>{type}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
-              <div className="space-y-2">
-                <Label htmlFor="room-type">Type *</Label>
-                <Select value={formType} onValueChange={setFormType}>
-                  <SelectTrigger><SelectValue placeholder="Sélectionner" /></SelectTrigger>
-                  <SelectContent>
-                    {ROOM_TYPES.map((type) => (
-                      <SelectItem key={type} value={type}>{type}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="room-price">Prix par Nuit (FCFA) *</Label>
+                  <Input id="room-price" type="number" placeholder="15000" value={formPrice} onChange={(e) => setFormPrice(e.target.value)} />
+                  <p className="text-[11px] text-muted-foreground">Tarif standard en semaine</p>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="room-status">Statut</Label>
+                  <Select value={formStatus} onValueChange={setFormStatus}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      {ROOM_STATUSES.map((s) => (
+                        <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
             </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="room-price">Prix par Nuit (FCFA) *</Label>
-                <Input id="room-price" type="number" placeholder="15000" value={formPrice} onChange={(e) => setFormPrice(e.target.value)} />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="room-status">Statut</Label>
-                <Select value={formStatus} onValueChange={setFormStatus}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    {ROOM_STATUSES.map((s) => (
-                      <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>
+            <Separator />
+            <div className="space-y-3">
+              <p className="text-sm font-semibold text-amber-700 flex items-center gap-1.5">
+                <Calendar className="h-3.5 w-3.5" />
+                Tarification Weekend (optionnel)
+              </p>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="room-weekend-price">Prix Weekend (FCFA)</Label>
+                  <Input id="room-weekend-price" type="number" placeholder="Même prix si vide" value={formWeekendPrice} onChange={(e) => setFormWeekendPrice(e.target.value)} />
+                </div>
+                <div className="space-y-2">
+                  <Label>Jours Weekend</Label>
+                  <div className="flex flex-wrap gap-1.5">
+                    {WEEKDAY_OPTIONS.map((day) => (
+                      <button
+                        key={day.value}
+                        type="button"
+                        onClick={() => {
+                          setFormWeekendDays(prev =>
+                            prev.includes(day.value)
+                              ? prev.filter(d => d !== day.value)
+                              : [...prev, day.value]
+                          )
+                        }}
+                        className={`rounded-md px-2.5 py-1 text-xs font-medium transition-all ${
+                          formWeekendDays.includes(day.value)
+                            ? 'bg-amber-500 text-white shadow-sm'
+                            : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                        }`}
+                      >
+                        {day.label}
+                      </button>
                     ))}
-                  </SelectContent>
-                </Select>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
@@ -2314,44 +2799,93 @@ function RoomsTab({
 
       {/* Edit Room Dialog */}
       <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
-        <DialogContent>
+        <DialogContent className="sm:max-w-lg">
           <DialogHeader>
-            <DialogTitle>Modifier la Chambre</DialogTitle>
+            <DialogTitle className="flex items-center gap-2">
+              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-amber-100">
+                <Pencil className="h-4 w-4 text-amber-600" />
+              </div>
+              Modifier la Chambre
+            </DialogTitle>
             <DialogDescription>Modifiez les informations de la chambre {selectedRoom?.room_number}</DialogDescription>
           </DialogHeader>
-          <div className="space-y-4 py-4">
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label>N° Chambre</Label>
-                <Input value={formNumber} onChange={(e) => setFormNumber(e.target.value)} />
+          <div className="space-y-5 py-2">
+            <div className="space-y-3">
+              <p className="text-sm font-semibold text-amber-700 flex items-center gap-1.5">
+                <Bed className="h-3.5 w-3.5" />
+                Informations de base
+              </p>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label>N° Chambre</Label>
+                  <Input value={formNumber} onChange={(e) => setFormNumber(e.target.value)} />
+                </div>
+                <div className="space-y-2">
+                  <Label>Type</Label>
+                  <Select value={formType} onValueChange={setFormType}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      {ROOM_TYPES.map((type) => (
+                        <SelectItem key={type} value={type}>{type}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
-              <div className="space-y-2">
-                <Label>Type</Label>
-                <Select value={formType} onValueChange={setFormType}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    {ROOM_TYPES.map((type) => (
-                      <SelectItem key={type} value={type}>{type}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label>Prix par Nuit (FCFA)</Label>
+                  <Input type="number" value={formPrice} onChange={(e) => setFormPrice(e.target.value)} />
+                </div>
+                <div className="space-y-2">
+                  <Label>Statut</Label>
+                  <Select value={formStatus} onValueChange={setFormStatus}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      {ROOM_STATUSES.map((s) => (
+                        <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
             </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label>Prix par Nuit (FCFA)</Label>
-                <Input type="number" value={formPrice} onChange={(e) => setFormPrice(e.target.value)} />
-              </div>
-              <div className="space-y-2">
-                <Label>Statut</Label>
-                <Select value={formStatus} onValueChange={setFormStatus}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    {ROOM_STATUSES.map((s) => (
-                      <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>
+            <Separator />
+            <div className="space-y-3">
+              <p className="text-sm font-semibold text-amber-700 flex items-center gap-1.5">
+                <Calendar className="h-3.5 w-3.5" />
+                Tarification Weekend (optionnel)
+              </p>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label>Prix Weekend (FCFA)</Label>
+                  <Input type="number" placeholder="Même prix si vide" value={formWeekendPrice} onChange={(e) => setFormWeekendPrice(e.target.value)} />
+                </div>
+                <div className="space-y-2">
+                  <Label>Jours Weekend</Label>
+                  <div className="flex flex-wrap gap-1.5">
+                    {WEEKDAY_OPTIONS.map((day) => (
+                      <button
+                        key={day.value}
+                        type="button"
+                        onClick={() => {
+                          setFormWeekendDays(prev =>
+                            prev.includes(day.value)
+                              ? prev.filter(d => d !== day.value)
+                              : [...prev, day.value]
+                          )
+                        }}
+                        className={`rounded-md px-2.5 py-1 text-xs font-medium transition-all ${
+                          formWeekendDays.includes(day.value)
+                            ? 'bg-amber-500 text-white shadow-sm'
+                            : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                        }`}
+                      >
+                        {day.label}
+                      </button>
                     ))}
-                  </SelectContent>
-                </Select>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
@@ -2367,21 +2901,147 @@ function RoomsTab({
 
       {/* Delete Room Dialog */}
       <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
-        <DialogContent>
+        <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>Supprimer la Chambre</DialogTitle>
+            <DialogTitle className="flex items-center gap-2">
+              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-red-100">
+                <Trash2 className="h-4 w-4 text-red-600" />
+              </div>
+              Supprimer la Chambre
+            </DialogTitle>
             <DialogDescription>
-              Êtes-vous sûr de vouloir supprimer la chambre <strong>{selectedRoom?.room_number}</strong> ?
-              Cette action est irréversible.
+              Cette action est irréversible et ne peut pas être annulée.
             </DialogDescription>
           </DialogHeader>
+          <div className="rounded-lg border border-red-200 bg-red-50 p-4 flex items-start gap-3">
+            <AlertTriangle className="h-5 w-5 text-red-600 mt-0.5 shrink-0" />
+            <div className="text-sm text-red-800">
+              <p className="font-semibold">Chambre <strong>{selectedRoom?.room_number}</strong> ({selectedRoom?.room_type})</p>
+              <p className="mt-1 text-red-700">Toutes les données associées à cette chambre seront définitivement supprimées, y compris l&apos;historique des tarifs saisonniers.</p>
+            </div>
+          </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setDeleteDialogOpen(false)}>Annuler</Button>
             <Button variant="destructive" onClick={handleDeleteRoom} disabled={submitting}>
               {submitting ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Trash2 className="h-4 w-4 mr-2" />}
-              Supprimer
+              Supprimer définitivement
             </Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ─── Seasonal Rates Dialog ──────────────────────────────── */}
+      <Dialog open={ratesDialogOpen} onOpenChange={setRatesDialogOpen}>
+        <DialogContent className="sm:max-w-2xl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-amber-100">
+                <Calendar className="h-4 w-4 text-amber-600" />
+              </div>
+              Tarifs Saisonniers — Chambre {ratesRoom?.room_number}
+            </DialogTitle>
+            <DialogDescription>
+              Gérez les tarifs spéciaux pour la chambre {ratesRoom?.room_number} ({ratesRoom?.room_type})
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            {/* Prix actuels */}
+            <div className="flex items-center gap-4 rounded-lg bg-gray-50 p-3 text-sm">
+              <span className="text-muted-foreground">Prix standard :</span>
+              <span className="font-semibold">{ratesRoom ? formatFCFA(ratesRoom.price_per_night) : '—'}</span>
+              {ratesRoom?.weekend_price && (
+                <>
+                  <span className="text-muted-foreground">Weekend :</span>
+                  <span className="font-semibold text-amber-600">{formatFCFA(ratesRoom.weekend_price)}</span>
+                </>
+              )}
+            </div>
+
+            {/* Liste des tarifs saisonniers */}
+            {ratesLoading ? (
+              <div className="space-y-2">
+                {Array.from({ length: 2 }).map((_, i) => (
+                  <Skeleton key={i} className="h-16 w-full" />
+                ))}
+              </div>
+            ) : roomRates.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-8 text-center">
+                <Calendar className="h-8 w-8 text-muted-foreground mb-2" />
+                <p className="text-muted-foreground text-sm">Aucun tarif saisonnier configuré</p>
+                <p className="text-xs text-muted-foreground mt-1">Ajoutez des tarifs pour les périodes de forte demande</p>
+              </div>
+            ) : (
+              <div className="max-h-60 overflow-y-auto space-y-2 [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-track]:bg-gray-100 [&::-webkit-scrollbar-thumb]:bg-gray-300 [&::-webkit-scrollbar-thumb]:rounded-full">
+                {roomRates.map((rate) => (
+                  <div key={rate.id} className="flex items-center justify-between rounded-lg border p-3">
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2">
+                        <span className="font-medium text-sm">{rate.name}</span>
+                        {rate.priority > 0 && (
+                          <Badge variant="secondary" className="text-[10px]">Priorité {rate.priority}</Badge>
+                        )}
+                      </div>
+                      <div className="text-xs text-muted-foreground mt-1">
+                        {formatDateFR(rate.start_date)} → {formatDateFR(rate.end_date)}
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <span className="font-semibold text-amber-600 text-sm">{formatFCFA(rate.price_per_night)}</span>
+                      <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openEditRateForm(rate)}>
+                        <Pencil className="h-3 w-3" />
+                      </Button>
+                      <Button variant="ghost" size="icon" className="h-7 w-7 text-red-500 hover:text-red-700" onClick={() => handleDeleteRate(rate.id)}>
+                        <Trash2 className="h-3 w-3" />
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Formulaire d'ajout/édition de tarif */}
+            {rateFormOpen ? (
+              <div className="space-y-3 rounded-lg border border-amber-200 bg-amber-50/50 p-4">
+                <p className="text-sm font-medium">{rateEditMode ? 'Modifier le tarif' : 'Nouveau tarif saisonnier'}</p>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1">
+                    <Label className="text-xs">Nom *</Label>
+                    <Input placeholder="Saison Haute, Fêtes..." value={rateName} onChange={(e) => setRateName(e.target.value)} />
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-xs">Prix/Nuit (FCFA) *</Label>
+                    <Input type="number" placeholder="75000" value={ratePrice} onChange={(e) => setRatePrice(e.target.value)} />
+                  </div>
+                </div>
+                <div className="grid grid-cols-3 gap-3">
+                  <div className="space-y-1">
+                    <Label className="text-xs">Date début *</Label>
+                    <Input type="date" value={rateStartDate} onChange={(e) => setRateStartDate(e.target.value)} />
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-xs">Date fin *</Label>
+                    <Input type="date" value={rateEndDate} onChange={(e) => setRateEndDate(e.target.value)} />
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-xs">Priorité</Label>
+                    <Input type="number" placeholder="0" value={ratePriority} onChange={(e) => setRatePriority(e.target.value)} />
+                  </div>
+                </div>
+                <div className="flex items-center gap-2 justify-end">
+                  <Button variant="outline" size="sm" onClick={() => setRateFormOpen(false)}>Annuler</Button>
+                  <Button size="sm" className="bg-amber-600 hover:bg-amber-700 text-white" onClick={handleSaveRate} disabled={rateSubmitting}>
+                    {rateSubmitting ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1" /> : null}
+                    {rateEditMode ? 'Modifier' : 'Ajouter'}
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              <Button variant="outline" className="w-full" onClick={openAddRateForm}>
+                <Plus className="h-4 w-4 mr-2" />
+                Ajouter un tarif saisonnier
+              </Button>
+            )}
+          </div>
         </DialogContent>
       </Dialog>
     </div>
@@ -2538,7 +3198,7 @@ function TeamTab({
         setGeneratedPassword(data.newPassword)
         setNewEmployeeName(`${data.employee.first_name} ${data.employee.last_name}`)
         setNewEmployeeEmail('')
-        setPasswordDialogTitle('🔑 Mot de passe réinitialisé')
+        setPasswordDialogTitle('Mot de passe réinitialisé')
         setPasswordDialogDesc(
           `Transmettez le nouveau mot de passe à ${data.employee.first_name} ${data.employee.last_name}. L'ancien mot de passe ne fonctionne plus.`
         )
@@ -2617,7 +3277,7 @@ function TeamTab({
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-2xl font-bold tracking-tight">👥 Gestion de l&apos;Équipe</h2>
+          <h2 className="text-2xl font-bold tracking-tight flex items-center gap-2"><UserPlus className="h-6 w-6 text-emerald-600" /> Gestion de l&apos;Équipe</h2>
           <p className="text-muted-foreground">{totalTeam} membre{totalTeam !== 1 ? 's' : ''} d&apos;équipe</p>
         </div>
         <div className="flex items-center gap-2">
@@ -2726,48 +3386,75 @@ function TeamTab({
 
       {/* Add Employee Dialog */}
       <Dialog open={addDialogOpen} onOpenChange={setAddDialogOpen}>
-        <DialogContent>
+        <DialogContent className="sm:max-w-lg">
           <DialogHeader>
-            <DialogTitle>Ajouter un Membre</DialogTitle>
+            <DialogTitle className="flex items-center gap-2">
+              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-100">
+                <UserPlus className="h-4 w-4 text-emerald-600" />
+              </div>
+              Ajouter un Membre
+            </DialogTitle>
             <DialogDescription>Créez un compte pour un nouvel employé. Un mot de passe sera généré automatiquement.</DialogDescription>
           </DialogHeader>
-          <div className="space-y-4 py-4">
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label>Prénom *</Label>
-                <Input placeholder="Jean" value={addFirstName} onChange={(e) => setAddFirstName(e.target.value)} />
+          <div className="space-y-5 py-2">
+            <div className="space-y-3">
+              <p className="text-sm font-semibold text-emerald-700 flex items-center gap-1.5">
+                <Users className="h-3.5 w-3.5" />
+                Identité
+              </p>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label>Prénom *</Label>
+                  <Input placeholder="Jean" value={addFirstName} onChange={(e) => setAddFirstName(e.target.value)} />
+                </div>
+                <div className="space-y-2">
+                  <Label>Nom *</Label>
+                  <Input placeholder="Koné" value={addLastName} onChange={(e) => setAddLastName(e.target.value)} />
+                </div>
               </div>
               <div className="space-y-2">
-                <Label>Nom *</Label>
-                <Input placeholder="Koné" value={addLastName} onChange={(e) => setAddLastName(e.target.value)} />
+                <Label>Email *</Label>
+                <Input type="email" placeholder="jean.kone@hotel.com" value={addEmail} onChange={(e) => setAddEmail(e.target.value)} />
+                <p className="text-[11px] text-muted-foreground">Utilisé comme identifiant de connexion</p>
               </div>
             </div>
-            <div className="space-y-2">
-              <Label>Email *</Label>
-              <Input type="email" placeholder="jean.kone@hotel.com" value={addEmail} onChange={(e) => setAddEmail(e.target.value)} />
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label>Téléphone</Label>
-                <Input placeholder="+225 07 00 00 00" value={addPhone} onChange={(e) => setAddPhone(e.target.value)} />
-              </div>
-              <div className="space-y-2">
-                <Label>Rôle *</Label>
-                <Select value={addRole} onValueChange={setAddRole}>
-                  <SelectTrigger><SelectValue placeholder="Sélectionner" /></SelectTrigger>
-                  <SelectContent>
-                    {EMPLOYEE_ROLES.map((r) => (
-                      <SelectItem key={r.value} value={r.value} disabled={!canAddRole(r.value)}>
-                        <div className="flex items-center justify-between gap-2">
-                          <span>{r.label}</span>
-                          {!canAddRole(r.value) && (
-                            <Badge variant="secondary" className="text-[10px]">Limite atteinte</Badge>
-                          )}
-                        </div>
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+            <Separator />
+            <div className="space-y-3">
+              <p className="text-sm font-semibold text-emerald-700 flex items-center gap-1.5">
+                <Shield className="h-3.5 w-3.5" />
+                Rôle & Contact
+              </p>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label>Téléphone</Label>
+                  <Input placeholder="+225 07 00 00 00" value={addPhone} onChange={(e) => setAddPhone(e.target.value)} />
+                </div>
+                <div className="space-y-2">
+                  <Label>Rôle *</Label>
+                  <Select value={addRole} onValueChange={setAddRole}>
+                    <SelectTrigger><SelectValue placeholder="Sélectionner" /></SelectTrigger>
+                    <SelectContent>
+                      {EMPLOYEE_ROLES.map((r) => (
+                        <SelectItem key={r.value} value={r.value} disabled={!canAddRole(r.value)}>
+                          <div className="flex items-center justify-between gap-2">
+                            <span>{r.label}</span>
+                            {!canAddRole(r.value) && (
+                              <Badge variant="secondary" className="text-[10px]">Limite atteinte</Badge>
+                            )}
+                          </div>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  {addRole && (
+                    <p className="text-[11px] text-muted-foreground">
+                      {addRole === 'manager' && 'Accès complet sauf paramètres et abonnement'}
+                      {addRole === 'receptionist' && 'Accès aux réservations et chambres uniquement'}
+                      {addRole === 'restaurant_staff' && 'Accès au module restaurant uniquement'}
+                      {addRole === 'housekeeper' && 'Accès au module ménage uniquement'}
+                    </p>
+                  )}
+                </div>
               </div>
             </div>
           </div>
@@ -2783,20 +3470,25 @@ function TeamTab({
 
       {/* Password Reveal Dialog (shared for add & reset) */}
       <Dialog open={passwordDialogOpen} onOpenChange={setPasswordDialogOpen}>
-        <DialogContent>
+        <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>{passwordDialogTitle}</DialogTitle>
+            <DialogTitle className="flex items-center gap-2">
+              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-100">
+                <KeyRound className="h-4 w-4 text-emerald-600" />
+              </div>
+              {passwordDialogTitle}
+            </DialogTitle>
             <DialogDescription>
               {passwordDialogDesc || <>Transmettez ces identifiants à <strong>{newEmployeeName}</strong>. Le mot de passe ne sera plus affiché.</>}
             </DialogDescription>
           </DialogHeader>
-          <div className="py-6">
+          <div className="py-4">
             <div className="rounded-lg border-2 border-emerald-200 bg-emerald-50 p-4 space-y-3">
               {newEmployeeEmail && (
                 <>
                   <div className="space-y-1">
                     <p className="text-xs font-medium text-emerald-600 uppercase tracking-wider">Email de connexion</p>
-                    <p className="text-sm font-mono">{newEmployeeEmail || '—'}</p>
+                    <p className="text-sm font-mono bg-white rounded px-3 py-1.5 border border-emerald-200">{newEmployeeEmail || '—'}</p>
                   </div>
                   <Separator />
                 </>
@@ -2804,12 +3496,16 @@ function TeamTab({
               <div className="space-y-1">
                 <p className="text-xs font-medium text-emerald-600 uppercase tracking-wider">Nouveau mot de passe</p>
                 <div className="flex items-center gap-2">
-                  <code className="rounded bg-white px-3 py-1.5 text-sm font-mono font-bold text-emerald-800 border border-emerald-200">
+                  <code className="flex-1 rounded bg-white px-3 py-1.5 text-sm font-mono font-bold text-emerald-800 border border-emerald-200">
                     {generatedPassword}
                   </code>
                   <CopyButton text={newEmployeeEmail ? `Email: ${newEmployeeEmail}\nMot de passe: ${generatedPassword}` : `Mot de passe: ${generatedPassword}`} />
                 </div>
               </div>
+            </div>
+            <div className="mt-3 rounded-lg bg-amber-50 border border-amber-200 p-3 flex items-start gap-2">
+              <AlertTriangle className="h-4 w-4 text-amber-600 mt-0.5 shrink-0" />
+              <p className="text-xs text-amber-800">Ce mot de passe ne sera plus affiché après fermeture. Notez-le maintenant.</p>
             </div>
           </div>
           <DialogFooter>
@@ -2823,14 +3519,28 @@ function TeamTab({
 
       {/* Edit Employee Dialog */}
       <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
-        <DialogContent>
+        <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>Modifier l&apos;Employé</DialogTitle>
+            <DialogTitle className="flex items-center gap-2">
+              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-amber-100">
+                <Pencil className="h-4 w-4 text-amber-600" />
+              </div>
+              Modifier l&apos;Employé
+            </DialogTitle>
             <DialogDescription>
               Modifier les informations de <strong>{selectedEmployee?.first_name} {selectedEmployee?.last_name}</strong>
             </DialogDescription>
           </DialogHeader>
-          <div className="space-y-4 py-4">
+          <div className="space-y-5 py-2">
+            <div className="rounded-lg bg-gray-50 p-3 flex items-center gap-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-amber-100 text-amber-700 text-sm font-bold">
+                {selectedEmployee?.first_name?.charAt(0)}{selectedEmployee?.last_name?.charAt(0)}
+              </div>
+              <div>
+                <p className="font-medium">{selectedEmployee?.first_name} {selectedEmployee?.last_name}</p>
+                <p className="text-xs text-muted-foreground">{getRoleBadge(selectedEmployee?.role || '')}</p>
+              </div>
+            </div>
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label>Rôle</Label>
@@ -2844,6 +3554,14 @@ function TeamTab({
                     ))}
                   </SelectContent>
                 </Select>
+                {editRole && (
+                  <p className="text-[11px] text-muted-foreground">
+                    {editRole === 'manager' && 'Accès complet sauf paramètres et abonnement'}
+                    {editRole === 'receptionist' && 'Accès aux réservations et chambres uniquement'}
+                    {editRole === 'restaurant_staff' && 'Accès au module restaurant uniquement'}
+                    {editRole === 'housekeeper' && 'Accès au module ménage uniquement'}
+                  </p>
+                )}
               </div>
               <div className="space-y-2">
                 <Label>Statut</Label>
@@ -2873,19 +3591,23 @@ function TeamTab({
 
       {/* Reset Password Confirmation Dialog */}
       <Dialog open={resetPasswordDialogOpen} onOpenChange={setResetPasswordDialogOpen}>
-        <DialogContent>
+        <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>Réinitialiser le mot de passe</DialogTitle>
+            <DialogTitle className="flex items-center gap-2">
+              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-amber-100">
+                <KeyRound className="h-4 w-4 text-amber-600" />
+              </div>
+              Réinitialiser le mot de passe
+            </DialogTitle>
             <DialogDescription>
-              Êtes-vous sûr de vouloir réinitialiser le mot de passe de <strong>{selectedEmployee?.first_name} {selectedEmployee?.last_name}</strong> ?
-              Un nouveau mot de passe sera généré. L&apos;ancien ne fonctionnera plus.
+              Un nouveau mot de passe sera généré pour <strong>{selectedEmployee?.first_name} {selectedEmployee?.last_name}</strong>. L&apos;ancien ne fonctionnera plus.
             </DialogDescription>
           </DialogHeader>
-          <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 flex items-start gap-3">
-            <KeyRound className="h-5 w-5 text-amber-600 mt-0.5 shrink-0" />
+          <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 flex items-start gap-3">
+            <AlertTriangle className="h-5 w-5 text-amber-600 mt-0.5 shrink-0" />
             <div className="text-sm text-amber-800">
-              <p className="font-medium">Attention</p>
-              <p className="mt-1">L&apos;employé devra utiliser le nouveau mot de passe pour se connecter. Assurez-vous de lui transmettre.</p>
+              <p className="font-semibold">Attention</p>
+              <p className="mt-1">L&apos;employé devra utiliser le nouveau mot de passe pour se connecter. Assurez-vous de lui transmettre dès que possible.</p>
             </div>
           </div>
           <DialogFooter>
@@ -2900,19 +3622,30 @@ function TeamTab({
 
       {/* Delete Employee Dialog */}
       <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
-        <DialogContent>
+        <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>Supprimer l&apos;Employé</DialogTitle>
+            <DialogTitle className="flex items-center gap-2">
+              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-red-100">
+                <Trash2 className="h-4 w-4 text-red-600" />
+              </div>
+              Supprimer l&apos;Employé
+            </DialogTitle>
             <DialogDescription>
-              Êtes-vous sûr de vouloir supprimer <strong>{selectedEmployee?.first_name} {selectedEmployee?.last_name}</strong> ?
-              Le compte sera définitivement supprimé.
+              Cette action est irréversible et ne peut pas être annulée.
             </DialogDescription>
           </DialogHeader>
+          <div className="rounded-lg border border-red-200 bg-red-50 p-4 flex items-start gap-3">
+            <AlertTriangle className="h-5 w-5 text-red-600 mt-0.5 shrink-0" />
+            <div className="text-sm text-red-800">
+              <p className="font-semibold">{selectedEmployee?.first_name} {selectedEmployee?.last_name}</p>
+              <p className="mt-1 text-red-700">Le compte sera définitivement supprimé. L&apos;employé ne pourra plus se connecter et toutes ses sessions seront fermées.</p>
+            </div>
+          </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setDeleteDialogOpen(false)}>Annuler</Button>
             <Button variant="destructive" onClick={handleDeleteEmployee} disabled={submitting}>
               {submitting ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Trash2 className="h-4 w-4 mr-2" />}
-              Supprimer
+              Supprimer définitivement
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -2990,7 +3723,7 @@ function SettingsTab({
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-2xl font-bold tracking-tight">⚙️ Paramètres</h2>
+          <h2 className="text-2xl font-bold tracking-tight flex items-center gap-2"><Settings className="h-6 w-6 text-gray-600" /> Paramètres</h2>
           <p className="text-muted-foreground">Configuration de votre établissement</p>
         </div>
         {!editMode && (

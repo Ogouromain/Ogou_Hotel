@@ -381,7 +381,7 @@ export function AnalyticsTab({ onRefresh }: AnalyticsTabProps) {
       <div className="space-y-6">
         <div className="flex items-center justify-between">
           <div>
-            <h2 className="text-2xl font-bold tracking-tight">📊 Analyses</h2>
+            <h2 className="text-2xl font-bold tracking-tight flex items-center gap-2"><BarChart3 className="h-6 w-6 text-amber-600" /> Analyses</h2>
           </div>
           <Button variant="outline" size="sm" onClick={handleRefresh}>
             <RefreshCw className="h-4 w-4 mr-2" />
@@ -430,7 +430,7 @@ export function AnalyticsTab({ onRefresh }: AnalyticsTabProps) {
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
           <div className="flex items-center gap-2">
-            <h2 className="text-2xl font-bold tracking-tight">📊 Analyses</h2>
+            <h2 className="text-2xl font-bold tracking-tight flex items-center gap-2"><BarChart3 className="h-6 w-6 text-amber-600" /> Analyses</h2>
             <RealtimeIndicator />
           </div>
           <p className="text-muted-foreground text-sm">

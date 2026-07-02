@@ -3,6 +3,7 @@ import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { validateIdentityDocument, mimeToExtension, type AllowedMimeType } from '@/lib/file-validation'
 import { logAudit } from '@/lib/audit'
+import { isDemoMode, DEMO_CUSTOMERS } from '@/lib/demo-data'
 
 // ─── Helper: upload identity document to Supabase Storage ──────────
 async function uploadIdentityDocument(
@@ -45,6 +46,23 @@ async function uploadIdentityDocument(
  */
 export async function GET(request: NextRequest) {
   try {
+    // Mode démo : retourner les clients en mémoire
+    if (isDemoMode()) {
+      const { searchParams } = new URL(request.url)
+      const search = searchParams.get('search')?.trim()
+      let results = [...DEMO_CUSTOMERS]
+      if (search) {
+        const s = search.toLowerCase()
+        results = results.filter(c =>
+          c.first_name.toLowerCase().includes(s) ||
+          c.last_name.toLowerCase().includes(s) ||
+          c.phone.includes(s) ||
+          (c.email && c.email.toLowerCase().includes(s))
+        )
+      }
+      return NextResponse.json({ customers: results })
+    }
+
     const supabase = await createClient()
     const { data: { user } } = await supabase.auth.getUser()
 
@@ -156,6 +174,24 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         { error: 'Prénom, nom et téléphone sont requis' },
         { status: 400 }
+      )
+    }
+
+    // ─── Check for duplicate customer (same phone in same hotel) ──
+    const { data: existingCustomer } = await adminClient
+      .from('customers')
+      .select('id, first_name, last_name, phone')
+      .eq('hotel_id', hotelId)
+      .eq('phone', phone.trim())
+      .maybeSingle()
+
+    if (existingCustomer) {
+      return NextResponse.json(
+        {
+          error: `Un client avec ce numéro de téléphone existe déjà : ${(existingCustomer as Record<string, unknown>).first_name} ${(existingCustomer as Record<string, unknown>).last_name}`,
+          existing_customer_id: (existingCustomer as Record<string, unknown>).id,
+        },
+        { status: 409 }
       )
     }
 

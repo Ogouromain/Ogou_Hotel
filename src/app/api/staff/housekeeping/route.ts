@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
-import { isDemoMode, DEMO_ROOMS } from '@/lib/demo-data'
+import { isDemoMode, DEMO_ROOMS, DEMO_HOUSEKEEPING_TASKS } from '@/lib/demo-data'
 
 const ALLOWED_ROLES = ['housekeeper', 'manager', 'owner']
 
@@ -35,7 +35,19 @@ export async function GET() {
         occupied: allRooms.filter(r => r.status === 'occupied').length,
       }
 
-      return NextResponse.json({ rooms: allRooms, stats })
+      // Tâches de ménage du jour (assignées ou non)
+      const today = new Date().toISOString().split('T')[0]
+      const todayTasks = DEMO_HOUSEKEEPING_TASKS
+        .filter(t => t.due_date === today)
+        .map(t => {
+          const room = DEMO_ROOMS.find(r => r.id === t.room_id)
+          return {
+            ...t,
+            rooms: room ? { id: room.id, room_number: room.room_number, room_type: room.room_type, status: room.status } : t.rooms,
+          }
+        })
+
+      return NextResponse.json({ rooms: allRooms, stats, tasks: todayTasks })
     }
 
     const supabase = await createClient()
@@ -79,9 +91,23 @@ export async function GET() {
       occupied: allRooms.filter(r => r.status === 'occupied').length,
     }
 
+    // Tâches de ménage du jour pour cet hôtel
+    const today = new Date().toISOString().split('T')[0]
+    const { data: tasks, error: tasksError } = await adminClient
+      .from('housekeeping_tasks')
+      .select('*, rooms(id, room_number, room_type, status), profiles(id, first_name, last_name)')
+      .eq('hotel_id', hotelId)
+      .eq('due_date', today)
+      .order('priority', { ascending: false })
+
+    if (tasksError) {
+      console.error('Housekeeping tasks fetch error:', tasksError)
+    }
+
     return NextResponse.json({
       rooms: allRooms,
       stats,
+      tasks: tasks || [],
     })
   } catch (error) {
     console.error('Staff housekeeping GET error:', error)

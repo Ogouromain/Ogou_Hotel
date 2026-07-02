@@ -21,6 +21,7 @@ import {
   Eye,
   ChevronUp,
   FileText,
+  BookOpen,
 } from 'lucide-react'
 
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
@@ -633,7 +634,7 @@ export function ActivityLogTab({ onRefresh }: ActivityLogTabProps) {
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
           <div className="flex items-center gap-2">
-            <h2 className="text-2xl font-bold tracking-tight">📋 Journal d&apos;activité</h2>
+            <h2 className="text-2xl font-bold tracking-tight flex items-center gap-2"><BookOpen className="h-6 w-6 text-amber-600" /> Journal d&apos;activité</h2>
           </div>
           <p className="text-muted-foreground text-sm">
             Suivi des actions effectuées par votre équipe
